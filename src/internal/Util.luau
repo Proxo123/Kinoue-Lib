@@ -1,6 +1,10 @@
 local Theme = require(script.Parent.Theme)
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 local Util = {}
+function Util.textWidth(text, size)
+    return math.ceil(TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(10000, 1000)).X)
+end
 function Util.new(className, props, parent)
     local object = Instance.new(className)
     for key, value in pairs(props or {}) do object[key] = value end

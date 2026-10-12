@@ -31,10 +31,10 @@ function Window.new(options)
     }, self.Screen)
     self.RestPosition = self.Root.Position
     self.Header = U.frame(self.Root, { Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = T.Panel, Active = true })
-    U.label(self.Header, options.Name or "BOOGA", { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(0.45, -8, 1, 0), TextSize = 13 })
+    U.label(self.Header, options.Name or "BOOGA", { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(0.45, -8, 1, 0), TextSize = T.TextSize + 1 })
     U.label(self.Header, "PlaceId: " .. tostring(options.PlaceId or game.PlaceId), {
         Position = UDim2.new(0.45, 0, 0, 0), Size = UDim2.new(0.55, -8, 1, 0),
-        TextColor3 = T.Muted, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right,
+        TextColor3 = T.Muted, TextSize = T.SmallSize, TextXAlignment = Enum.TextXAlignment.Right,
     })
     U.frame(self.Header, { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Outline })
     local accent = U.frame(self.Root, { Name = "RainbowAccent", Position = UDim2.fromOffset(0, 31), Size = UDim2.fromOffset(364, 1), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 4 })
@@ -58,8 +58,8 @@ function Window.new(options)
     self.Body = U.frame(self.Root, { Position = UDim2.fromOffset(0, 62), Size = UDim2.new(1, 0, 1, -84) })
     self.Footer = U.frame(self.Root, { Position = UDim2.new(0, 0, 1, -22), Size = UDim2.new(1, 0, 0, 22), BackgroundColor3 = T.Panel })
     U.frame(self.Footer, { Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Outline })
-    self.Status = U.label(self.Footer, "Ready", { Position = UDim2.fromOffset(7, 0), Size = UDim2.new(0.7, -7, 1, 0), TextSize = 11 })
-    U.label(self.Footer, options.Footer or "", { Position = UDim2.new(0.7, 0, 0, 0), Size = UDim2.new(0.3, -7, 1, 0), TextSize = 11, TextColor3 = T.Muted, TextXAlignment = Enum.TextXAlignment.Right })
+    self.Status = U.label(self.Footer, "Ready", { Position = UDim2.fromOffset(7, 0), Size = UDim2.new(0.7, -7, 1, 0), TextSize = T.SmallSize })
+    U.label(self.Footer, options.Footer or "", { Position = UDim2.new(0.7, 0, 0, 0), Size = UDim2.new(0.3, -7, 1, 0), TextSize = T.SmallSize, TextColor3 = T.Muted, TextXAlignment = Enum.TextXAlignment.Right })
     self.ResizeHandle = U.button(self.Root, "", {
         Name = "ResizeHandle", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1),
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -219,25 +219,25 @@ function Window:Relayout()
 end
 function Window:AddTab(name)
     local page = { Window = self, Name = name, Groups = {}, Subpages = {} }
-    local button = U.button(self.Tabs, name, { Size = UDim2.fromOffset(#name * 7 + 18, 24), BorderSizePixel = 0, BackgroundTransparency = 1, TextColor3 = T.Muted })
+    local button = U.button(self.Tabs, name, { Size = UDim2.fromOffset(U.textWidth(name) + 18, 24), BorderSizePixel = 0, BackgroundTransparency = 1, TextColor3 = T.Muted })
     page.Button = button
     page.Line = U.frame(button, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = T.Accent, Visible = false })
     page.Frame = U.frame(self.Body, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false })
     page.Title = U.label(page.Frame, name, { Position = UDim2.fromOffset(8, 1), Size = UDim2.new(0.65, -8, 0, 23) })
-    page.Mode = U.label(page.Frame, "", { Position = UDim2.new(0.65, 0, 0, 1), Size = UDim2.new(0.35, -8, 0, 23), TextColor3 = T.Muted, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right })
+    page.Mode = U.label(page.Frame, "", { Position = UDim2.new(0.65, 0, 0, 1), Size = UDim2.new(0.35, -8, 0, 23), TextColor3 = T.Muted, TextSize = T.SmallSize, TextXAlignment = Enum.TextXAlignment.Right })
     page.Scroll = U.new("ScrollingFrame", { Position = UDim2.fromOffset(8, 26), Size = UDim2.new(1, -16, 1, -32), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = T.Outline, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y }, page.Frame)
     page.Left = U.frame(page.Scroll, { BackgroundTransparency = 1 })
     page.Right = U.frame(page.Scroll, { BackgroundTransparency = 1 })
-    page.LeftList = U.list(page.Left, false, 8); page.RightList = U.list(page.Right, false, 8)
+    page.LeftList = U.list(page.Left, false, T.Gap); page.RightList = U.list(page.Right, false, T.Gap)
     function page:Relayout()
         local narrow = self.Scroll.AbsoluteSize.X < 520
         local leftHeight, rightHeight = self.LeftList.AbsoluteContentSize.Y, self.RightList.AbsoluteContentSize.Y
         local available = math.floor(self.Scroll.AbsoluteSize.X)
-        local leftWidth = narrow and available or math.floor((available - 8) / 2)
+        local leftWidth = narrow and available or math.floor((available - T.Gap) / 2)
         self.Left.Size = UDim2.fromOffset(leftWidth, leftHeight)
-        self.Right.Size = UDim2.fromOffset(narrow and available or available - leftWidth - 8, rightHeight)
-        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + 8) or UDim2.fromOffset(leftWidth + 8, 0)
-        self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + 8 or math.max(leftHeight, rightHeight))
+        self.Right.Size = UDim2.fromOffset(narrow and available or available - leftWidth - T.Gap, rightHeight)
+        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + T.Gap) or UDim2.fromOffset(leftWidth + T.Gap, 0)
+        self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + T.Gap or math.max(leftHeight, rightHeight))
     end
     function page:SetTitle(text) self.Title.Text = text end
     function page:SetMode(text) self.Mode.Text = text or "" end
@@ -249,7 +249,7 @@ function Window:AddTab(name)
             self.Scroll.Size = UDim2.new(1, -16, 1, -60)
         end
         local child = { Page = self, Groups = {} }
-        child.Button = U.button(self.Subbar, title, { Size = UDim2.fromOffset(#title * 7 + 16, 22) })
+        child.Button = U.button(self.Subbar, title, { Size = UDim2.fromOffset(U.textWidth(title) + 16, 22) })
         function child:Select()
             self.Page.Window:ClosePopup()
             self.Page.ActiveSubpage = self
@@ -277,10 +277,10 @@ function Window:AddTab(name)
         local header = U.frame(group.Frame, { Size = UDim2.new(1, 0, 0, 24), BackgroundColor3 = T.Panel })
         U.frame(header, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = T.Accent })
         U.label(header, title, { Position = UDim2.fromOffset(6, 2), Size = UDim2.new(1, -12, 1, -2) })
-        group.Container = U.frame(group.Frame, { Position = UDim2.fromOffset(6, 30), Size = UDim2.new(1, -12, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
-        U.list(group.Container, false, 4)
+        group.Container = U.frame(group.Frame, { Position = UDim2.fromOffset(T.Padding, 27), Size = UDim2.new(1, -2 * T.Padding, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+        U.list(group.Container, false, T.ControlGap)
         U.padding(group.Container, 0)
-        U.new("UIPadding", { PaddingBottom = UDim.new(0, 6) }, group.Frame)
+        U.new("UIPadding", { PaddingBottom = UDim.new(0, T.Padding) }, group.Frame)
         Controls.attach(group)
         table.insert(self.Groups, group)
         return group

@@ -44,7 +44,7 @@ This returns the library. It does not create a window or run Booga features. Sta
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.2 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.3 library; callbacks print values or change UI state.
 
 Open `dist/BoogaDemo.rbxlx` in Roblox Studio and press **Play**. Alternatively, import the module and put `examples/Booga.client.luau` into a LocalScript under `StarterPlayerScripts`.
 

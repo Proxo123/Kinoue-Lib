@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- Increase primary text from 12px to 14px and secondary counts/key hints from 11px to 12px.
+- Tighten control gaps, section spacing, and the space between field labels and inputs.
+- Measure tab and button widths using their actual font size; update action widths when labels change.
+- Keep material counts smaller and grey, positioned after the larger material name.
+
 ## 0.1.2
 
 - Keep the root frame anchored at the top-left instead of compensating for a center anchor during resize.

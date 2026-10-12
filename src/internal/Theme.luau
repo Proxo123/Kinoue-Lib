@@ -10,9 +10,10 @@ return {
     Accent = Color3.fromRGB(57, 128, 233),
     Selected = Color3.fromRGB(35, 50, 74),
     Font = Enum.Font.Code,
-    TextSize = 12,
-    SmallSize = 11,
+    TextSize = 14,
+    SmallSize = 12,
     RowHeight = 23,
-    Gap = 8,
+    Gap = 6,
+    ControlGap = 2,
     Padding = 6,
 }

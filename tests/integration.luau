@@ -44,6 +44,34 @@ assert(endPosition.X + endSize.X <= 1280 - 12 and endPosition.Y + endSize.Y <= 7
 window:SetSize(V(705, 471))
 assert(window.Root.AbsolutePosition.X % 1 == 0 and window.Root.AbsolutePosition.Y % 1 == 0, "Settled window must align to whole pixels")
 window:SetSize(V(704, 470))
+-- Larger text must have measured room in tabs/actions and separate quantity text.
+local function textWidth(text, size)
+    return math.ceil(Mock.Environment.game:GetService("TextService"):GetTextSize(text, size, Library.Theme.Font, V(10000, 1000)).X)
+end
+for _, page in ipairs(window.Pages) do
+    assert(page.Button.Size.X.Offset >= textWidth(page.Name, page.Button.TextSize) + 18)
+    for _, group in ipairs(page.Groups) do
+        for _, child in ipairs(group.Container:GetChildren()) do
+            local actionWidth, actions = 0, 0
+            for _, button in ipairs(child:GetChildren()) do
+                if button.ClassName == "TextButton" and button.Size.X.Scale == 0 and button.Text ~= "" and button.BackgroundTransparency ~= 1 then
+                    assert(button.Size.X.Offset >= textWidth(button.Text, button.TextSize) + 14, "Action label must fit")
+                    actionWidth += button.Size.X.Offset; actions += 1
+                end
+            end
+            if actions > 1 then
+                assert(actionWidth + (actions - 1) * 4 <= group.Container.AbsoluteSize.X, "Action row must fit its column")
+            end
+        end
+    end
+end
+local materialName, materialCount
+for _, child in ipairs(window.Controls.Material.Root:GetChildren()) do
+    if child.Text == "Bluefruit" then materialName = child end
+    if child.Text == "320" then materialCount = child end
+end
+assert(materialName and materialCount and materialCount.TextSize < materialName.TextSize)
+assert(materialCount.Position.X.Offset >= materialName.Position.X.Offset + textWidth(materialName.Text, materialName.TextSize) + 6, "Material count must not overlap its name")
 local count = 0
 for _ in pairs(window.Controls) do count += 1 end
 assert(count >= 60, "Demo controls missing")

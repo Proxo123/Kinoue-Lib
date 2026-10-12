@@ -110,7 +110,7 @@ local services = {
     TweenService = { Create = function(_, object, _, goals)
         return { Play = function() for key, value in pairs(goals) do object[key] = value end end, Cancel = function() end }
     end },
-    TextService = { GetTextSize = function(_, text, _, _, _) return vec(#text * 7, 12) end },
+    TextService = { GetTextSize = function(_, text, size, _, _) return vec(#text * 7 * size / 12, size) end },
     HttpService = { JSONEncode = function(_, value) return value end, JSONDecode = function(_, value) return value end },
 }
 Mock.Input = input; Mock.Run = run; Mock.Enum = enum

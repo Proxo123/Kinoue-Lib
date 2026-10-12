@@ -9,7 +9,7 @@ local Input = game:GetService("UserInputService")
 local Controls = {}
 
 local function row(group, height)
-    return U.frame(group.Container, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height or 23) })
+    return U.frame(group.Container, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height or T.RowHeight) })
 end
 local function control(group, id, initial, normalize, callback)
     local window = group.Window
@@ -36,7 +36,7 @@ local function keyButton(group, parent, id, info)
     end, info.Callback)
     c.Pressed = info.Pressed; c.Released = info.Released
     c.Row = parent
-    c.Root = U.button(parent, "", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(110, 20), BackgroundTransparency = 1, BorderSizePixel = 0, TextColor3 = T.Muted, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right })
+    c.Root = U.button(parent, "", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(110, 20), BackgroundTransparency = 1, BorderSizePixel = 0, TextColor3 = T.Muted, TextSize = T.SmallSize, TextXAlignment = Enum.TextXAlignment.Right })
     c.Render = function(value)
         c.Root.Text = "[" .. U.keyName(value) .. "]"
         c.Root.TextTransparency = c.Enabled and 0 or 0.55
@@ -53,7 +53,7 @@ end
 
 function Controls.attach(group)
     function group:AddLabel(text, small)
-        local label = U.label(self.Container, text, { TextSize = small and 11 or 12, TextColor3 = small and T.Muted or T.Text })
+        local label = U.label(self.Container, text, { TextSize = small and T.SmallSize or T.TextSize, TextColor3 = small and T.Muted or T.Text })
         local result = { Root = label }
         function result:SetText(value) label.Text = tostring(value) end
         function result:SetVisible(value) label.Visible = value end
@@ -91,10 +91,10 @@ function Controls.attach(group)
         local minimum, maximum, step = info.Min or 0, info.Max or 100, info.Step or 1
         assert(maximum > minimum and step > 0, "Slider requires Max > Min and Step > 0")
         local c = control(self, id, info.Value or minimum, function(value) return Model.number(value, minimum, maximum, step) end, info.Callback)
-        c.Row = row(self, 39)
+        c.Row = row(self, 35)
         U.label(c.Row, info.Text or id, { Size = UDim2.new(0.65, 0, 0, 18) })
         local output = U.label(c.Row, "", { Position = UDim2.new(0.65, 0, 0, 0), Size = UDim2.new(0.35, 0, 0, 18), TextXAlignment = Enum.TextXAlignment.Right })
-        local track = U.button(c.Row, "", { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 16) })
+        local track = U.button(c.Row, "", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 16) })
         c.Root = track
         local fill = U.frame(track, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent })
         local thumb = U.frame(track, { AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(0, 4, 1, 0), BackgroundColor3 = T.Text })
@@ -126,9 +126,9 @@ function Controls.attach(group)
     function group:AddTextbox(id, info)
         info = info or {}
         local c = control(self, id, info.Value or "", function(value) return tostring(value or ""):sub(1, info.MaxLength or 256) end, info.Callback)
-        c.Row = row(self, 43)
+        c.Row = row(self, 41)
         U.label(c.Row, info.Text or id, { Size = UDim2.new(1, 0, 0, 18) })
-        c.Root = U.new("TextBox", { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 23), BackgroundColor3 = T.Input, BorderSizePixel = 1, BorderColor3 = T.Outline, Font = T.Font, TextSize = 12, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = c:Get(), PlaceholderText = info.Placeholder or "", ClearTextOnFocus = false }, c.Row)
+        c.Root = U.new("TextBox", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, T.RowHeight), BackgroundColor3 = T.Input, BorderSizePixel = 1, BorderColor3 = T.Outline, Font = T.Font, TextSize = T.TextSize, TextScaled = false, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = c:Get(), PlaceholderText = info.Placeholder or "", ClearTextOnFocus = false }, c.Row)
         U.new("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, c.Root)
         c.Render = function(value) c.Root.Text = value; c.Root.TextEditable = c.Enabled end
         self.Window.Scope:Connect(c.Root.FocusLost, function() if c.Enabled then c:Set(c.Root.Text) end end)
@@ -141,17 +141,17 @@ function Controls.attach(group)
         local initial = info.Value
         if initial == nil and options[1] then initial = options[1].Value end
         local c = control(self, id, initial, function(value) assert(value == nil or find(value), "Unknown dropdown value: " .. tostring(value)) return value end, info.Callback)
-        c.Row = row(self, 43)
+        c.Row = row(self, 41)
         U.label(c.Row, info.Text or id, { Size = UDim2.new(1, 0, 0, 18) })
-        c.Root = U.button(c.Row, "", { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 23) })
+        c.Root = U.button(c.Row, "", { Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, T.RowHeight) })
         local name = U.label(c.Root, "", { Position = UDim2.fromOffset(5, 0), Size = UDim2.new(1, -20, 1, 0) })
-        local meta = U.label(c.Root, "", { TextSize = 11, TextColor3 = T.Muted, Size = UDim2.new(0, 50, 1, 0) })
+        local meta = U.label(c.Root, "", { TextSize = T.SmallSize, TextColor3 = T.Muted, Size = UDim2.new(0, 50, 1, 0) })
         U.label(c.Root, "▾", { Position = UDim2.new(1, -16, 0, 0), Size = UDim2.new(0, 12, 1, 0), TextColor3 = T.Muted })
         c.Render = function(value)
             local option = find(value)
             name.Text = option and option.Label or "None"
             meta.Text = option and option.Meta and tostring(option.Meta) or ""
-            local textWidth = game:GetService("TextService"):GetTextSize(name.Text, 12, T.Font, Vector2.new(1000, 20)).X
+            local textWidth = U.textWidth(name.Text)
             meta.Position = UDim2.fromOffset(textWidth + 12, 0)
             name.TextTransparency = c.Enabled and 0 or 0.55
         end
@@ -184,8 +184,8 @@ function Controls.attach(group)
                 local entry = U.button(menu, "", { Size = UDim2.new(1, 0, 0, 23), BorderSizePixel = 0, BackgroundColor3 = option.Value == c:Get() and T.Selected or T.Panel, ZIndex = 51 })
                 U.label(entry, option.Label, { Position = UDim2.fromOffset(5, 0), Size = UDim2.new(1, -60, 1, 0), ZIndex = 52 })
                 if option.Meta ~= nil then
-                    local textWidth = game:GetService("TextService"):GetTextSize(option.Label, 12, T.Font, Vector2.new(1000, 20)).X
-                    U.label(entry, tostring(option.Meta), { Position = UDim2.fromOffset(textWidth + 12, 0), Size = UDim2.new(0, 48, 1, 0), TextColor3 = T.Muted, TextSize = 11, ZIndex = 52 })
+                    local textWidth = U.textWidth(option.Label)
+                    U.label(entry, tostring(option.Meta), { Position = UDim2.fromOffset(textWidth + 12, 0), Size = UDim2.new(0, 48, 1, 0), TextColor3 = T.Muted, TextSize = T.SmallSize, ZIndex = 52 })
                 end
                 menuScope:Connect(entry.Activated, function() c:Set(option.Value); self.Window:ClosePopup() end)
             end
@@ -206,18 +206,23 @@ function Controls.attach(group)
     function group:AddButton(info)
         info = info or {}
         local container = row(self)
-        local button = U.button(container, info.Text or "Button", { Size = UDim2.fromOffset(info.Width or (#(info.Text or "Button") * 7 + (info.Keybind and 46 or 14)), 23), BorderColor3 = info.Primary and T.Accent or T.Outline })
+        local function setText(text)
+            local width = info.Width or (U.textWidth(text) + 14)
+            return text, UDim2.fromOffset(width, T.RowHeight)
+        end
+        local text, size = setText(info.Text or "Button")
+        local button = U.button(container, text, { Size = size, BorderColor3 = info.Primary and T.Accent or T.Outline })
         local result = { Root = button, Row = container, Enabled = info.Disabled ~= true }
         function result:SetEnabled(value) self.Enabled = value == true; button.TextTransparency = self.Enabled and 0 or 0.55; return self end
-        function result:SetText(text) button.Text = text end
+        function result:SetText(text) button.Text, button.Size = setText(text) end
         self.Window.Scope:Connect(button.Activated, function() if result.Enabled then self.Window:Dispatch(info.Callback) end end)
         if info.Keybind then
             local config = table.clone(info.Keybind)
             local changed = config.Callback
             config.Pressed = config.Pressed or function() if result.Enabled then self.Window:Dispatch(info.Callback) end end
-            config.Callback = function(value) button.Text = (info.Text or "Button") .. " [" .. U.keyName(value) .. "]"; if changed then changed(value) end end
+            config.Callback = function(value) result:SetText((info.Text or "Button") .. " [" .. U.keyName(value) .. "]"); if changed then changed(value) end end
             result.Keybind = keyButton(self, container, config.Id, config)
-            button.Text = (info.Text or "Button") .. " [" .. U.keyName(result.Keybind:Get()) .. "]"
+            result:SetText((info.Text or "Button") .. " [" .. U.keyName(result.Keybind:Get()) .. "]")
         end
         result:SetEnabled(result.Enabled)
         return result
@@ -227,7 +232,7 @@ function Controls.attach(group)
         U.list(container, true, 4)
         local result = {}
         for _, info in ipairs(definitions) do
-            local button = U.button(container, info.Text, { Size = UDim2.fromOffset(info.Width or #info.Text * 7 + 14, 23), BorderColor3 = info.Primary and T.Accent or T.Outline })
+            local button = U.button(container, info.Text, { Size = UDim2.fromOffset(info.Width or U.textWidth(info.Text) + 14, T.RowHeight), BorderColor3 = info.Primary and T.Accent or T.Outline })
             self.Window.Scope:Connect(button.Activated, function() self.Window:Dispatch(info.Callback) end)
             table.insert(result, button)
         end
@@ -236,9 +241,9 @@ function Controls.attach(group)
     function group:AddDisclosure(title)
         local frame = U.frame(self.Container, { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
         U.list(frame, false, 0)
-        local button = U.button(frame, "▸ " .. title, { TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = T.Muted, TextSize = 11, BackgroundTransparency = 1, BorderSizePixel = 0 })
+        local button = U.button(frame, "▸ " .. title, { TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = T.Muted, TextSize = T.SmallSize, BackgroundTransparency = 1, BorderSizePixel = 0 })
         local child = { Window = self.Window, Container = U.frame(frame, { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Visible = false }) }
-        U.list(child.Container, false, 4); Controls.attach(child)
+        U.list(child.Container, false, T.ControlGap); Controls.attach(child)
         self.Window.Scope:Connect(button.Activated, function() child.Container.Visible = not child.Container.Visible; button.Text = (child.Container.Visible and "▾ " or "▸ ") .. title end)
         return child
     end
@@ -355,10 +360,10 @@ function Window.new(options)
     }, self.Screen)
     self.RestPosition = self.Root.Position
     self.Header = U.frame(self.Root, { Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = T.Panel, Active = true })
-    U.label(self.Header, options.Name or "BOOGA", { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(0.45, -8, 1, 0), TextSize = 13 })
+    U.label(self.Header, options.Name or "BOOGA", { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(0.45, -8, 1, 0), TextSize = T.TextSize + 1 })
     U.label(self.Header, "PlaceId: " .. tostring(options.PlaceId or game.PlaceId), {
         Position = UDim2.new(0.45, 0, 0, 0), Size = UDim2.new(0.55, -8, 1, 0),
-        TextColor3 = T.Muted, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right,
+        TextColor3 = T.Muted, TextSize = T.SmallSize, TextXAlignment = Enum.TextXAlignment.Right,
     })
     U.frame(self.Header, { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Outline })
     local accent = U.frame(self.Root, { Name = "RainbowAccent", Position = UDim2.fromOffset(0, 31), Size = UDim2.fromOffset(364, 1), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 4 })
@@ -382,8 +387,8 @@ function Window.new(options)
     self.Body = U.frame(self.Root, { Position = UDim2.fromOffset(0, 62), Size = UDim2.new(1, 0, 1, -84) })
     self.Footer = U.frame(self.Root, { Position = UDim2.new(0, 0, 1, -22), Size = UDim2.new(1, 0, 0, 22), BackgroundColor3 = T.Panel })
     U.frame(self.Footer, { Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Outline })
-    self.Status = U.label(self.Footer, "Ready", { Position = UDim2.fromOffset(7, 0), Size = UDim2.new(0.7, -7, 1, 0), TextSize = 11 })
-    U.label(self.Footer, options.Footer or "", { Position = UDim2.new(0.7, 0, 0, 0), Size = UDim2.new(0.3, -7, 1, 0), TextSize = 11, TextColor3 = T.Muted, TextXAlignment = Enum.TextXAlignment.Right })
+    self.Status = U.label(self.Footer, "Ready", { Position = UDim2.fromOffset(7, 0), Size = UDim2.new(0.7, -7, 1, 0), TextSize = T.SmallSize })
+    U.label(self.Footer, options.Footer or "", { Position = UDim2.new(0.7, 0, 0, 0), Size = UDim2.new(0.3, -7, 1, 0), TextSize = T.SmallSize, TextColor3 = T.Muted, TextXAlignment = Enum.TextXAlignment.Right })
     self.ResizeHandle = U.button(self.Root, "", {
         Name = "ResizeHandle", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1),
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -543,25 +548,25 @@ function Window:Relayout()
 end
 function Window:AddTab(name)
     local page = { Window = self, Name = name, Groups = {}, Subpages = {} }
-    local button = U.button(self.Tabs, name, { Size = UDim2.fromOffset(#name * 7 + 18, 24), BorderSizePixel = 0, BackgroundTransparency = 1, TextColor3 = T.Muted })
+    local button = U.button(self.Tabs, name, { Size = UDim2.fromOffset(U.textWidth(name) + 18, 24), BorderSizePixel = 0, BackgroundTransparency = 1, TextColor3 = T.Muted })
     page.Button = button
     page.Line = U.frame(button, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = T.Accent, Visible = false })
     page.Frame = U.frame(self.Body, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false })
     page.Title = U.label(page.Frame, name, { Position = UDim2.fromOffset(8, 1), Size = UDim2.new(0.65, -8, 0, 23) })
-    page.Mode = U.label(page.Frame, "", { Position = UDim2.new(0.65, 0, 0, 1), Size = UDim2.new(0.35, -8, 0, 23), TextColor3 = T.Muted, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right })
+    page.Mode = U.label(page.Frame, "", { Position = UDim2.new(0.65, 0, 0, 1), Size = UDim2.new(0.35, -8, 0, 23), TextColor3 = T.Muted, TextSize = T.SmallSize, TextXAlignment = Enum.TextXAlignment.Right })
     page.Scroll = U.new("ScrollingFrame", { Position = UDim2.fromOffset(8, 26), Size = UDim2.new(1, -16, 1, -32), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = T.Outline, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y }, page.Frame)
     page.Left = U.frame(page.Scroll, { BackgroundTransparency = 1 })
     page.Right = U.frame(page.Scroll, { BackgroundTransparency = 1 })
-    page.LeftList = U.list(page.Left, false, 8); page.RightList = U.list(page.Right, false, 8)
+    page.LeftList = U.list(page.Left, false, T.Gap); page.RightList = U.list(page.Right, false, T.Gap)
     function page:Relayout()
         local narrow = self.Scroll.AbsoluteSize.X < 520
         local leftHeight, rightHeight = self.LeftList.AbsoluteContentSize.Y, self.RightList.AbsoluteContentSize.Y
         local available = math.floor(self.Scroll.AbsoluteSize.X)
-        local leftWidth = narrow and available or math.floor((available - 8) / 2)
+        local leftWidth = narrow and available or math.floor((available - T.Gap) / 2)
         self.Left.Size = UDim2.fromOffset(leftWidth, leftHeight)
-        self.Right.Size = UDim2.fromOffset(narrow and available or available - leftWidth - 8, rightHeight)
-        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + 8) or UDim2.fromOffset(leftWidth + 8, 0)
-        self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + 8 or math.max(leftHeight, rightHeight))
+        self.Right.Size = UDim2.fromOffset(narrow and available or available - leftWidth - T.Gap, rightHeight)
+        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + T.Gap) or UDim2.fromOffset(leftWidth + T.Gap, 0)
+        self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + T.Gap or math.max(leftHeight, rightHeight))
     end
     function page:SetTitle(text) self.Title.Text = text end
     function page:SetMode(text) self.Mode.Text = text or "" end
@@ -573,7 +578,7 @@ function Window:AddTab(name)
             self.Scroll.Size = UDim2.new(1, -16, 1, -60)
         end
         local child = { Page = self, Groups = {} }
-        child.Button = U.button(self.Subbar, title, { Size = UDim2.fromOffset(#title * 7 + 16, 22) })
+        child.Button = U.button(self.Subbar, title, { Size = UDim2.fromOffset(U.textWidth(title) + 16, 22) })
         function child:Select()
             self.Page.Window:ClosePopup()
             self.Page.ActiveSubpage = self
@@ -601,10 +606,10 @@ function Window:AddTab(name)
         local header = U.frame(group.Frame, { Size = UDim2.new(1, 0, 0, 24), BackgroundColor3 = T.Panel })
         U.frame(header, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = T.Accent })
         U.label(header, title, { Position = UDim2.fromOffset(6, 2), Size = UDim2.new(1, -12, 1, -2) })
-        group.Container = U.frame(group.Frame, { Position = UDim2.fromOffset(6, 30), Size = UDim2.new(1, -12, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
-        U.list(group.Container, false, 4)
+        group.Container = U.frame(group.Frame, { Position = UDim2.fromOffset(T.Padding, 27), Size = UDim2.new(1, -2 * T.Padding, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+        U.list(group.Container, false, T.ControlGap)
         U.padding(group.Container, 0)
-        U.new("UIPadding", { PaddingBottom = UDim.new(0, 6) }, group.Frame)
+        U.new("UIPadding", { PaddingBottom = UDim.new(0, T.Padding) }, group.Frame)
         Controls.attach(group)
         table.insert(self.Groups, group)
         return group
@@ -690,7 +695,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.2", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.3", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -759,10 +764,11 @@ return {
     Accent = Color3.fromRGB(57, 128, 233),
     Selected = Color3.fromRGB(35, 50, 74),
     Font = Enum.Font.Code,
-    TextSize = 12,
-    SmallSize = 11,
+    TextSize = 14,
+    SmallSize = 12,
     RowHeight = 23,
-    Gap = 8,
+    Gap = 6,
+    ControlGap = 2,
     Padding = 6,
 }
 
@@ -770,7 +776,11 @@ end
 __factories["internal/Util"] = function()
 local Theme = __require("internal/Theme")
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 local Util = {}
+function Util.textWidth(text, size)
+    return math.ceil(TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(10000, 1000)).X)
+end
 function Util.new(className, props, parent)
     local object = Instance.new(className)
     for key, value in pairs(props or {}) do object[key] = value end
