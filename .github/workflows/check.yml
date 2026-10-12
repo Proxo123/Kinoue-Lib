@@ -1,0 +1,19 @@
+name: Build and test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get official Luau tools
+        run: |
+          mkdir -p .cache/luau
+          curl --fail --location --silent --show-error https://github.com/luau-lang/luau/releases/download/0.742/luau-ubuntu.zip -o .cache/luau.zip
+          unzip -q .cache/luau.zip -d .cache/luau
+          chmod +x .cache/luau/luau .cache/luau/luau-compile
+      - name: Compile and check behavior
+        run: python3 tools/test.py --luau .cache/luau/luau --compiler .cache/luau/luau-compile
+      - name: Check reproducible build
+        run: git diff --exit-code -- dist

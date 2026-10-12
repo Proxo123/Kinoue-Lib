@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.rbxl
+*.rbxl.lock
+*.rbxlx.lock
+.cache/
