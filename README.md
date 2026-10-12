@@ -46,7 +46,15 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.4 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.5 library; callbacks print values or change UI state.
+
+For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/booga-ui/main/examples/ESP.lua"))()
+```
+
+The ESP example has an enable toggle, through-wall visibility, self preview, live color, and fill transparency. Click the color swatch to open the picker. Enable **Self preview** to test on your own character. Highlights survive menu hiding; **Unload** removes the menu, highlights, and all player lifecycle connections. Re-running the example unloads its previous instance first. This example is separate from the Booga gameplay script.
 
 `dist/BoogaDemo.rbxlx` contains the module and demo source for inspection in Roblox Studio. Running it requires CoreGui access; an ordinary Studio Play session cannot supply that permission.
 
@@ -107,13 +115,15 @@ preview:Recoil()
 
 Controls expose `Get()`, `Set(value)`, `SetSilent(value)` / `RawSet(value)`, `SetCallback(fn)`, `SetEnabled(bool)`, and `SetVisible(bool)`. `Set` invokes the callback only on a changed value. `SetSilent` updates display/value without invoking the callback or scheduling a config save. Register IDs once and keep them stable across updates.
 
-Dropdowns support `UpdateOptions(options)` while retaining a selected value that still exists. `Meta` is drawn smaller and grey, separately from the name. Color pickers open a six-digit hex input.
+Dropdowns support `UpdateOptions(options)` while retaining a selected value that still exists. `Meta` is drawn smaller and grey, separately from the name. Color pickers open a compact hue/saturation/brightness popup with live mouse/touch dragging, six-digit hex entry (optional `#`), and Reset. Their `Callback(Color3)` fires while dragging; `SetSilent(Color3)` updates the open popup without firing callbacks. `picker:Open()` and `picker:Close()` control the popup programmatically. Outside clicks and Escape dismiss it.
 
 Buttons return `SetEnabled(bool)` and `SetText(text)`. A button's optional `Keybind = { Id, Value, Callback, Pressed, Released }` displays a rebindable inline key. Toggles also accept `Keybind`. Standalone keybinds accept `Pressed` / `Released`; typing in a TextBox does not trigger shortcuts. Left/right modifiers are distinct. Escape cancels key capture.
 
 `page:AddSubTab(name)` returns an object with `AddGroupbox(name, side)` and `Select()`. This powers Players / Resources / Style in the demo. `page:SetTitle(text)` and `page:SetMode(text)` update the page header.
 
 Window methods: `SelectTab(page)`, `SetVisible(bool)`, `GetPosition()`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
+
+Use `window:OnDestroy(function() ... end)` to clean up objects or connections owned by a feature. Cleanup runs once on unload, including when a registered callback calls `Destroy()` again. Registering after destruction runs the cleanup immediately.
 
 ## Persistence
 

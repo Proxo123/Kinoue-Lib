@@ -14,6 +14,7 @@ function Window.new(options)
     local self = setmetatable({}, Window)
     self.Scope = U.scope()
     self.Controls = {}; self.Pages = {}; self.Keybinds = {}
+    self.Cleanup = {}
     self.ReducedMotion = options.ReducedMotion == true
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)
@@ -356,9 +357,19 @@ function Window:EnablePersistence(adapter)
         end)
     end
 end
+function Window:OnDestroy(callback)
+    assert(type(callback) == "function", "OnDestroy requires a function")
+    if self.Dead then callback() else table.insert(self.Cleanup, callback) end
+    return self
+end
 function Window:Destroy()
     if self.Dead then return end
     self:FlushConfig(); self:ClosePopup(); self.Dead = true; self.Capturing = nil
+    for _, callback in ipairs(self.Cleanup) do
+        local ok, message = pcall(callback)
+        if not ok then warn("[BoogaUI] Cleanup error: " .. tostring(message)) end
+    end
+    table.clear(self.Cleanup)
     Cursor.set(self, false)
     self.Scope:Destroy(); self.Fade:Destroy(); self.Screen:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)

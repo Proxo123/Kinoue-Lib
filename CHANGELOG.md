@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+- Upgrade color swatches to a compact HSV popup with live mouse/touch dragging, a hue strip, hex input, and Reset.
+- Close picker popups on outside clicks, Escape, disabling/hiding the control, menu hide, or unload.
+- Add `Window:OnDestroy(callback)` for example and feature cleanup.
+- Add `examples/ESP.lua`: basic player highlights with live color, fill transparency, through-wall visibility, and self preview.
+- Cover picker interaction, invalid hex input, silent updates, player joins/leaves, respawns, and ESP cleanup in regression tests.
+
 ## 0.1.4
 
 - Replace position-based opening and closing with 180ms / 150ms transparency fades.

@@ -1,6 +1,7 @@
 local U = require(script.Parent.internal.Util)
 local T = require(script.Parent.internal.Theme)
 local Model = require(script.Parent.internal.Model)
+local ColorPicker = require(script.Parent.internal.ColorPicker)
 local Input = game:GetService("UserInputService")
 local Controls = {}
 
@@ -249,13 +250,8 @@ function Controls.attach(group)
         c.Row = row(self)
         U.label(c.Row, info.Text or id, { Size = UDim2.new(1, -85, 1, 0) })
         c.Root = U.button(c.Row, "", { Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(28, 15) })
-        local editor = self:AddTextbox(id .. "Hex", { Text = "Hex", Value = c:Get():ToHex(), MaxLength = 6, Callback = function(value)
-            if value:match("^%x%x%x%x%x%x$") then c:Set(Color3.fromHex(value)) else self.Window:SetStatus("Use a six-digit hex color") end
-        end })
-        editor.Persist = false; editor:SetVisible(false)
-        c.Render = function(value) c.Root.BackgroundColor3 = value; editor:SetSilent(value:ToHex()) end
-        self.Window.Scope:Connect(c.Root.Activated, function() if c.Enabled then editor.Row.Visible = not editor.Row.Visible end end)
-        c.Render(c:Get()); return c
+        ColorPicker.attach(self, c, info)
+        return c
     end
     function group:AddPreview(info)
         info = info or {}

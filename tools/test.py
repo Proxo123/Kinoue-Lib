@@ -10,7 +10,7 @@ parser.add_argument("--luau", default="luau")
 parser.add_argument("--compiler", default="luau-compile")
 args = parser.parse_args()
 build.main()
-subprocess.run([args.compiler, "--null", "dist/BoogaUI.lua", "dist/BoogaDemo.lua", "examples/Example.lua"], cwd=ROOT, check=True)
+subprocess.run([args.compiler, "--null", "dist/BoogaUI.lua", "dist/BoogaDemo.lua", "examples/Example.lua", "examples/ESP.lua"], cwd=ROOT, check=True)
 subprocess.run([args.luau, "tests/model.luau"], cwd=ROOT, check=True)
 mock = (ROOT / "tests/RobloxMock.luau").read_text(encoding="utf-8")
 bundle = (ROOT / "dist/BoogaUI.lua").read_text(encoding="utf-8")
@@ -26,3 +26,8 @@ example_checks = (ROOT / "tests/example.luau").read_text(encoding="utf-8")
 example_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\nlocal example = function(UI)\n" + example + "\nend\nsetfenv(example, Mock.Environment)\nlocal window = example(UI)\n" + example_checks
 (cache / "example.luau").write_text(example_harness, encoding="utf-8")
 subprocess.run([args.luau, ".cache/example.luau"], cwd=ROOT, check=True)
+esp = (ROOT / "examples/ESP.lua").read_text(encoding="utf-8").split("\n", 1)[1]
+esp_checks = (ROOT / "tests/esp.luau").read_text(encoding="utf-8")
+esp_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\nlocal example = function(UI)\n" + esp + "\nend\nsetfenv(example, Mock.Environment)\nlocal window = example(UI)\n" + esp_checks
+(cache / "esp.luau").write_text(esp_harness, encoding="utf-8")
+subprocess.run([args.luau, ".cache/esp.luau"], cwd=ROOT, check=True)

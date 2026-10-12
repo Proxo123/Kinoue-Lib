@@ -31,9 +31,27 @@ end })
 local function color(r, g, b)
     local c = { R = r, G = g, B = b, _type = "Color3" }
     function c:ToHex() return string.format("%02X%02X%02X", math.round(self.R * 255), math.round(self.G * 255), math.round(self.B * 255)) end
+    function c:ToHSV()
+        local maximum, minimum = math.max(self.R, self.G, self.B), math.min(self.R, self.G, self.B)
+        local difference, hue = maximum - minimum, 0
+        if difference > 0 then
+            if maximum == self.R then hue = ((self.G - self.B) / difference) % 6
+            elseif maximum == self.G then hue = (self.B - self.R) / difference + 2
+            else hue = (self.R - self.G) / difference + 4 end
+        end
+        return hue / 6, maximum == 0 and 0 or difference / maximum, maximum
+    end
     return c
 end
-local colorAPI = { new = color, fromRGB = function(r, g, b) return color(r / 255, g / 255, b / 255) end, fromHSV = function(h, s, v) return color(h, s, v) end }
+local colorAPI = { new = color, fromRGB = function(r, g, b) return color(r / 255, g / 255, b / 255) end }
+function colorAPI.fromHSV(h, s, v)
+    local sector = (h % 1) * 6
+    local index, fraction = math.floor(sector), sector % 1
+    local p, q, t = v * (1 - s), v * (1 - fraction * s), v * (1 - (1 - fraction) * s)
+    if index == 0 then return color(v, t, p) elseif index == 1 then return color(q, v, p)
+    elseif index == 2 then return color(p, v, t) elseif index == 3 then return color(p, q, v)
+    elseif index == 4 then return color(t, p, v) else return color(v, p, q) end
+end
 function colorAPI.fromHex(hex) return color(tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255) end
 local function children(instance)
     local list = {}
@@ -145,11 +163,35 @@ function Mock:Render()
     run.RenderStepped:Fire()
 end
 local playerGui = create("ScreenGui")
+local localPlayer = create("Player")
+localPlayer.CharacterAdded = signal(); localPlayer.CharacterRemoving = signal()
+function localPlayer:WaitForChild() return playerGui end
+local localCharacter = create("Model")
+localPlayer.Character = localCharacter
+local players = { LocalPlayer = localPlayer, PlayerAdded = signal(), PlayerRemoving = signal(), List = { localPlayer } }
+function players:GetPlayers() return table.clone(self.List) end
+function Mock:AddPlayer(name)
+    local player = create("Player")
+    player.Name = name; player.CharacterAdded = signal(); player.CharacterRemoving = signal()
+    player.Character = create("Model")
+    table.insert(players.List, player); players.PlayerAdded:Fire(player)
+    return player
+end
+function Mock:Respawn(player)
+    player.CharacterRemoving:Fire(player.Character); player.Character:Destroy()
+    player.Character = create("Model"); player.CharacterAdded:Fire(player.Character)
+end
+function Mock:RemovePlayer(player)
+    players.PlayerRemoving:Fire(player)
+    local index = table.find(players.List, player)
+    if index then table.remove(players.List, index) end
+end
+Mock.Players = players
 Mock.CoreGui = create("CoreGui")
 local services = {
     UserInputService = input, RunService = run,
     CoreGui = Mock.CoreGui,
-    Players = { LocalPlayer = { WaitForChild = function() return playerGui end } },
+    Players = players,
     TweenService = { Create = function(_, object, _, goals)
         return { Play = function() for key, value in pairs(goals) do object[key] = value end end, Cancel = function() end }
     end },
