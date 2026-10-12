@@ -257,17 +257,27 @@ function Controls.attach(group)
         local preview = {}
         preview.Root = U.frame(self.Container, { Size = UDim2.new(1, 0, 0, info.Height or 148), BorderColor3 = T.Outline, BorderSizePixel = 1, ClipsDescendants = true })
         local grid = U.frame(preview.Root, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 1 })
+        local gridDots = {}
+        local gridColumns, gridRows = -1, -1
         local drawing = U.frame(preview.Root, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2 })
         preview.Points = {}; preview.Parts = {}
         local count = self:AddLabel("0 / 0")
         local track = U.frame(self.Container, { Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = T.Hover })
         local fill = U.frame(track, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent })
         local function layout()
-            for _, dot in ipairs(grid:GetChildren()) do dot:Destroy() end
             local bounds = preview.Root.AbsoluteSize
-            for y = 8, bounds.Y - 8, 10 do for x = 8, bounds.X - 8, 10 do
-                U.frame(grid, { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(1, 1), BackgroundColor3 = T.Outline, BackgroundTransparency = 0.35 })
-            end end
+            local columns = math.max(0, math.floor((bounds.X - 16) / 10) + 1)
+            local rows = math.max(0, math.floor((bounds.Y - 16) / 10) + 1)
+            if columns ~= gridColumns or rows ~= gridRows then
+                for key, dot in pairs(gridDots) do
+                    if dot.Position.X.Offset > bounds.X - 8 or dot.Position.Y.Offset > bounds.Y - 8 then dot:Destroy(); gridDots[key] = nil end
+                end
+                for y = 8, bounds.Y - 8, 10 do for x = 8, bounds.X - 8, 10 do
+                    local key = x .. ":" .. y
+                    if not gridDots[key] then gridDots[key] = U.frame(grid, { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(1, 1), BackgroundColor3 = T.Outline, BackgroundTransparency = 0.35 }) end
+                end end
+                gridColumns, gridRows = columns, rows
+            end
             local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
             for _, point in ipairs(preview.Points) do minX = math.min(minX, point.X); minY = math.min(minY, point.Y); maxX = math.max(maxX, point.X); maxY = math.max(maxY, point.Y) end
             if #preview.Points == 0 then return end

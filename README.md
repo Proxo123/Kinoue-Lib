@@ -44,7 +44,7 @@ This returns the library. It does not create a window or run Booga features. Sta
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.1 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.2 library; callbacks print values or change UI state.
 
 Open `dist/BoogaDemo.rbxlx` in Roblox Studio and press **Play**. Alternatively, import the module and put `examples/Booga.client.luau` into a LocalScript under `StarterPlayerScripts`.
 
@@ -111,7 +111,7 @@ Buttons return `SetEnabled(bool)` and `SetText(text)`. A button's optional `Keyb
 
 `page:AddSubTab(name)` returns an object with `AddGroupbox(name, side)` and `Select()`. This powers Players / Resources / Style in the demo. `page:SetTitle(text)` and `page:SetMode(text)` update the page header.
 
-Window methods: `SelectTab(page)`, `SetVisible(bool)`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
+Window methods: `SelectTab(page)`, `SetVisible(bool)`, `GetPosition()`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
 
 ## Persistence
 

@@ -79,6 +79,7 @@ local function create(className)
             if methods[key] then return methods[key] end
             if key == "AbsoluteSize" then return vec(width(object), height(object)) end
             if key == "AbsolutePosition" then
+                if props.AbsolutePositionOverride then return props.AbsolutePositionOverride end
                 local p = props.Parent and props.Parent.AbsolutePosition or vec(0, 0)
                 local parent = props.Parent and props.Parent.AbsoluteSize or vec(0, 0)
                 local anchor = props.AnchorPoint or vec(0, 0)

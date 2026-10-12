@@ -261,17 +261,27 @@ function Controls.attach(group)
         local preview = {}
         preview.Root = U.frame(self.Container, { Size = UDim2.new(1, 0, 0, info.Height or 148), BorderColor3 = T.Outline, BorderSizePixel = 1, ClipsDescendants = true })
         local grid = U.frame(preview.Root, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 1 })
+        local gridDots = {}
+        local gridColumns, gridRows = -1, -1
         local drawing = U.frame(preview.Root, { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2 })
         preview.Points = {}; preview.Parts = {}
         local count = self:AddLabel("0 / 0")
         local track = U.frame(self.Container, { Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = T.Hover })
         local fill = U.frame(track, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent })
         local function layout()
-            for _, dot in ipairs(grid:GetChildren()) do dot:Destroy() end
             local bounds = preview.Root.AbsoluteSize
-            for y = 8, bounds.Y - 8, 10 do for x = 8, bounds.X - 8, 10 do
-                U.frame(grid, { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(1, 1), BackgroundColor3 = T.Outline, BackgroundTransparency = 0.35 })
-            end end
+            local columns = math.max(0, math.floor((bounds.X - 16) / 10) + 1)
+            local rows = math.max(0, math.floor((bounds.Y - 16) / 10) + 1)
+            if columns ~= gridColumns or rows ~= gridRows then
+                for key, dot in pairs(gridDots) do
+                    if dot.Position.X.Offset > bounds.X - 8 or dot.Position.Y.Offset > bounds.Y - 8 then dot:Destroy(); gridDots[key] = nil end
+                end
+                for y = 8, bounds.Y - 8, 10 do for x = 8, bounds.X - 8, 10 do
+                    local key = x .. ":" .. y
+                    if not gridDots[key] then gridDots[key] = U.frame(grid, { Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(1, 1), BackgroundColor3 = T.Outline, BackgroundTransparency = 0.35 }) end
+                end end
+                gridColumns, gridRows = columns, rows
+            end
             local minX, minY, maxX, maxY = math.huge, math.huge, -math.huge, -math.huge
             for _, point in ipairs(preview.Points) do minX = math.min(minX, point.X); minY = math.min(minY, point.Y); maxX = math.max(maxX, point.X); maxY = math.max(maxY, point.Y) end
             if #preview.Points == 0 then return end
@@ -336,8 +346,10 @@ function Window.new(options)
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
     }, options.Parent or Players.LocalPlayer:WaitForChild("PlayerGui"))
+    local initialPosition = options.Position or UDim2.fromScale(0.5, 0.5)
     self.Root = U.new("Frame", {
-        Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = options.Position or UDim2.fromScale(0.5, 0.5),
+        Name = "Window", AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(initialPosition.X.Scale, initialPosition.X.Offset - self.Size.X / 2, initialPosition.Y.Scale, initialPosition.Y.Offset - self.Size.Y / 2),
         Size = UDim2.fromOffset(self.Size.X, self.Size.Y), BackgroundColor3 = T.Background,
         BorderColor3 = T.Outline, BorderSizePixel = 1, ClipsDescendants = true,
     }, self.Screen)
@@ -431,8 +443,11 @@ function Window.new(options)
             self:ClosePopup()
             local tween = self.Scope.Tweens[self.Root]
             if tween then tween:Cancel() end
-            self.Root.Position = self.RestPosition
-            self.Resizing = { Input = input, Start = input.Position, Size = self.Root.AbsoluteSize, Origin = self.Root.AbsolutePosition }
+            -- Keep the logical position, including any interrupted opening motion.
+            -- AbsolutePosition can lag after a tween/size change; don't use it as the resize anchor.
+            self.RestPosition = self.Root.Position
+            dragStart = nil; self.DragInput = nil
+            self.Resizing = { Input = input, Start = input.Position, Size = Vector2.new(self.Root.Size.X.Offset, self.Root.Size.Y.Offset), Origin = self:GetPosition() }
         end
     end)
     self.Scope:Connect(self.Root:GetPropertyChangedSignal("AbsoluteSize"), function() self:Relayout() end)
@@ -501,17 +516,21 @@ function Window:Fit()
     self.Root.Size = UDim2.fromOffset(math.round(math.min(self.Size.X, math.max(1, viewport.X - 24))), math.round(math.min(self.Size.Y, math.max(1, viewport.Y - 24))))
     self:SnapPosition(); self:Relayout()
 end
+function Window:GetPosition()
+    local position, viewport = self.RestPosition, self.Screen.AbsoluteSize
+    return Vector2.new(position.X.Scale * viewport.X + position.X.Offset, position.Y.Scale * viewport.Y + position.Y.Offset)
+end
 function Window:SetSize(size, origin)
     assert(typeof(size) == "Vector2", "SetSize requires Vector2")
     local viewport = self.Screen.AbsoluteSize
-    origin = origin or self.Root.AbsolutePosition
+    origin = origin or self:GetPosition()
     local maxX = math.max(1, viewport.X - math.max(12, origin.X) - 12)
     local maxY = math.max(1, viewport.Y - math.max(12, origin.Y) - 12)
     local width = math.round(math.clamp(size.X, math.min(self.MinSize.X, maxX), maxX))
     local height = math.round(math.clamp(size.Y, math.min(self.MinSize.Y, maxY), maxY))
     self.Size = Vector2.new(width, height)
     self.Root.Size = UDim2.fromOffset(width, height)
-    self.RestPosition = UDim2.fromOffset(math.round(origin.X) + self.Root.AnchorPoint.X * width, math.round(origin.Y) + self.Root.AnchorPoint.Y * height)
+    self.RestPosition = UDim2.fromOffset(origin.X, origin.Y)
     self.Root.Position = self.RestPosition
     self:Relayout()
 end
@@ -671,7 +690,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.1", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.2", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")

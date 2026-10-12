@@ -22,8 +22,10 @@ function Window.new(options)
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
     }, options.Parent or Players.LocalPlayer:WaitForChild("PlayerGui"))
+    local initialPosition = options.Position or UDim2.fromScale(0.5, 0.5)
     self.Root = U.new("Frame", {
-        Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = options.Position or UDim2.fromScale(0.5, 0.5),
+        Name = "Window", AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(initialPosition.X.Scale, initialPosition.X.Offset - self.Size.X / 2, initialPosition.Y.Scale, initialPosition.Y.Offset - self.Size.Y / 2),
         Size = UDim2.fromOffset(self.Size.X, self.Size.Y), BackgroundColor3 = T.Background,
         BorderColor3 = T.Outline, BorderSizePixel = 1, ClipsDescendants = true,
     }, self.Screen)
@@ -117,8 +119,11 @@ function Window.new(options)
             self:ClosePopup()
             local tween = self.Scope.Tweens[self.Root]
             if tween then tween:Cancel() end
-            self.Root.Position = self.RestPosition
-            self.Resizing = { Input = input, Start = input.Position, Size = self.Root.AbsoluteSize, Origin = self.Root.AbsolutePosition }
+            -- Keep the logical position, including any interrupted opening motion.
+            -- AbsolutePosition can lag after a tween/size change; don't use it as the resize anchor.
+            self.RestPosition = self.Root.Position
+            dragStart = nil; self.DragInput = nil
+            self.Resizing = { Input = input, Start = input.Position, Size = Vector2.new(self.Root.Size.X.Offset, self.Root.Size.Y.Offset), Origin = self:GetPosition() }
         end
     end)
     self.Scope:Connect(self.Root:GetPropertyChangedSignal("AbsoluteSize"), function() self:Relayout() end)
@@ -187,17 +192,21 @@ function Window:Fit()
     self.Root.Size = UDim2.fromOffset(math.round(math.min(self.Size.X, math.max(1, viewport.X - 24))), math.round(math.min(self.Size.Y, math.max(1, viewport.Y - 24))))
     self:SnapPosition(); self:Relayout()
 end
+function Window:GetPosition()
+    local position, viewport = self.RestPosition, self.Screen.AbsoluteSize
+    return Vector2.new(position.X.Scale * viewport.X + position.X.Offset, position.Y.Scale * viewport.Y + position.Y.Offset)
+end
 function Window:SetSize(size, origin)
     assert(typeof(size) == "Vector2", "SetSize requires Vector2")
     local viewport = self.Screen.AbsoluteSize
-    origin = origin or self.Root.AbsolutePosition
+    origin = origin or self:GetPosition()
     local maxX = math.max(1, viewport.X - math.max(12, origin.X) - 12)
     local maxY = math.max(1, viewport.Y - math.max(12, origin.Y) - 12)
     local width = math.round(math.clamp(size.X, math.min(self.MinSize.X, maxX), maxX))
     local height = math.round(math.clamp(size.Y, math.min(self.MinSize.Y, maxY), maxY))
     self.Size = Vector2.new(width, height)
     self.Root.Size = UDim2.fromOffset(width, height)
-    self.RestPosition = UDim2.fromOffset(math.round(origin.X) + self.Root.AnchorPoint.X * width, math.round(origin.Y) + self.Root.AnchorPoint.Y * height)
+    self.RestPosition = UDim2.fromOffset(origin.X, origin.Y)
     self.Root.Position = self.RestPosition
     self:Relayout()
 end

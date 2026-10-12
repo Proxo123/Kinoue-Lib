@@ -3,17 +3,39 @@ Mock:Advance(1)
 assert(#window.Pages == 7 and window.ActivePage.Name == "Studio")
 assert(window.ToggleKey == Mock.Enum.KeyCode.RightShift)
 assert(window.Root.ClassName == "Frame", "Text must not be rendered through a CanvasGroup texture")
+assert(window.Root.AnchorPoint.X == 0 and window.Root.AnchorPoint.Y == 0)
 assert(window.ResizeHandle.BackgroundTransparency == 1 and window.ResizeHandle.Size.X.Offset == 18)
 local V = Mock.Environment.Vector2.new
 local before = window.Root.AbsolutePosition
 local startSize = window.Root.AbsoluteSize
 local resizeInput = { UserInputType = Mock.Enum.UserInputType.MouseButton1, Position = V(900, 600) }
+window.Root.AbsolutePositionOverride = V(before.X - 50, before.Y - 50)
 window.ResizeHandle.InputBegan:Fire(resizeInput)
 Mock.Input.InputChanged:Fire({ UserInputType = Mock.Enum.UserInputType.MouseMovement, Position = V(1000, 640) })
+window.Root.AbsolutePositionOverride = nil
 assert(window.Size.X == startSize.X + 100 and window.Size.Y == startSize.Y + 40)
 assert(window.Root.AbsolutePosition.X == before.X and window.Root.AbsolutePosition.Y == before.Y, "Resize must keep the top-left fixed")
 Mock.Input.InputEnded:Fire(resizeInput)
 assert(window.Resizing == nil)
+-- Repeated pointer moves and repeated grabs must not accumulate position drift.
+for grab = 1, 8 do
+    local pointer = { UserInputType = Mock.Enum.UserInputType.MouseButton1, Position = V(900, 600) }
+    window.ResizeHandle.InputBegan:Fire(pointer)
+    for step = 1, 10 do
+        Mock.Input.InputChanged:Fire({ UserInputType = Mock.Enum.UserInputType.MouseMovement, Position = V(900 + step, 600 + step) })
+        assert(window.Root.Position.X.Offset == before.X and window.Root.Position.Y.Offset == before.Y)
+    end
+    Mock.Input.InputEnded:Fire(pointer)
+end
+-- Starting a resize during opening must not snap the window to the animation's destination.
+window.Root.Position = Mock.Environment.UDim2.fromOffset(before.X, before.Y + 3.4)
+local interrupted = { UserInputType = Mock.Enum.UserInputType.Touch, Position = V(900, 600) }
+window.ResizeHandle.InputBegan:Fire(interrupted)
+interrupted.Position = V(910, 610)
+Mock.Input.InputChanged:Fire(interrupted)
+assert(window.Root.Position.Y.Offset == before.Y + 3.4)
+Mock.Input.InputEnded:Fire(interrupted)
+window:SnapPosition()
 window:SetSize(V(10, 10))
 assert(window.Size.X == 480 and window.Size.Y == 360)
 window:SetSize(V(10000, 10000))

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- Keep the root frame anchored at the top-left instead of compensating for a center anchor during resize.
+- Read logical position and size during corner capture so stale rendered coordinates cannot introduce drift.
+- Preserve the current position when an opening animation is interrupted by a resize.
+- Reuse preview grid dots instead of destroying/recreating the whole grid on each resize frame.
+- Add regressions for repeated pointer moves, repeated grabs, stale rendered positions, and interrupted animations.
+
 ## 0.1.1
 
 - Use native Frame rendering instead of a CanvasGroup texture for clearer text at lower graphics quality.
