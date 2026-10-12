@@ -320,166 +320,6 @@ end
 return Controls
 
 end
-__factories["init"] = function()
-local Window = __require("Window")
-local Library = { Version = "0.1.0", Theme = __require("internal/Theme") }
-function Library:CreateWindow(options) return Window.new(options or {}) end
-function Library.FileStorage(path)
-    assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
-    return {
-        Read = function() if isfile and not isfile(path) then return nil end return readfile(path) end,
-        Write = function(json)
-            local folder = path:match("^(.*)/[^/]+$")
-            if folder and makefolder and (not isfolder or not isfolder(folder)) then makefolder(folder) end
-            writefile(path, json)
-        end,
-    }
-end
-return Library
-
-end
-__factories["internal/Model"] = function()
--- Pure value logic, usable in standalone Luau tests.
-local Model = {}
-function Model.number(value, minimum, maximum, step)
-    local n = tonumber(value)
-    if not n or n ~= n or math.abs(n) == math.huge then n = minimum end
-    n = math.clamp(n, minimum, maximum)
-    if step and step &gt; 0 then n = minimum + math.round((n - minimum) / step) * step end
-    return math.clamp(n, minimum, maximum)
-end
-function Model.options(values)
-    local result, seen = {}, {}
-    for _, value in ipairs(values) do
-        local option = type(value) == "table" and value or { Value = value, Label = tostring(value) }
-        assert(option.Value ~= nil, "Dropdown option requires Value")
-        assert(not seen[option.Value], "Duplicate dropdown value: " .. tostring(option.Value))
-        seen[option.Value] = true
-        table.insert(result, { Value = option.Value, Label = option.Label or tostring(option.Value), Meta = option.Meta })
-    end
-    return result
-end
-function Model.control(initial, normalize, callback)
-    local control = { Value = normalize(initial), Callback = callback }
-    function control:Get() return self.Value end
-    function control:Set(value, silent)
-        local nextValue = normalize(value)
-        local changed = nextValue ~= self.Value
-        self.Value = nextValue
-        if self.Render then self.Render(nextValue) end
-        if changed and not silent and self.Callback then self.Callback(nextValue) end
-        return self
-    end
-    function control:SetSilent(value) return self:Set(value, true) end
-    control.RawSet = control.SetSilent
-    function control:SetCallback(fn) self.Callback = fn return self end
-    return control
-end
-return Model
-
-end
-__factories["internal/Theme"] = function()
--- Original implementation of the approved Booga UI concept.
-return {
-    Background = Color3.fromRGB(20, 20, 20),
-    Panel = Color3.fromRGB(28, 28, 28),
-    Input = Color3.fromRGB(28, 28, 28),
-    Hover = Color3.fromRGB(38, 38, 38),
-    Outline = Color3.fromRGB(50, 50, 50),
-    Text = Color3.fromRGB(232, 232, 232),
-    Muted = Color3.fromRGB(171, 171, 171),
-    Accent = Color3.fromRGB(57, 128, 233),
-    Selected = Color3.fromRGB(35, 50, 74),
-    Font = Enum.Font.Code,
-    TextSize = 12,
-    SmallSize = 11,
-    RowHeight = 23,
-    Gap = 8,
-    Padding = 6,
-}
-
-end
-__factories["internal/Util"] = function()
-local Theme = __require("internal/Theme")
-local TweenService = game:GetService("TweenService")
-local Util = {}
-function Util.new(className, props, parent)
-    local object = Instance.new(className)
-    for key, value in pairs(props or {}) do object[key] = value end
-    object.Parent = parent
-    return object
-end
-function Util.frame(parent, props)
-    local defaults = { BorderSizePixel = 0, BackgroundColor3 = Theme.Background }
-    for k, v in pairs(props or {}) do defaults[k] = v end
-    return Util.new("Frame", defaults, parent)
-end
-function Util.label(parent, text, props)
-    local defaults = {
-        BackgroundTransparency = 1, BorderSizePixel = 0, Font = Theme.Font,
-        TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
-        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
-        Size = UDim2.new(1, 0, 0, Theme.RowHeight),
-    }
-    for k, v in pairs(props or {}) do defaults[k] = v end
-    return Util.new("TextLabel", defaults, parent)
-end
-function Util.button(parent, text, props)
-    local defaults = {
-        BackgroundColor3 = Theme.Panel, BorderColor3 = Theme.Outline, BorderSizePixel = 1,
-        Font = Theme.Font, TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
-        AutoButtonColor = false, Size = UDim2.new(1, 0, 0, Theme.RowHeight),
-    }
-    for k, v in pairs(props or {}) do defaults[k] = v end
-    return Util.new("TextButton", defaults, parent)
-end
-function Util.list(parent, horizontal, gap)
-    return Util.new("UIListLayout", {
-        FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
-        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, gap or 0),
-    }, parent)
-end
-function Util.padding(parent, amount)
-    return Util.new("UIPadding", {
-        PaddingLeft = UDim.new(0, amount), PaddingRight = UDim.new(0, amount),
-        PaddingTop = UDim.new(0, amount), PaddingBottom = UDim.new(0, amount),
-    }, parent)
-end
-function Util.scope()
-    local scope = { Connections = {}, Tweens = {}, Dead = false }
-    function scope:Connect(signal, fn)
-        local connection = signal:Connect(fn)
-        table.insert(self.Connections, connection)
-        return connection
-    end
-    function scope:Tween(object, duration, props, reduced)
-        local prior = self.Tweens[object]
-        if prior then prior:Cancel() end
-        if reduced or duration &lt;= 0 then
-            for k, v in pairs(props) do object[k] = v end
-            self.Tweens[object] = nil
-            return
-        end
-        local tween = TweenService:Create(object, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
-        self.Tweens[object] = tween
-        tween:Play()
-        return tween
-    end
-    function scope:Destroy()
-        if self.Dead then return end
-        self.Dead = true
-        for _, connection in ipairs(self.Connections) do connection:Disconnect() end
-        for _, tween in pairs(self.Tweens) do tween:Cancel() end
-        table.clear(self.Connections); table.clear(self.Tweens)
-    end
-    return scope
-end
-function Util.keyName(key)
-    return key and key.Name or "None"
-end
-return Util
-
-end
 __factories["Window"] = function()
 local U = __require("internal/Util")
 local T = __require("internal/Theme")
@@ -773,6 +613,166 @@ function Window:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
 return Window
+
+end
+__factories["init"] = function()
+local Window = __require("Window")
+local Library = { Version = "0.1.0", Theme = __require("internal/Theme") }
+function Library:CreateWindow(options) return Window.new(options or {}) end
+function Library.FileStorage(path)
+    assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
+    return {
+        Read = function() if isfile and not isfile(path) then return nil end return readfile(path) end,
+        Write = function(json)
+            local folder = path:match("^(.*)/[^/]+$")
+            if folder and makefolder and (not isfolder or not isfolder(folder)) then makefolder(folder) end
+            writefile(path, json)
+        end,
+    }
+end
+return Library
+
+end
+__factories["internal/Model"] = function()
+-- Pure value logic, usable in standalone Luau tests.
+local Model = {}
+function Model.number(value, minimum, maximum, step)
+    local n = tonumber(value)
+    if not n or n ~= n or math.abs(n) == math.huge then n = minimum end
+    n = math.clamp(n, minimum, maximum)
+    if step and step &gt; 0 then n = minimum + math.round((n - minimum) / step) * step end
+    return math.clamp(n, minimum, maximum)
+end
+function Model.options(values)
+    local result, seen = {}, {}
+    for _, value in ipairs(values) do
+        local option = type(value) == "table" and value or { Value = value, Label = tostring(value) }
+        assert(option.Value ~= nil, "Dropdown option requires Value")
+        assert(not seen[option.Value], "Duplicate dropdown value: " .. tostring(option.Value))
+        seen[option.Value] = true
+        table.insert(result, { Value = option.Value, Label = option.Label or tostring(option.Value), Meta = option.Meta })
+    end
+    return result
+end
+function Model.control(initial, normalize, callback)
+    local control = { Value = normalize(initial), Callback = callback }
+    function control:Get() return self.Value end
+    function control:Set(value, silent)
+        local nextValue = normalize(value)
+        local changed = nextValue ~= self.Value
+        self.Value = nextValue
+        if self.Render then self.Render(nextValue) end
+        if changed and not silent and self.Callback then self.Callback(nextValue) end
+        return self
+    end
+    function control:SetSilent(value) return self:Set(value, true) end
+    control.RawSet = control.SetSilent
+    function control:SetCallback(fn) self.Callback = fn return self end
+    return control
+end
+return Model
+
+end
+__factories["internal/Theme"] = function()
+-- Original implementation of the approved Booga UI concept.
+return {
+    Background = Color3.fromRGB(20, 20, 20),
+    Panel = Color3.fromRGB(28, 28, 28),
+    Input = Color3.fromRGB(28, 28, 28),
+    Hover = Color3.fromRGB(38, 38, 38),
+    Outline = Color3.fromRGB(50, 50, 50),
+    Text = Color3.fromRGB(232, 232, 232),
+    Muted = Color3.fromRGB(171, 171, 171),
+    Accent = Color3.fromRGB(57, 128, 233),
+    Selected = Color3.fromRGB(35, 50, 74),
+    Font = Enum.Font.Code,
+    TextSize = 12,
+    SmallSize = 11,
+    RowHeight = 23,
+    Gap = 8,
+    Padding = 6,
+}
+
+end
+__factories["internal/Util"] = function()
+local Theme = __require("internal/Theme")
+local TweenService = game:GetService("TweenService")
+local Util = {}
+function Util.new(className, props, parent)
+    local object = Instance.new(className)
+    for key, value in pairs(props or {}) do object[key] = value end
+    object.Parent = parent
+    return object
+end
+function Util.frame(parent, props)
+    local defaults = { BorderSizePixel = 0, BackgroundColor3 = Theme.Background }
+    for k, v in pairs(props or {}) do defaults[k] = v end
+    return Util.new("Frame", defaults, parent)
+end
+function Util.label(parent, text, props)
+    local defaults = {
+        BackgroundTransparency = 1, BorderSizePixel = 0, Font = Theme.Font,
+        TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
+        Size = UDim2.new(1, 0, 0, Theme.RowHeight),
+    }
+    for k, v in pairs(props or {}) do defaults[k] = v end
+    return Util.new("TextLabel", defaults, parent)
+end
+function Util.button(parent, text, props)
+    local defaults = {
+        BackgroundColor3 = Theme.Panel, BorderColor3 = Theme.Outline, BorderSizePixel = 1,
+        Font = Theme.Font, TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        AutoButtonColor = false, Size = UDim2.new(1, 0, 0, Theme.RowHeight),
+    }
+    for k, v in pairs(props or {}) do defaults[k] = v end
+    return Util.new("TextButton", defaults, parent)
+end
+function Util.list(parent, horizontal, gap)
+    return Util.new("UIListLayout", {
+        FillDirection = horizontal and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical,
+        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, gap or 0),
+    }, parent)
+end
+function Util.padding(parent, amount)
+    return Util.new("UIPadding", {
+        PaddingLeft = UDim.new(0, amount), PaddingRight = UDim.new(0, amount),
+        PaddingTop = UDim.new(0, amount), PaddingBottom = UDim.new(0, amount),
+    }, parent)
+end
+function Util.scope()
+    local scope = { Connections = {}, Tweens = {}, Dead = false }
+    function scope:Connect(signal, fn)
+        local connection = signal:Connect(fn)
+        table.insert(self.Connections, connection)
+        return connection
+    end
+    function scope:Tween(object, duration, props, reduced)
+        local prior = self.Tweens[object]
+        if prior then prior:Cancel() end
+        if reduced or duration &lt;= 0 then
+            for k, v in pairs(props) do object[k] = v end
+            self.Tweens[object] = nil
+            return
+        end
+        local tween = TweenService:Create(object, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+        self.Tweens[object] = tween
+        tween:Play()
+        return tween
+    end
+    function scope:Destroy()
+        if self.Dead then return end
+        self.Dead = true
+        for _, connection in ipairs(self.Connections) do connection:Disconnect() end
+        for _, tween in pairs(self.Tweens) do tween:Cancel() end
+        table.clear(self.Connections); table.clear(self.Tweens)
+    end
+    return scope
+end
+function Util.keyName(key)
+    return key and key.Name or "None"
+end
+return Util
 
 end
 
