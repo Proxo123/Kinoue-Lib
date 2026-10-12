@@ -47,3 +47,7 @@ performance_checks = (ROOT / "tests/performance.luau").read_text(encoding="utf-8
 performance_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + performance_checks
 (cache / "performance.luau").write_text(performance_harness, encoding="utf-8")
 subprocess.run([args.luau, ".cache/performance.luau"], cwd=ROOT, check=True)
+destruction_checks = (ROOT / "tests/destruction.luau").read_text(encoding="utf-8")
+destruction_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + destruction_checks
+(cache / "destruction.luau").write_text(destruction_harness, encoding="utf-8")
+subprocess.run([args.luau, ".cache/destruction.luau"], cwd=ROOT, check=True)

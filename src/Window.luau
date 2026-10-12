@@ -27,7 +27,7 @@ function Window.new(options)
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
     })
-    Mount.core(self.Screen)
+    Mount.core(self.Screen, options.ReplaceExisting == true)
     local initialPosition = options.Position or UDim2.fromScale(0.5, 0.5)
     self.Root = U.new("Frame", {
         Name = "Window", AnchorPoint = Vector2.new(0, 0),
@@ -155,7 +155,10 @@ end
 function Window:Dispatch(callback, ...)
     if not callback or self.Dead then return end
     local ok, message = pcall(callback, ...)
-    if not ok then self:SetStatus("Callback error"); warn("[BoogaUI] " .. tostring(message)) end
+    if not ok then
+        if not self.Dead then self:SetStatus("Callback error") end
+        warn("[BoogaUI] " .. tostring(message))
+    end
 end
 function Window:Register(id, control)
     assert(type(id) == "string" and not self.Controls[id], "Control IDs must be unique: " .. tostring(id))
@@ -164,6 +167,7 @@ function Window:Register(id, control)
     return control
 end
 function Window:SetStatus(text)
+    if self.Dead then return end
     text = tostring(text or "")
     if self.Status.Text ~= text then self.Status.Text = text end
 end
@@ -395,15 +399,28 @@ function Window:OnDestroy(callback)
 end
 function Window:Destroy()
     if self.Dead then return end
-    self:FlushConfig(); self:ClosePopup(); self.Dead = true; self.Capturing = nil
+    self.Dead = true; self.Open = false; self.Capturing = nil; self.Resizing = nil
+    self.VisibilityVersion += 1
+    local function cleanup(name, fn)
+        local ok, message = pcall(function() return U.withContext(fn) end)
+        if not ok then warn("[BoogaUI] " .. name .. " cleanup failed: " .. tostring(message)) end
+    end
+    cleanup("Visibility", function() self.Screen.Enabled = false; self.Root.Visible = false end)
+    cleanup("Config", function() self:FlushConfig() end)
+    cleanup("Popup", function() self:ClosePopup() end)
+    self.PopupOwner = nil
+    cleanup("Cursor", function() Cursor.set(self, false) end)
+    cleanup("Accent", function() if self.AccentScope then self.AccentScope:Destroy(); self.AccentScope = nil end end)
+    cleanup("Signals", function() self.Scope:Destroy() end)
+    cleanup("Fade", function() self.Fade:Destroy() end)
+    cleanup("Screen", function() self.Screen:Destroy() end)
+    -- Feature callbacks can yield or alter their thread context. Remove the UI first.
+    -- Controls remain available for feature-specific settings saves until callbacks finish.
     for _, callback in ipairs(self.Cleanup) do
         local ok, message = pcall(callback)
         if not ok then warn("[BoogaUI] Cleanup error: " .. tostring(message)) end
     end
     table.clear(self.Cleanup)
-    Cursor.set(self, false)
-    if self.AccentScope then self.AccentScope:Destroy(); self.AccentScope = nil end
-    self.Scope:Destroy(); self.Fade:Destroy(); self.Screen:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
 return Window

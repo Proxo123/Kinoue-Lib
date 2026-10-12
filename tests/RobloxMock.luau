@@ -103,6 +103,13 @@ local function create(className)
     end
     function methods:GetPropertyChangedSignal(name) events[name] = events[name] or signal(); return events[name] end
     function methods:Destroy()
+        if Mock.ProtectCoreDestroy and Mock.Identity ~= 8 then
+            local ancestor = self
+            while ancestor do
+                if ancestor == Mock.CoreGui then error("CoreGui destroy permission denied") end
+                ancestor = ancestor.Parent
+            end
+        end
         for _, child in ipairs(children(self)) do child:Destroy() end
         self.Parent = nil; props.Destroyed = true
     end

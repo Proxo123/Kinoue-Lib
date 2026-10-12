@@ -2,6 +2,21 @@ local Theme = require(script.Parent.Theme)
 local TweenService = game:GetService("TweenService")
 local TextService = game:GetService("TextService")
 local Util = {}
+function Util.withContext(fn, ...)
+    local getIdentity = getthreadidentity or getidentity or (type(syn) == "table" and syn.get_thread_identity)
+    local setIdentity = setthreadidentity or setidentity or (type(syn) == "table" and syn.set_thread_identity)
+    if type(getIdentity) == "function" and type(setIdentity) == "function" then
+        local read, identity = pcall(getIdentity)
+        if read and type(identity) == "number" and identity < 8 and pcall(setIdentity, 8) then
+            local result = table.pack(pcall(fn, ...))
+            local restored, message = pcall(setIdentity, identity)
+            if not restored then error("[BoogaUI] Failed to restore callback identity: " .. tostring(message), 0) end
+            if not result[1] then error(result[2], 0) end
+            return table.unpack(result, 2, result.n)
+        end
+    end
+    return fn(...)
+end
 function Util.textWidth(text, size)
     return math.ceil(TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(10000, 1000)).X)
 end
@@ -89,8 +104,14 @@ function Util.scope()
     function scope:Destroy()
         if self.Dead then return end
         self.Dead = true
-        for _, connection in ipairs(self.Connections) do connection:Disconnect() end
-        for _, tween in pairs(self.Tweens) do tween:Cancel() end
+        for _, connection in ipairs(self.Connections) do
+            local ok, message = pcall(function() connection:Disconnect() end)
+            if not ok then warn("[BoogaUI] Disconnect failed: " .. tostring(message)) end
+        end
+        for _, tween in pairs(self.Tweens) do
+            local ok, message = pcall(function() tween:Cancel() end)
+            if not ok then warn("[BoogaUI] Tween cleanup failed: " .. tostring(message)) end
+        end
         table.clear(self.Connections); table.clear(self.Tweens)
     end
     return scope

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.11
+
+- Hide and remove the window before feature cleanup, preserving control values until settings saves finish.
+- Restore CoreGui context for direct teardown and isolate cleanup steps so a stale tween, popup, or callback cannot stop window removal.
+- Continue disconnecting/cancelling other resources after individual cleanup failures.
+- Ignore late status updates after destruction.
+- Add optional `ReplaceExisting` for removing orphaned ScreenGuis with the same ID; Booga enables it.
+- Cover unload-button interaction, direct low-identity teardown, injected cleanup failures, recursion, context restoration, and orphan replacement.
+
 ## 0.1.10
 
 - Fix fade opacity drift caused by comparing double calculations with Roblox's float32 transparency values.

@@ -1,11 +1,17 @@
 local Mount = {}
-function Mount.core(screen)
+function Mount.core(screen, replaceExisting)
     -- Executor helpers are optional. Keep the destination CoreGui in every path.
     local protect = type(protect_gui) == "function" and protect_gui
         or (type(syn) == "table" and type(syn.protect_gui) == "function" and syn.protect_gui)
     if protect then pcall(protect, screen) end
     local function parent()
-        screen.Parent = game:GetService("CoreGui")
+        local core = game:GetService("CoreGui")
+        if replaceExisting then
+            for _, existing in ipairs(core:GetChildren()) do
+                if existing ~= screen and existing:IsA("ScreenGui") and existing.Name == screen.Name then existing:Destroy() end
+            end
+        end
+        screen.Parent = core
     end
     local ok, message = pcall(parent)
     if ok then return end

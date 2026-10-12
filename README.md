@@ -46,7 +46,7 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.10 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.11 library; callbacks print values or change UI state.
 
 For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
 
@@ -130,6 +130,8 @@ Window methods: `SelectTab(page)`, `SetVisible(bool)`, `GetPosition()`, `SetSize
 Set `AllowOffscreen = true` to drag through viewport edges. The window snaps flush to nearby edges while dragging, without preventing movement beyond them. `window:SetPosition(Vector2.new(x, y), snapEdges)` sets the top-left; pass `true` for optional edge snapping. Offscreen positions are preserved during fitting, resizing, and fade animations. The default remains bounded. A completely offscreen window yields first-person cursor control back to the game. Reloading a window with no supplied position centers it again.
 
 Use `window:OnDestroy(function() ... end)` to clean up objects or connections owned by a feature. Cleanup runs once on unload, including when a registered callback calls `Destroy()` again. Registering after destruction runs the cleanup immediately.
+
+Destruction hides/removes the window and releases its cursor, signals, and animations before feature cleanup callbacks run. Control values remain available to those callbacks for settings saves. Each cleanup step is isolated so failures do not strand the GUI. Set `ReplaceExisting = true` to remove previous ScreenGuis with the same `Id` during mounting; it is off by default so multiple windows remain supported.
 
 Cursor handling checks the current camera each frame (camera-to-focus distance below one stud) and skips scriptable or missing cameras. It overrides the cursor only for a visible, enabled, open window in first person. In third person it leaves the game's mouse behavior alone, including right-mouse camera drag. Closing the last window immediately removes its render binding; the game decides normal mouse locking on subsequent frames. The resize handle is not modal.
 

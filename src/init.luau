@@ -1,5 +1,5 @@
 local Window = require(script.Window)
-local Library = { Version = "0.1.10", Theme = require(script.internal.Theme) }
+local Library = { Version = "0.1.11", Theme = require(script.internal.Theme) }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
