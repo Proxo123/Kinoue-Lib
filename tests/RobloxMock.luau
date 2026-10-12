@@ -17,7 +17,7 @@ local function signal()
 end
 local function vec(x, y, z)
     local v = { X = x or 0, Y = y or 0, Z = z or 0, _type = z == nil and "Vector2" or "Vector3" }
-    return setmetatable(v, { __sub = function(a, b) return vec(a.X - b.X, a.Y - b.Y, a.Z - b.Z) end })
+    return setmetatable(v, { __sub = function(a, b) return vec(a.X - b.X, a.Y - b.Y, a.Z - b.Z) end, __index = function(self, key) if key == "Magnitude" then return math.sqrt(self.X ^ 2 + self.Y ^ 2 + self.Z ^ 2) end end })
 end
 local function dim(scale, offset) return { Scale = scale or 0, Offset = offset or 0 } end
 local function dimensions(xs, xo, ys, yo) return { X = dim(xs, xo), Y = dim(ys, yo), _type = "UDim2" } end
@@ -83,7 +83,7 @@ height = function(instance)
     return size.Y.Offset + size.Y.Scale * (instance.Parent and height(instance.Parent) or 0)
 end
 local function create(className)
-    local methods, events, props = {}, {}, { ClassName = className, Visible = true, Position = dimensions(), Size = dimensions(), BackgroundTransparency = 0, TextTransparency = 0, TextStrokeTransparency = 1, ImageTransparency = 0, ScrollBarImageTransparency = 0, BorderSizePixel = 0 }
+    local methods, events, props = {}, {}, { ClassName = className, Visible = true, Enabled = true, Position = dimensions(), Size = dimensions(), BackgroundTransparency = 0, TextTransparency = 0, TextStrokeTransparency = 1, ImageTransparency = 0, ScrollBarImageTransparency = 0, BorderSizePixel = 0 }
     local object
     function methods:GetChildren() return children(self) end
     function methods:GetDescendants()
@@ -159,6 +159,12 @@ local run = { RenderStepped = signal(), Heartbeat = signal(), Bindings = {} }
 function run:BindToRenderStep(name, priority, fn) self.Bindings[name] = { Priority = priority, Fn = fn } end
 function run:UnbindFromRenderStep(name) self.Bindings[name] = nil end
 function Mock:Render()
+    if not self.SkipCameraUpdate then
+        local camera = self.Environment.workspace.CurrentCamera
+        local inFirstPerson = camera and camera.CameraType ~= enum.CameraType.Scriptable and (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+        input.MouseBehavior = self.CameraBehavior or (inFirstPerson and enum.MouseBehavior.LockCenter or enum.MouseBehavior.Default)
+        input.MouseIconEnabled = not inFirstPerson
+    end
     for _, binding in pairs(run.Bindings) do binding.Fn() end
     run.RenderStepped:Fire()
 end
@@ -199,9 +205,14 @@ local services = {
     HttpService = { JSONEncode = function(_, value) return value end, JSONDecode = function(_, value) return value end },
 }
 Mock.Input = input; Mock.Run = run; Mock.Enum = enum
+Mock.Camera = create("Camera")
+Mock.Camera.CameraType = enum.CameraType.Custom
+Mock.Camera.CFrame = { Position = vec(0, 0, 0) }
+Mock.Camera.Focus = { Position = vec(0, 0, 0.5) }
+function Mock:SetCameraDistance(distance) self.Camera.Focus = { Position = vec(0, 0, distance) } end
 Mock.Environment = setmetatable({
     game = { PlaceId = 11729688377, GetService = function(_, name) return assert(services[name], name) end },
-    workspace = { CurrentCamera = create("Camera") },
+    workspace = { CurrentCamera = Mock.Camera },
     Instance = { new = create }, Enum = enum,
     Color3 = colorAPI, Vector2 = { new = function(x, y) return vec(x, y) end },
     UDim = { new = dim }, UDim2 = { new = dimensions, fromOffset = function(x, y) return dimensions(0, x, 0, y) end, fromScale = function(x, y) return dimensions(x, 0, y, 0) end },

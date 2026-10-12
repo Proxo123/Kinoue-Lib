@@ -69,7 +69,6 @@ function Window.new(options)
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 100, Visible = self.Resizable,
     })
-    self.ResizeHandle.Modal = true
     self.Fade = Fade.new(self.Screen)
     self.Fade:Set(1)
     Cursor.set(self, true)
@@ -170,7 +169,6 @@ function Window:SetVisible(value, initial)
     self.Resizing = nil
     if self.Capturing then self.Capturing.Render(self.Capturing:Get()); self.Capturing = nil end
     self.Root.Visible = true
-    self.ResizeHandle.Modal = value
     Cursor.set(self, value)
     self.Scope:Tween(self.Fade.Alpha, value and 0.18 or 0.15, { Value = value and 0 or 1 }, self.ReducedMotion)
     if not value then

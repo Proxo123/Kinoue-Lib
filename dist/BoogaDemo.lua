@@ -395,7 +395,6 @@ function Window.new(options)
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 100, Visible = self.Resizable,
     })
-    self.ResizeHandle.Modal = true
     self.Fade = Fade.new(self.Screen)
     self.Fade:Set(1)
     Cursor.set(self, true)
@@ -496,7 +495,6 @@ function Window:SetVisible(value, initial)
     self.Resizing = nil
     if self.Capturing then self.Capturing.Render(self.Capturing:Get()); self.Capturing = nil end
     self.Root.Visible = true
-    self.ResizeHandle.Modal = value
     Cursor.set(self, value)
     self.Scope:Tween(self.Fade.Alpha, value and 0.18 or 0.15, { Value = value and 0 or 1 }, self.ReducedMotion)
     if not value then
@@ -705,7 +703,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.5", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.6", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -830,29 +828,49 @@ __factories["internal/Cursor"] = function()
 local Input = game:GetService("UserInputService")
 local Run = game:GetService("RunService")
 local Cursor = {}
-local owners, saved = {}, nil
+local owners = {}
+local overriding, previousIcon = false, nil
 local binding = "BoogaUI.Cursor." .. tostring(owners)
-local function unlock()
-    Input.MouseBehavior = Enum.MouseBehavior.Default
-    Input.MouseIconEnabled = true
+local function firstPerson()
+    local camera = workspace.CurrentCamera
+    if not camera or camera.CameraType == Enum.CameraType.Scriptable then return false end
+    return (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+end
+local function release(inFirstPerson)
+    if not overriding then return end
+    -- The camera owns mouse behavior. Never restore a captured LockCenter state.
+    -- In third person, leave the game's current cursor visibility alone too.
+    if inFirstPerson and Input.MouseIconEnabled then Input.MouseIconEnabled = previousIcon end
+    overriding, previousIcon = false, nil
+end
+local function update()
+    local visible = false
+    for owner in pairs(owners) do
+        if not owner.Dead and owner.Open and owner.Screen.Enabled and owner.Root.Visible then visible = true; break end
+    end
+    local inFirstPerson = firstPerson()
+    if visible and inFirstPerson then
+        if not overriding then previousIcon = Input.MouseIconEnabled; overriding = true end
+        Input.MouseBehavior = Enum.MouseBehavior.Default
+        Input.MouseIconEnabled = true
+    else
+        release(inFirstPerson)
+    end
 end
 function Cursor.set(owner, open)
     if open then
         if owners[owner] then return end
         if not next(owners) then
-            saved = { Behavior = Input.MouseBehavior, Icon = Input.MouseIconEnabled }
-            Run:BindToRenderStep(binding, Enum.RenderPriority.Camera.Value + 1, unlock)
+            Run:BindToRenderStep(binding, Enum.RenderPriority.Camera.Value + 1, update)
         end
         owners[owner] = true
-        unlock()
+        update()
     else
         owners[owner] = nil
-        if saved and not next(owners) then
+        if not next(owners) then
             Run:UnbindFromRenderStep(binding)
-            Input.MouseBehavior = saved.Behavior
-            Input.MouseIconEnabled = saved.Icon
-            saved = nil
-        end
+            release(firstPerson())
+        else update() end
     end
 end
 return Cursor

@@ -2,7 +2,7 @@
 
 A reusable Roblox **Luau** UI library built from the approved Booga design: compact horizontal tabs, two-column groupboxes, Code-font labels, blue accents, and minimal text.
 
-The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window fades open and closed without moving, and **RightShift** toggles it. The menu key is rebindable. An invisible 18 × 18 pixel handle at the bottom-right resizes the window. The cursor unlocks and becomes visible while the menu is open, including in first person; closing or unloading restores its previous behavior.
+The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window fades open and closed without moving, and **RightShift** toggles it. The menu key is rebindable. An invisible 18 × 18 pixel handle at the bottom-right resizes the window. The cursor unlocks and becomes visible only while a visible menu is open in first person. Zoomed-out camera control is untouched; closing or unloading yields mouse behavior to the game's camera without restoring an old lock state.
 
 Text renders through native GUI objects rather than a CanvasGroup texture. Resizing changes layout instead of font scale; settled window positions and column widths align to whole pixels.
 
@@ -46,7 +46,7 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.5 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.6 library; callbacks print values or change UI state.
 
 For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
 
@@ -124,6 +124,8 @@ Buttons return `SetEnabled(bool)` and `SetText(text)`. A button's optional `Keyb
 Window methods: `SelectTab(page)`, `SetVisible(bool)`, `GetPosition()`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
 
 Use `window:OnDestroy(function() ... end)` to clean up objects or connections owned by a feature. Cleanup runs once on unload, including when a registered callback calls `Destroy()` again. Registering after destruction runs the cleanup immediately.
+
+Cursor handling checks the current camera each frame (camera-to-focus distance below one stud) and skips scriptable or missing cameras. It overrides the cursor only for a visible, enabled, open window in first person. In third person it leaves the game's mouse behavior alone, including right-mouse camera drag. Closing the last window immediately removes its render binding; the game decides normal mouse locking on subsequent frames. The resize handle is not modal.
 
 ## Persistence
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- Only unlock the menu cursor when the current camera is in first person; leave zoomed-out camera controls untouched.
+- Release cursor ownership when zooming out, disabling/hiding the GUI, closing the menu, or unloading.
+- Remove saved mouse-lock restoration so closing after a zoom change cannot reapply a stale LockCenter state.
+- Remove the resize handle's modal flag, which interfered with native camera behavior.
+- Add camera-transition, third-person drag, close/unload, scriptable/missing-camera, and disabled-GUI regression checks.
+
 ## 0.1.5
 
 - Upgrade color swatches to a compact HSV popup with live mouse/touch dragging, a hue strip, hex input, and Reset.
