@@ -42,3 +42,20 @@ assert(Mock:ConnectionCount() == connections, "Reopening must not accumulate con
 window:Destroy(); Mock:Advance(1)
 assert(Mock:ConnectionCount() == 0)
 print("PASS: 3,000 unchanged toggle updates create zero tweens; preview reuse, metadata refresh, hidden accent suspension, and reopen cleanup")
+Mock.FloatTransparency = true
+local rounded = UI:CreateWindow({ ReducedMotion = true })
+Mock:Advance(1)
+local group = rounded:AddTab("Fade"):AddGroupbox("Rounded values")
+local button = group:AddButton({ Text = "Unavailable", Disabled = true })
+assert(button.Root.TextTransparency == 0 and button.Root.TextColor3 == UI.Theme.Muted, "Disabled actions must keep readable text")
+local faded = group:AddLabel("Fractional opacity")
+faded.Root.TextTransparency = 0.55
+for cycle = 1, 20 do
+    for step = 1, 10 do rounded.Fade:Set(step / 10) end
+    for step = 9, 0, -1 do rounded.Fade:Set(step / 10) end
+end
+assert(math.abs(faded.Root.TextTransparency - 0.55) < 0.000001, "Float32 opacity must not corrupt base transparency across fades")
+assert(button.Root.TextTransparency == 0, "Disabled button text must recover full opacity after reopening")
+rounded:Destroy(); Mock:Advance(1)
+assert(Mock:ConnectionCount() == 0)
+print("PASS: float32 transparency remains stable through 20 fades; disabled actions stay readable")

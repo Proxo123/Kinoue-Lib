@@ -129,6 +129,9 @@ local function create(className)
             return props[key]
         end,
         __newindex = function(_, key, value)
+            if Mock.FloatTransparency and type(value) == "number" and key:find("Transparency", 1, true) then
+                local storage = buffer.create(4); buffer.writef32(storage, 0, value); value = buffer.readf32(storage, 0)
+            end
             if key == "Parent" and value ~= props.Parent then
                 if Mock.RejectCore and value == Mock.CoreGui and (not Mock.AllowElevated or Mock.Identity ~= 8) then error("CoreGui permission denied") end
                 local descendants = { object }

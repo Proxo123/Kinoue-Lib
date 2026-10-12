@@ -227,7 +227,8 @@ function Controls.attach(group)
             value = value == true
             if self.Enabled == value and self.Rendered then return self end
             self.Enabled = value; self.Rendered = true
-            button.TextTransparency = value and 0 or 0.55
+            button.TextColor3 = value and T.Text or T.Muted
+            button.TextTransparency = 0
             return self
         end
         function result:SetText(text) button.Text, button.Size = setText(text) end
@@ -758,7 +759,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.9", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.10", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -937,6 +938,7 @@ end
 __factories["internal/Fade"] = function()
 local U = __require("internal/Util")
 local Fade = {}
+local EPSILON = 0.000001
 Fade.__index = Fade
 function Fade.new(screen)
     local self = setmetatable({ Entries = {}, Active = {}, Scope = U.scope(), Dead = false }, Fade)
@@ -964,7 +966,9 @@ function Fade.new(screen)
             entry.Base[property] = object[property]
             entry.Scope:Connect(object:GetPropertyChangedSignal(property), function()
                 local current = object[property]
-                if current == entry.Applied[property] then return end
+                local applied = entry.Applied[property]
+                -- Roblox stores transparency as float32; our calculations use doubles.
+                if applied ~= nil and math.abs(current - applied) &lt;= EPSILON then return end
                 entry.Base[property] = current
                 self:RenderObject(object, entry)
             end)
@@ -990,7 +994,7 @@ function Fade:RenderObject(object, entry)
             active = true
             local value = base + (1 - base) * alpha
             entry.Applied[property] = value
-            if object[property] ~= value then object[property] = value end
+            if math.abs(object[property] - value) &gt; EPSILON then object[property] = value end
         else
             -- Fully transparent properties do not change throughout a fade.
             entry.Applied[property] = 1

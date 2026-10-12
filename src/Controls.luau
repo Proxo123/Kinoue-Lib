@@ -218,7 +218,8 @@ function Controls.attach(group)
             value = value == true
             if self.Enabled == value and self.Rendered then return self end
             self.Enabled = value; self.Rendered = true
-            button.TextTransparency = value and 0 or 0.55
+            button.TextColor3 = value and T.Text or T.Muted
+            button.TextTransparency = 0
             return self
         end
         function result:SetText(text) button.Text, button.Size = setText(text) end

@@ -1,5 +1,6 @@
 local U = require(script.Parent.Util)
 local Fade = {}
+local EPSILON = 0.000001
 Fade.__index = Fade
 function Fade.new(screen)
     local self = setmetatable({ Entries = {}, Active = {}, Scope = U.scope(), Dead = false }, Fade)
@@ -27,7 +28,9 @@ function Fade.new(screen)
             entry.Base[property] = object[property]
             entry.Scope:Connect(object:GetPropertyChangedSignal(property), function()
                 local current = object[property]
-                if current == entry.Applied[property] then return end
+                local applied = entry.Applied[property]
+                -- Roblox stores transparency as float32; our calculations use doubles.
+                if applied ~= nil and math.abs(current - applied) <= EPSILON then return end
                 entry.Base[property] = current
                 self:RenderObject(object, entry)
             end)
@@ -53,7 +56,7 @@ function Fade:RenderObject(object, entry)
             active = true
             local value = base + (1 - base) * alpha
             entry.Applied[property] = value
-            if object[property] ~= value then object[property] = value end
+            if math.abs(object[property] - value) > EPSILON then object[property] = value end
         else
             -- Fully transparent properties do not change throughout a fade.
             entry.Applied[property] = 1

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.10
+
+- Fix fade opacity drift caused by comparing double calculations with Roblox's float32 transparency values.
+- Use opaque muted text for disabled buttons so unavailable actions stay readable.
+- Add float32 regressions spanning twenty complete fade cycles.
+
 ## 0.1.9
 
 - Skip rendering and tween creation for unchanged control values; changed values still animate.

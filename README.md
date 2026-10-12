@@ -46,7 +46,7 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.9 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.10 library; callbacks print values or change UI state.
 
 For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
 
