@@ -22,7 +22,9 @@ local function control(group, id, initial, normalize, callback)
         return self
     end
     function c:SetEnabled(value)
-        self.Enabled = value == true
+        value = value == true
+        if self.Enabled == value then return self end
+        self.Enabled = value
         if self.Root then self.Root.Active = self.Enabled end
         if self.Render then self.Render(self:Get()) end
         return self
@@ -161,7 +163,9 @@ function Controls.attach(group)
             self.Window:ClosePopup()
             options = Model.options(values)
             local selected = find(self:Get()) and self:Get() or (options[1] and options[1].Value)
+            local unchanged = selected == self:Get()
             self:SetSilent(selected)
+            if unchanged then self.Render(selected) end
         end
         c.Window = self.Window
         local function open()
@@ -215,7 +219,13 @@ function Controls.attach(group)
         local text, size = setText(info.Text or "Button")
         local button = U.button(container, text, { Size = size, BorderColor3 = info.Primary and T.Accent or T.Outline })
         local result = { Root = button, Row = container, Enabled = info.Disabled ~= true }
-        function result:SetEnabled(value) self.Enabled = value == true; button.TextTransparency = self.Enabled and 0 or 0.55; return self end
+        function result:SetEnabled(value)
+            value = value == true
+            if self.Enabled == value and self.Rendered then return self end
+            self.Enabled = value; self.Rendered = true
+            button.TextTransparency = value and 0 or 0.55
+            return self
+        end
         function result:SetText(text) button.Text, button.Size = setText(text) end
         self.Window.Scope:Connect(button.Activated, function() if result.Enabled then self.Window:Dispatch(info.Callback) end end)
         if info.Keybind then
@@ -297,16 +307,23 @@ function Controls.attach(group)
             end
         end
         function preview:SetPoints(points)
-            for _, part in ipairs(self.Parts) do part:Destroy() end
-            self.Points = table.clone(points); self.Parts = {}
-            for _, _point in ipairs(points) do
-                local part = U.frame(drawing, { BackgroundColor3 = T.Accent })
-                U.new("UICorner", { CornerRadius = UDim.new(0, 1) }, part)
-                table.insert(self.Parts, part)
+            local same = #points == #self.Points
+            if same then for i, point in ipairs(points) do
+                if point.X ~= self.Points[i].X or point.Y ~= self.Points[i].Y then same = false; break end
+            end end
+            if same then return self end
+            for i = #self.Parts, #points + 1, -1 do self.Parts[i]:Destroy(); self.Parts[i] = nil end
+            for i = #self.Parts + 1, #points do
+                self.Parts[i] = U.frame(drawing, { BackgroundColor3 = T.Accent })
+                U.new("UICorner", { CornerRadius = UDim.new(0, 1) }, self.Parts[i])
             end
+            self.Points = table.clone(points)
             layout(); self:SetCount(0, #points)
+            return self
         end
         function preview:SetCount(current, total)
+            if self.Current == current and self.Total == total then return end
+            self.Current, self.Total = current, total
             count:SetText(string.format("%d / %d", current, total))
             fill.Size = UDim2.fromScale(total > 0 and math.clamp(current / total, 0, 1) or 0, 1)
         end
@@ -374,8 +391,7 @@ function Window.new(options)
     local transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.12, 0), NumberSequenceKeypoint.new(0.88, 0), NumberSequenceKeypoint.new(1, 1) })
     local gradient = U.new("UIGradient", { Transparency = transparency }, accent)
     local hues, last = {}, -1
-    self.Scope:Connect(RunService.RenderStepped, function()
-        if not self.Open then return end
+    local function animateAccent()
         local tick = self.ReducedMotion and 0 or math.floor(os.clock() * 30)
         if tick == last then return end
         last = tick
@@ -384,7 +400,17 @@ function Window.new(options)
             hues[i + 1] = ColorSequenceKeypoint.new(i / 6, Color3.fromHSV((i / 6 + phase) % 1, 0.56, 0.93))
         end
         gradient.Color = ColorSequence.new(hues)
-    end)
+    end
+    self.UpdateAccent = function()
+        if self.AccentScope then self.AccentScope:Destroy(); self.AccentScope = nil end
+        if not self.Open then return end
+        animateAccent()
+        if not self.ReducedMotion then
+            self.AccentScope = U.scope()
+            self.AccentScope:Connect(RunService.RenderStepped, animateAccent)
+        end
+    end
+    self.UpdateAccent()
     self.Tabs = U.new("ScrollingFrame", { Position = UDim2.fromOffset(0, 32), Size = UDim2.new(1, 0, 0, 30), BorderSizePixel = 0, BackgroundColor3 = T.Background, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X }, self.Root)
     U.padding(self.Tabs, 4); U.list(self.Tabs, true, 0)
     self.Body = U.frame(self.Root, { Position = UDim2.fromOffset(0, 62), Size = UDim2.new(1, 0, 1, -84) })
@@ -480,7 +506,10 @@ function Window:Register(id, control)
     control.Id = id
     return control
 end
-function Window:SetStatus(text) self.Status.Text = tostring(text or "") end
+function Window:SetStatus(text)
+    text = tostring(text or "")
+    if self.Status.Text ~= text then self.Status.Text = text end
+end
 function Window:SetToggleKey(key)
     assert(typeof(key) == "EnumItem" and key.EnumType == Enum.KeyCode, "ToggleKey requires Enum.KeyCode")
     self.ToggleKey = key
@@ -492,6 +521,7 @@ function Window:SetVisible(value, initial)
     if self.Dead then return end
     if self.Open == value and not initial then return end
     self.Open = value; self.VisibilityVersion += 1
+    self.UpdateAccent()
     local version = self.VisibilityVersion
     self:ClosePopup()
     self.Resizing = nil
@@ -583,7 +613,10 @@ function Window:AddTab(name)
         self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + T.Gap or math.max(leftHeight, rightHeight))
     end
     function page:SetTitle(text) self.Title.Text = text end
-    function page:SetMode(text) self.Mode.Text = text or "" end
+    function page:SetMode(text)
+        text = text or ""
+        if self.Mode.Text ~= text then self.Mode.Text = text end
+    end
     function page:AddSubTab(title)
         if not self.Subbar then
             self.Subbar = U.frame(self.Frame, { Position = UDim2.fromOffset(8, 25), Size = UDim2.new(1, -16, 0, 24), BackgroundTransparency = 1 })
@@ -712,6 +745,7 @@ function Window:Destroy()
     end
     table.clear(self.Cleanup)
     Cursor.set(self, false)
+    if self.AccentScope then self.AccentScope:Destroy(); self.AccentScope = nil end
     self.Scope:Destroy(); self.Fade:Destroy(); self.Screen:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
@@ -720,7 +754,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.8", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.9", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -901,7 +935,7 @@ local U = __require("internal/Util")
 local Fade = {}
 Fade.__index = Fade
 function Fade.new(screen)
-    local self = setmetatable({ Entries = {}, Scope = U.scope(), Dead = false }, Fade)
+    local self = setmetatable({ Entries = {}, Active = {}, Scope = U.scope(), Dead = false }, Fade)
     self.Alpha = U.new("NumberValue", { Value = 0 })
     local function attach(object)
         if self.Entries[object] then return end
@@ -936,28 +970,36 @@ function Fade.new(screen)
     self.Scope:Connect(screen.DescendantAdded, attach)
     self.Scope:Connect(screen.DescendantRemoving, function(object)
         local entry = self.Entries[object]
-        if entry then entry.Scope:Destroy(); self.Entries[object] = nil end
+        if entry then entry.Scope:Destroy(); self.Entries[object] = nil; self.Active[object] = nil end
     end)
     for _, object in ipairs(screen:GetDescendants()) do attach(object) end
     self.Scope:Connect(self.Alpha:GetPropertyChangedSignal("Value"), function()
-        for object, entry in pairs(self.Entries) do self:RenderObject(object, entry) end
+        for object, entry in pairs(self.Active) do self:RenderObject(object, entry) end
     end)
     return self
 end
 function Fade:RenderObject(object, entry)
     local alpha = self.Alpha.Value
+    local active = false
     for property, base in pairs(entry.Base) do
-        local value = base + (1 - base) * alpha
-        entry.Applied[property] = value
-        if object[property] ~= value then object[property] = value end
+        if base < 1 then
+            active = true
+            local value = base + (1 - base) * alpha
+            entry.Applied[property] = value
+            if object[property] ~= value then object[property] = value end
+        else
+            -- Fully transparent properties do not change throughout a fade.
+            entry.Applied[property] = 1
+        end
     end
+    self.Active[object] = active and entry or nil
 end
 function Fade:Set(alpha) self.Alpha.Value = alpha end
 function Fade:Destroy()
     if self.Dead then return end
     self.Dead = true; self.Scope:Destroy()
     for _, entry in pairs(self.Entries) do entry.Scope:Destroy() end
-    table.clear(self.Entries); self.Alpha:Destroy()
+    table.clear(self.Entries); table.clear(self.Active); self.Alpha:Destroy()
 end
 return Fade
 
@@ -990,7 +1032,7 @@ function Model.control(initial, normalize, callback)
         local nextValue = normalize(value)
         local changed = nextValue ~= self.Value
         self.Value = nextValue
-        if self.Render then self.Render(nextValue) end
+        if self.Render and (changed or value ~= nextValue) then self.Render(nextValue) end
         if changed and not silent and self.Callback then self.Callback(nextValue) end
         return self
     end

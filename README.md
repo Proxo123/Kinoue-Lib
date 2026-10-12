@@ -46,7 +46,7 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.8 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.9 library; callbacks print values or change UI state.
 
 For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
 
@@ -116,6 +116,8 @@ preview:Recoil()
 ```
 
 Controls expose `Get()`, `Set(value)`, `SetSilent(value)` / `RawSet(value)`, `SetCallback(fn)`, `SetEnabled(bool)`, and `SetVisible(bool)`. `Set` invokes the callback only on a changed value. `SetSilent` updates display/value without invoking the callback or scheduling a config save. Register IDs once and keep them stable across updates.
+
+Unchanged values skip rendering and animation work. Dropdown `UpdateOptions` still refreshes labels/quantities when the selection stays the same. Preview updates reuse existing pixels and skip identical geometry or counts. Fully transparent containers do not participate in fade rendering, and hidden windows disconnect their accent animation.
 
 Dropdowns support `UpdateOptions(options)` while retaining a selected value that still exists. `Meta` is drawn smaller and grey, separately from the name. Color pickers open a compact hue/saturation/brightness popup with live mouse/touch dragging, six-digit hex entry (optional `#`), and Reset. Their `Callback(Color3)` fires while dragging; `SetSilent(Color3)` updates the open popup without firing callbacks. `picker:Open()` and `picker:Close()` control the popup programmatically. Outside clicks and Escape dismiss it.
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.9
+
+- Skip rendering and tween creation for unchanged control values; changed values still animate.
+- Keep dropdown quantity metadata current when options change without changing the selection.
+- Reuse preview pixel instances and skip identical geometry/count updates.
+- Disconnect the rainbow accent animation while hidden; reduced-motion windows use a static accent.
+- Exclude fully transparent containers/properties from fade rendering while preserving live opacity changes.
+- Add performance regressions for idle synchronization, preview allocation, metadata refresh, and repeated reopen cleanup.
+
 ## 0.1.8
 
 - Run owned UI signal callbacks with CoreGui identity when paired identity helpers are available, restoring the calling identity afterward.

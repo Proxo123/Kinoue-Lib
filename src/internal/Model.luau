@@ -25,7 +25,7 @@ function Model.control(initial, normalize, callback)
         local nextValue = normalize(value)
         local changed = nextValue ~= self.Value
         self.Value = nextValue
-        if self.Render then self.Render(nextValue) end
+        if self.Render and (changed or value ~= nextValue) then self.Render(nextValue) end
         if changed and not silent and self.Callback then self.Callback(nextValue) end
         return self
     end

@@ -1,5 +1,5 @@
 -- Headless behavior checks. This does not emulate Roblox rendering.
-local Mock = { Events = {}, Delayed = {}, Time = 0, Instances = {} }
+local Mock = { Events = {}, Delayed = {}, Time = 0, Instances = {}, TweenCreates = 0, JSONEncodes = 0 }
 local function signal()
     local event = { Listeners = {} }
     function event:Connect(fn)
@@ -199,10 +199,11 @@ local services = {
     CoreGui = Mock.CoreGui,
     Players = players,
     TweenService = { Create = function(_, object, _, goals)
+        Mock.TweenCreates += 1
         return { Play = function() for key, value in pairs(goals) do object[key] = value end end, Cancel = function() end }
     end },
     TextService = { GetTextSize = function(_, text, size, _, _) return vec(#text * 7 * size / 12, size) end },
-    HttpService = { JSONEncode = function(_, value) return value end, JSONDecode = function(_, value) return value end },
+    HttpService = { JSONEncode = function(_, value) Mock.JSONEncodes += 1; return value end, JSONDecode = function(_, value) return value end },
 }
 Mock.Input = input; Mock.Run = run; Mock.Enum = enum
 Mock.Camera = create("Camera")

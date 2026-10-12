@@ -17,7 +17,9 @@ local function control(group, id, initial, normalize, callback)
         return self
     end
     function c:SetEnabled(value)
-        self.Enabled = value == true
+        value = value == true
+        if self.Enabled == value then return self end
+        self.Enabled = value
         if self.Root then self.Root.Active = self.Enabled end
         if self.Render then self.Render(self:Get()) end
         return self
@@ -156,7 +158,9 @@ function Controls.attach(group)
             self.Window:ClosePopup()
             options = Model.options(values)
             local selected = find(self:Get()) and self:Get() or (options[1] and options[1].Value)
+            local unchanged = selected == self:Get()
             self:SetSilent(selected)
+            if unchanged then self.Render(selected) end
         end
         c.Window = self.Window
         local function open()
@@ -210,7 +214,13 @@ function Controls.attach(group)
         local text, size = setText(info.Text or "Button")
         local button = U.button(container, text, { Size = size, BorderColor3 = info.Primary and T.Accent or T.Outline })
         local result = { Root = button, Row = container, Enabled = info.Disabled ~= true }
-        function result:SetEnabled(value) self.Enabled = value == true; button.TextTransparency = self.Enabled and 0 or 0.55; return self end
+        function result:SetEnabled(value)
+            value = value == true
+            if self.Enabled == value and self.Rendered then return self end
+            self.Enabled = value; self.Rendered = true
+            button.TextTransparency = value and 0 or 0.55
+            return self
+        end
         function result:SetText(text) button.Text, button.Size = setText(text) end
         self.Window.Scope:Connect(button.Activated, function() if result.Enabled then self.Window:Dispatch(info.Callback) end end)
         if info.Keybind then
@@ -292,16 +302,23 @@ function Controls.attach(group)
             end
         end
         function preview:SetPoints(points)
-            for _, part in ipairs(self.Parts) do part:Destroy() end
-            self.Points = table.clone(points); self.Parts = {}
-            for _, _point in ipairs(points) do
-                local part = U.frame(drawing, { BackgroundColor3 = T.Accent })
-                U.new("UICorner", { CornerRadius = UDim.new(0, 1) }, part)
-                table.insert(self.Parts, part)
+            local same = #points == #self.Points
+            if same then for i, point in ipairs(points) do
+                if point.X ~= self.Points[i].X or point.Y ~= self.Points[i].Y then same = false; break end
+            end end
+            if same then return self end
+            for i = #self.Parts, #points + 1, -1 do self.Parts[i]:Destroy(); self.Parts[i] = nil end
+            for i = #self.Parts + 1, #points do
+                self.Parts[i] = U.frame(drawing, { BackgroundColor3 = T.Accent })
+                U.new("UICorner", { CornerRadius = UDim.new(0, 1) }, self.Parts[i])
             end
+            self.Points = table.clone(points)
             layout(); self:SetCount(0, #points)
+            return self
         end
         function preview:SetCount(current, total)
+            if self.Current == current and self.Total == total then return end
+            self.Current, self.Total = current, total
             count:SetText(string.format("%d / %d", current, total))
             fill.Size = UDim2.fromScale(total > 0 and math.clamp(current / total, 0, 1) or 0, 1)
         end

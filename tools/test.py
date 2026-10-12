@@ -43,3 +43,7 @@ context_checks = (ROOT / "tests/context.luau").read_text(encoding="utf-8")
 context_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + context_checks
 (cache / "context.luau").write_text(context_harness, encoding="utf-8")
 subprocess.run([args.luau, ".cache/context.luau"], cwd=ROOT, check=True)
+performance_checks = (ROOT / "tests/performance.luau").read_text(encoding="utf-8")
+performance_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + performance_checks
+(cache / "performance.luau").write_text(performance_harness, encoding="utf-8")
+subprocess.run([args.luau, ".cache/performance.luau"], cwd=ROOT, check=True)
