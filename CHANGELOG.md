@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8
+
+- Run owned UI signal callbacks with CoreGui identity when paired identity helpers are available, restoring the calling identity afterward.
+- Fix protected-instance permission failures when clicking controls or rebinding keys from lower-identity GUI events.
+- Add callback, key capture, error-path, and identity-restoration regressions.
+
 ## 0.1.7
 
 - Add optional `AllowOffscreen` window dragging with flush corner/edge snapping and configurable `SnapDistance`.

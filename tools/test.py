@@ -39,3 +39,7 @@ window_checks = (ROOT / "tests/window.luau").read_text(encoding="utf-8")
 window_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + window_checks
 (cache / "window.luau").write_text(window_harness, encoding="utf-8")
 subprocess.run([args.luau, ".cache/window.luau"], cwd=ROOT, check=True)
+context_checks = (ROOT / "tests/context.luau").read_text(encoding="utf-8")
+context_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + context_checks
+(cache / "context.luau").write_text(context_harness, encoding="utf-8")
+subprocess.run([args.luau, ".cache/context.luau"], cwd=ROOT, check=True)

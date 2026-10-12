@@ -50,7 +50,26 @@ end
 function Util.scope()
     local scope = { Connections = {}, Tweens = {}, Dead = false }
     function scope:Connect(signal, fn)
-        local connection = signal:Connect(fn)
+        local connection = signal:Connect(function(...)
+            if self.Dead then return end
+            -- Roblox GUI signals may run below the identity used to mount CoreGui.
+            local getIdentity = getthreadidentity or getidentity or (type(syn) == "table" and syn.get_thread_identity)
+            local setIdentity = setthreadidentity or setidentity or (type(syn) == "table" and syn.set_thread_identity)
+            if type(getIdentity) == "function" and type(setIdentity) == "function" then
+                local read, identity = pcall(getIdentity)
+                if read and type(identity) == "number" and identity < 8 then
+                    local elevated = pcall(setIdentity, 8)
+                    if elevated then
+                        local result = table.pack(pcall(fn, ...))
+                        local restored, message = pcall(setIdentity, identity)
+                        if not restored then error("[BoogaUI] Failed to restore callback identity: " .. tostring(message), 0) end
+                        if not result[1] then error(result[2], 0) end
+                        return table.unpack(result, 2, result.n)
+                    end
+                end
+            end
+            return fn(...)
+        end)
         table.insert(self.Connections, connection)
         return connection
     end
