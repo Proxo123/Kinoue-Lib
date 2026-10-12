@@ -5,6 +5,32 @@ assert(window.ToggleKey == Mock.Enum.KeyCode.RightShift)
 assert(window.Root.ClassName == "Frame", "Text must not be rendered through a CanvasGroup texture")
 assert(window.Root.AnchorPoint.X == 0 and window.Root.AnchorPoint.Y == 0)
 assert(window.ResizeHandle.BackgroundTransparency == 1 and window.ResizeHandle.Size.X.Offset == 18)
+assert(window.Screen.Parent == Mock.CoreGui)
+assert(Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.Default and Mock.Input.MouseIconEnabled)
+local openingPosition = window.Root.Position
+window:SetVisible(false)
+assert(window.Root.Position == openingPosition and window.Fade.Alpha.Value == 1, "Closing must fade without moving")
+assert(window.Status.TextTransparency == 1 and window.Root.BackgroundTransparency == 1)
+assert(Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.LockCenter and not Mock.Input.MouseIconEnabled)
+window:SetVisible(true)
+assert(window.Root.Position == openingPosition and window.Fade.Alpha.Value == 0, "Opening must fade without moving")
+Mock.Input.MouseBehavior = Mock.Enum.MouseBehavior.LockCenter
+Mock:Render()
+assert(Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.Default, "Cursor override must run after the camera")
+window.Fade:Set(0.5)
+assert(window.Status.TextTransparency == 0.5 and window.Root.BackgroundTransparency == 0.5)
+local fadeGroup = window.Pages[1]:AddGroupbox("Fade regression", "Left")
+local fadedLabel = fadeGroup:AddLabel("Added during fade")
+assert(fadedLabel.Root.TextTransparency == 0.5, "New controls must inherit current opacity")
+window.Controls.Shooting:SetEnabled(false)
+local disabledLabel
+for _, child in ipairs(window.Controls.Shooting.Root:GetChildren()) do if child.Text == "Shooting" then disabledLabel = child end end
+assert(disabledLabel and disabledLabel.TextTransparency == 0.775, "Fade must preserve a control's own transparency")
+window.Fade:Set(0)
+assert(disabledLabel.TextTransparency == 0.55 and fadedLabel.Root.TextTransparency == 0)
+window.Controls.Shooting:SetEnabled(true)
+fadedLabel.Root:Destroy()
+assert(window.Fade.Entries[fadedLabel.Root] == nil, "Removed controls must release fade listeners")
 local V = Mock.Environment.Vector2.new
 local before = window.Root.AbsolutePosition
 local startSize = window.Root.AbsoluteSize
@@ -116,4 +142,31 @@ assert(connections > 0)
 window:Destroy(); window:Destroy()
 Mock:Advance(1)
 assert(Mock:ConnectionCount() == 0 and window.Screen.Destroyed, "Destroy must disconnect everything")
+assert(next(Mock.Run.Bindings) == nil and Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.LockCenter and not Mock.Input.MouseIconEnabled)
+
+-- Protection errors are contained; identity retries must always restore identity.
+local env = Mock.Environment
+Mock.RejectCore = true; Mock.AllowElevated = true; Mock.Identity = 2
+local protectionCalls = 0
+env.protect_gui = function() protectionCalls += 1; error("Protection unavailable") end
+env.getthreadidentity = function() return Mock.Identity end
+env.setthreadidentity = function(value) Mock.Identity = value end
+local protectedWindow = Library:CreateWindow({ ReducedMotion = true })
+assert(protectedWindow.Screen.Parent == Mock.CoreGui and Mock.Identity == 2 and protectionCalls == 1)
+protectedWindow:Destroy()
+Mock.AllowElevated = false
+local ok, message = pcall(function() Library:CreateWindow({}) end)
+assert(not ok and tostring(message):find("CoreGui mount failed") and Mock.Identity == 2)
+local last = Mock.Instances[#Mock.Instances]
+assert(last.ClassName == "ScreenGui" and last.Destroyed, "Failed mounts must not leave an orphan GUI")
+Mock.RejectCore = false
+env.protect_gui = nil; env.getthreadidentity = nil; env.setthreadidentity = nil
+local first = Library:CreateWindow({ ReducedMotion = true })
+local second = Library:CreateWindow({ ReducedMotion = true })
+first:Destroy()
+assert(Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.Default, "A remaining open window must retain the cursor")
+second:Destroy()
+assert(Mock.Input.MouseBehavior == Mock.Enum.MouseBehavior.LockCenter and not Mock.Input.MouseIconEnabled)
+Mock:Advance(1)
+assert(next(Mock.Run.Bindings) == nil and Mock:ConnectionCount() == 0)
 print("PASS: complete demo, values, dropdown refresh, callback semantics, key capture, left/right modifiers, rebind, rapid reopen, config restore, coalesced saves, popup cleanup, idempotent destroy")

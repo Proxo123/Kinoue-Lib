@@ -2,7 +2,7 @@
 
 A reusable Roblox **Luau** UI library built from the approved Booga design: compact horizontal tabs, two-column groupboxes, Code-font labels, blue accents, and minimal text.
 
-The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window slides open and closed, and **RightShift** toggles it. The menu key is rebindable. An invisible 18 × 18 pixel handle at the bottom-right resizes the window.
+The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window fades open and closed without moving, and **RightShift** toggles it. The menu key is rebindable. An invisible 18 × 18 pixel handle at the bottom-right resizes the window. The cursor unlocks and becomes visible while the menu is open, including in first person; closing or unloading restores its previous behavior.
 
 Text renders through native GUI objects rather than a CanvasGroup texture. Resizing changes layout instead of font scale; settled window positions and column widths align to whole pixels.
 
@@ -10,10 +10,10 @@ Text renders through native GUI objects rather than a CanvasGroup texture. Resiz
 
 *Design reference captured from the approved browser draft. Native Roblox rendering has not yet been visually verified. The Luau bundles compile and the behavior tests pass; headless mocks do not establish pixel-perfect Roblox rendering.*
 
-## Require in Roblox Studio
+## Require the ModuleScript
 
 1. Import `dist/BoogaUI.rbxmx` into `ReplicatedStorage` as **BoogaUI**.
-2. Require it from a **LocalScript**:
+2. Require it from a client context with **CoreGui access**:
 
 ```lua
 local UI = require(game.ReplicatedStorage:WaitForChild("BoogaUI"))
@@ -30,6 +30,8 @@ group:AddToggle("Shooting", {
 
 You can also paste `dist/BoogaUI.lua` into a ModuleScript. With Rojo, sync `default.project.json` to install the modular source and demo.
 
+Windows always mount directly in `CoreGui`; `Parent` overrides and PlayerGui fallback are no longer used. Available `protect_gui` / `syn.protect_gui` helpers run before mounting. If parenting fails and paired thread identity helpers exist, mounting is retried with the original identity restored afterward. Failed mounts destroy the incomplete GUI and produce a specific error. Ordinary Studio/game LocalScripts do not have CoreGui write access: importing the module does not grant it, and this version requires a client context that permits that access.
+
 ## Standalone loader
 
 In a client environment that explicitly supports HTTP and `loadstring`:
@@ -40,13 +42,13 @@ local UI = loadstring(game:HttpGet(
 ))()
 ```
 
-This returns the library. It does not create a window or run Booga features. Standard Roblox LocalScripts should use the ModuleScript route above.
+This returns the library. It does not create a window or run Booga features. Creating a window requires CoreGui access.
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.3 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.4 library; callbacks print values or change UI state.
 
-Open `dist/BoogaDemo.rbxlx` in Roblox Studio and press **Play**. Alternatively, import the module and put `examples/Booga.client.luau` into a LocalScript under `StarterPlayerScripts`.
+`dist/BoogaDemo.rbxlx` contains the module and demo source for inspection in Roblox Studio. Running it requires CoreGui access; an ordinary Studio Play session cannot supply that permission.
 
 For supported standalone client environments, `dist/BoogaDemo.lua` embeds both the library and demo. The demo recreates Items, Formations, Studio, Movement, Visuals, Aim, and Settings. Material quantities are sample data. Its callbacks update UI state; it does not call gameplay remotes, move items, or enable game modifications.
 
@@ -60,7 +62,7 @@ local window = UI:CreateWindow({
     Resizable = true,
     ToggleKey = Enum.KeyCode.RightShift,
     ReducedMotion = false,
-    -- Parent defaults to the local player's PlayerGui.
+    -- Always parented to CoreGui; the client must permit CoreGui access.
     -- PlaceId defaults to game.PlaceId.
 })
 
@@ -126,7 +128,7 @@ window:EnablePersistence({
 
 Enable persistence **after** creating the controls. Writes coalesce to at most one per half-second when values change; `Destroy` flushes pending changes. Unknown IDs are ignored when loading. Enum key codes and colors round-trip through JSON.
 
-Where `readfile` and `writefile` are available, `UI.FileStorage("BoogaUI/config.json")` supplies a file adapter. The demo automatically uses it when available; Studio otherwise keeps settings in the current session. Supply your own adapter for game persistence.
+Where `readfile` and `writefile` are available, `UI.FileStorage("BoogaUI/config.json")` supplies a file adapter. The demo automatically uses it when available; otherwise it keeps settings in the current session. Supply your own adapter for game persistence.
 
 ## Build and test
 
@@ -143,7 +145,7 @@ Outputs:
 - `dist/BoogaUI.lua`: self-contained library; returns the library table.
 - `dist/BoogaUI.rbxmx`: importable ModuleScript.
 - `dist/BoogaDemo.lua`: standalone demo with the library embedded.
-- `dist/BoogaDemo.rbxlx`: Studio demo place.
+- `dist/BoogaDemo.rbxlx`: demo place and source package; runtime requires CoreGui access.
 
 Tests use the official [Luau CLI](https://github.com/luau-lang/luau/releases):
 
@@ -151,10 +153,10 @@ Tests use the official [Luau CLI](https://github.com/luau-lang/luau/releases):
 python tools/test.py --luau path/to/luau --compiler path/to/luau-compile
 ```
 
-The test runner builds both bundles, compiles them, runs pure value-model tests, and instantiates the complete demo in a headless Roblox API mock. It exercises modifiers, capture/cancel/rebind, rapid visibility toggles, config restoration, coalesced writes, dropdown cleanup, and idempotent destruction. CI also checks that committed build outputs remain reproducible.
+The test runner builds both bundles, compiles them, runs pure value-model tests, and instantiates the complete demo in a headless Roblox API mock. It exercises modifiers, capture/cancel/rebind, rapid visibility toggles, fade opacity and dynamic controls, cursor restoration across multiple windows, failed CoreGui mounts and identity restoration, config restoration, coalesced writes, dropdown cleanup, and idempotent destruction. CI also checks that committed build outputs remain reproducible.
 
 ## Source structure
 
-`src/init.luau` is the entry point. `Window.luau` handles chrome, navigation, visibility, input, persistence, and lifetime. `Controls.luau` implements the controls and preview. `internal/` contains theme tokens, construction helpers, and pure value logic. `examples/` owns the Booga-specific layout and demo callbacks.
+`src/init.luau` is the entry point. `Window.luau` handles chrome, navigation, visibility, input, persistence, and lifetime. `Controls.luau` implements the controls and preview. `internal/` contains theme tokens, construction helpers, pure value logic, native transparency fading, cursor ownership, and CoreGui mounting. `examples/` owns the Booga-specific layout and demo callbacks.
 
 Visual references: [Linoria](https://github.com/violin-suzutsuki/LinoriaLib), [Obsidian](https://github.com/deividcomsono/Obsidian), and [Dear ImGui](https://github.com/ocornut/imgui). This is an original implementation of the user's approved layout; upstream library source is not bundled.

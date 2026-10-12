@@ -330,9 +330,11 @@ __factories["Window"] = function()
 local U = __require("internal/Util")
 local T = __require("internal/Theme")
 local Controls = __require("Controls")
+local Mount = __require("internal/Mount")
+local Fade = __require("internal/Fade")
+local Cursor = __require("internal/Cursor")
 local Input = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
 local Http = game:GetService("HttpService")
 local Window = {}
 Window.__index = Window
@@ -350,7 +352,8 @@ function Window.new(options)
     self.Screen = U.new("ScreenGui", {
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
-    }, options.Parent or Players.LocalPlayer:WaitForChild("PlayerGui"))
+    })
+    Mount.core(self.Screen)
     local initialPosition = options.Position or UDim2.fromScale(0.5, 0.5)
     self.Root = U.new("Frame", {
         Name = "Window", AnchorPoint = Vector2.new(0, 0),
@@ -394,6 +397,10 @@ function Window.new(options)
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 100, Visible = self.Resizable,
     })
+    self.ResizeHandle.Modal = true
+    self.Fade = Fade.new(self.Screen)
+    self.Fade:Set(1)
+    Cursor.set(self, true)
     self.Scope:Connect(Input.InputBegan, function(input, processed)
         if self.Capturing then
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -417,8 +424,6 @@ function Window.new(options)
     self.Scope:Connect(self.Header.InputBegan, function(input)
         if not self.Open then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            local tween = self.Scope.Tweens[self.Root]
-            if tween then tween:Cancel() end
             self.Root.Position = self.RestPosition
             dragStart = input.Position; dragPosition = self.Root.Position; self.DragInput = input
         end
@@ -446,9 +451,7 @@ function Window.new(options)
         if not self.Open or not self.Resizable then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self:ClosePopup()
-            local tween = self.Scope.Tweens[self.Root]
-            if tween then tween:Cancel() end
-            -- Keep the logical position, including any interrupted opening motion.
+            -- Keep the logical position while resizing.
             -- AbsolutePosition can lag after a tween/size change; don't use it as the resize anchor.
             self.RestPosition = self.Root.Position
             dragStart = nil; self.DragInput = nil
@@ -463,7 +466,7 @@ function Window.new(options)
     self.Scope:Connect(self.Screen:GetPropertyChangedSignal("AbsoluteSize"), fit)
     if camera then self.Scope:Connect(camera:GetPropertyChangedSignal("ViewportSize"), fit) end
     task.defer(function() if not self.Dead then fit() end end)
-    task.defer(function() if not self.Dead then self:SetVisible(true, true) end end)
+    task.defer(function() if not self.Dead and self.Open then self:SetVisible(true, true) end end)
     return self
 end
 
@@ -494,15 +497,13 @@ function Window:SetVisible(value, initial)
     self:ClosePopup()
     self.Resizing = nil
     if self.Capturing then self.Capturing.Render(self.Capturing:Get()); self.Capturing = nil end
-    local wasVisible = self.Root.Visible
     self.Root.Visible = true
-    local rest = self.RestPosition
-    local shifted = UDim2.new(rest.X.Scale, rest.X.Offset, rest.Y.Scale, rest.Y.Offset + 6)
-    if value and (initial or not wasVisible) then self.Root.Position = shifted end
-    self.Scope:Tween(self.Root, value and 0.21 or 0.15, { Position = value and rest or shifted }, self.ReducedMotion)
+    self.ResizeHandle.Modal = value
+    Cursor.set(self, value)
+    self.Scope:Tween(self.Fade.Alpha, value and 0.18 or 0.15, { Value = value and 0 or 1 }, self.ReducedMotion)
     if not value then
         task.delay(self.ReducedMotion and 0 or 0.15, function()
-            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false; self.Root.Position = self.RestPosition end
+            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false end
         end)
     end
 end
@@ -687,7 +688,8 @@ end
 function Window:Destroy()
     if self.Dead then return end
     self:FlushConfig(); self:ClosePopup(); self.Dead = true; self.Capturing = nil
-    self.Scope:Destroy(); self.Screen:Destroy()
+    Cursor.set(self, false)
+    self.Scope:Destroy(); self.Fade:Destroy(); self.Screen:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
 return Window
@@ -695,7 +697,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.3", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.4", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -709,6 +711,104 @@ function Library.FileStorage(path)
     }
 end
 return Library
+
+end
+__factories["internal/Cursor"] = function()
+local Input = game:GetService("UserInputService")
+local Run = game:GetService("RunService")
+local Cursor = {}
+local owners, saved = {}, nil
+local binding = "BoogaUI.Cursor." .. tostring(owners)
+local function unlock()
+    Input.MouseBehavior = Enum.MouseBehavior.Default
+    Input.MouseIconEnabled = true
+end
+function Cursor.set(owner, open)
+    if open then
+        if owners[owner] then return end
+        if not next(owners) then
+            saved = { Behavior = Input.MouseBehavior, Icon = Input.MouseIconEnabled }
+            Run:BindToRenderStep(binding, Enum.RenderPriority.Camera.Value + 1, unlock)
+        end
+        owners[owner] = true
+        unlock()
+    else
+        owners[owner] = nil
+        if saved and not next(owners) then
+            Run:UnbindFromRenderStep(binding)
+            Input.MouseBehavior = saved.Behavior
+            Input.MouseIconEnabled = saved.Icon
+            saved = nil
+        end
+    end
+end
+return Cursor
+
+end
+__factories["internal/Fade"] = function()
+local U = __require("internal/Util")
+local Fade = {}
+Fade.__index = Fade
+function Fade.new(screen)
+    local self = setmetatable({ Entries = {}, Scope = U.scope(), Dead = false }, Fade)
+    self.Alpha = U.new("NumberValue", { Value = 0 })
+    local function attach(object)
+        if self.Entries[object] then return end
+        local properties = {}
+        if object:IsA("GuiObject") then table.insert(properties, "BackgroundTransparency") end
+        if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+            table.insert(properties, "TextTransparency"); table.insert(properties, "TextStrokeTransparency")
+        end
+        if object:IsA("ImageLabel") or object:IsA("ImageButton") then table.insert(properties, "ImageTransparency") end
+        if object:IsA("ScrollingFrame") then table.insert(properties, "ScrollBarImageTransparency") end
+        if object:IsA("UIStroke") then table.insert(properties, "Transparency") end
+        if #properties == 0 then return end
+        local entry = { Base = {}, Applied = {}, Scope = U.scope() }
+        self.Entries[object] = entry
+        -- Native borders have no transparency. Replace them with matching strokes.
+        if object:IsA("GuiObject") and object.BorderSizePixel > 0 then
+            local stroke = U.new("UIStroke", { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = object.BorderColor3, Thickness = object.BorderSizePixel, Transparency = 0 }, object)
+            object.BorderSizePixel = 0
+            entry.Scope:Connect(object:GetPropertyChangedSignal("BorderColor3"), function() stroke.Color = object.BorderColor3 end)
+        end
+        for _, property in ipairs(properties) do
+            entry.Base[property] = object[property]
+            entry.Scope:Connect(object:GetPropertyChangedSignal(property), function()
+                local current = object[property]
+                if current == entry.Applied[property] then return end
+                entry.Base[property] = current
+                self:RenderObject(object, entry)
+            end)
+        end
+        self:RenderObject(object, entry)
+    end
+    self.Scope:Connect(screen.DescendantAdded, attach)
+    self.Scope:Connect(screen.DescendantRemoving, function(object)
+        local entry = self.Entries[object]
+        if entry then entry.Scope:Destroy(); self.Entries[object] = nil end
+    end)
+    for _, object in ipairs(screen:GetDescendants()) do attach(object) end
+    self.Scope:Connect(self.Alpha:GetPropertyChangedSignal("Value"), function()
+        for object, entry in pairs(self.Entries) do self:RenderObject(object, entry) end
+    end)
+    return self
+end
+function Fade:RenderObject(object, entry)
+    local alpha = self.Alpha.Value
+    for property, base in pairs(entry.Base) do
+        local value = base + (1 - base) * alpha
+        entry.Applied[property] = value
+        if object[property] ~= value then object[property] = value end
+    end
+end
+function Fade:Set(alpha) self.Alpha.Value = alpha end
+function Fade:Destroy()
+    if self.Dead then return end
+    self.Dead = true; self.Scope:Destroy()
+    for _, entry in pairs(self.Entries) do entry.Scope:Destroy() end
+    table.clear(self.Entries); self.Alpha:Destroy()
+end
+return Fade
 
 end
 __factories["internal/Model"] = function()
@@ -749,6 +849,41 @@ function Model.control(initial, normalize, callback)
     return control
 end
 return Model
+
+end
+__factories["internal/Mount"] = function()
+local Mount = {}
+function Mount.core(screen)
+    -- Executor helpers are optional. Keep the destination CoreGui in every path.
+    local protect = type(protect_gui) == "function" and protect_gui
+        or (type(syn) == "table" and type(syn.protect_gui) == "function" and syn.protect_gui)
+    if protect then pcall(protect, screen) end
+    local function parent()
+        screen.Parent = game:GetService("CoreGui")
+    end
+    local ok, message = pcall(parent)
+    if ok then return end
+    local getIdentity = type(getthreadidentity) == "function" and getthreadidentity
+        or (type(syn) == "table" and syn.get_thread_identity)
+    local setIdentity = type(setthreadidentity) == "function" and setthreadidentity
+        or (type(syn) == "table" and syn.set_thread_identity)
+    if type(getIdentity) == "function" and type(setIdentity) == "function" then
+        local read, identity = pcall(getIdentity)
+        if read then
+            local elevated = pcall(setIdentity, 8)
+            if elevated then ok, message = pcall(parent) end
+            local restored, restoreError = pcall(setIdentity, identity)
+            if not restored then
+                screen:Destroy()
+                error("[BoogaUI] Failed to restore thread identity: " .. tostring(restoreError), 2)
+            end
+            if ok then return end
+        end
+    end
+    screen:Destroy()
+    error("[BoogaUI] CoreGui mount failed. This client must allow CoreGui access: " .. tostring(message), 2)
+end
+return Mount
 
 end
 __factories["internal/Theme"] = function()

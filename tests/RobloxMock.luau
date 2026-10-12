@@ -23,7 +23,7 @@ local function dim(scale, offset) return { Scale = scale or 0, Offset = offset o
 local function dimensions(xs, xo, ys, yo) return { X = dim(xs, xo), Y = dim(ys, yo), _type = "UDim2" } end
 local enum = setmetatable({}, { __index = function(self, groupName)
     local group = setmetatable({}, { __index = function(groupSelf, name)
-        local item = { Name = name, EnumType = groupSelf, _type = "EnumItem" }
+        local item = { Name = name, EnumType = groupSelf, Value = groupName == "RenderPriority" and 200 or 0, _type = "EnumItem" }
         rawset(groupSelf, name, item); return item
     end })
     rawset(self, groupName, group); return group
@@ -65,13 +65,28 @@ height = function(instance)
     return size.Y.Offset + size.Y.Scale * (instance.Parent and height(instance.Parent) or 0)
 end
 local function create(className)
-    local methods, events, props = {}, {}, { ClassName = className, Visible = true, Position = dimensions(), Size = dimensions() }
+    local methods, events, props = {}, {}, { ClassName = className, Visible = true, Position = dimensions(), Size = dimensions(), BackgroundTransparency = 0, TextTransparency = 0, TextStrokeTransparency = 1, ImageTransparency = 0, ScrollBarImageTransparency = 0, BorderSizePixel = 0 }
     local object
     function methods:GetChildren() return children(self) end
+    function methods:GetDescendants()
+        local result = {}
+        for _, child in ipairs(children(self)) do
+            table.insert(result, child)
+            for _, descendant in ipairs(child:GetDescendants()) do table.insert(result, descendant) end
+        end
+        return result
+    end
+    function methods:IsA(name)
+        if name == self.ClassName then return true end
+        if name == "GuiObject" then
+            return self.ClassName == "Frame" or self.ClassName == "ScrollingFrame" or self.ClassName == "TextButton" or self.ClassName == "TextLabel" or self.ClassName == "TextBox" or self.ClassName == "ImageLabel" or self.ClassName == "ImageButton"
+        end
+        return false
+    end
     function methods:GetPropertyChangedSignal(name) events[name] = events[name] or signal(); return events[name] end
     function methods:Destroy()
         for _, child in ipairs(children(self)) do child:Destroy() end
-        props.Destroyed = true; props.Parent = nil
+        self.Parent = nil; props.Destroyed = true
     end
     function methods:WaitForChild(name) for _, child in ipairs(children(self)) do if child.Name == name then return child end end error("Missing child " .. name) end
     object = setmetatable({}, {
@@ -92,20 +107,48 @@ local function create(className)
                 end
                 return vec(0, y + math.max(0, n - 1) * (props.Padding and props.Padding.Offset or 0))
             end
-            if key == "Activated" or key == "InputBegan" or key == "FocusLost" then events[key] = events[key] or signal(); return events[key] end
+            if key == "Activated" or key == "InputBegan" or key == "FocusLost" or key == "DescendantAdded" or key == "DescendantRemoving" then events[key] = events[key] or signal(); return events[key] end
             return props[key]
         end,
-        __newindex = function(_, key, value) props[key] = value end,
+        __newindex = function(_, key, value)
+            if key == "Parent" and value ~= props.Parent then
+                if Mock.RejectCore and value == Mock.CoreGui and (not Mock.AllowElevated or Mock.Identity ~= 8) then error("CoreGui permission denied") end
+                local descendants = { object }
+                for _, descendant in ipairs(object:GetDescendants()) do table.insert(descendants, descendant) end
+                local ancestor = props.Parent
+                while ancestor do
+                    for _, descendant in ipairs(descendants) do ancestor.DescendantRemoving:Fire(descendant) end
+                    ancestor = ancestor.Parent
+                end
+                props.Parent = value
+                ancestor = value
+                while ancestor do
+                    for _, descendant in ipairs(descendants) do ancestor.DescendantAdded:Fire(descendant) end
+                    ancestor = ancestor.Parent
+                end
+                return
+            end
+            local previous = props[key]; props[key] = value
+            if previous ~= value and events[key] then events[key]:Fire() end
+        end,
     })
     table.insert(Mock.Instances, object)
     return object
 end
-local input = { InputBegan = signal(), InputChanged = signal(), InputEnded = signal() }
+local input = { InputBegan = signal(), InputChanged = signal(), InputEnded = signal(), MouseBehavior = enum.MouseBehavior.LockCenter, MouseIconEnabled = false }
 function input:GetFocusedTextBox() return self.Focused end
-local run = { RenderStepped = signal(), Heartbeat = signal() }
+local run = { RenderStepped = signal(), Heartbeat = signal(), Bindings = {} }
+function run:BindToRenderStep(name, priority, fn) self.Bindings[name] = { Priority = priority, Fn = fn } end
+function run:UnbindFromRenderStep(name) self.Bindings[name] = nil end
+function Mock:Render()
+    for _, binding in pairs(run.Bindings) do binding.Fn() end
+    run.RenderStepped:Fire()
+end
 local playerGui = create("ScreenGui")
+Mock.CoreGui = create("CoreGui")
 local services = {
     UserInputService = input, RunService = run,
+    CoreGui = Mock.CoreGui,
     Players = { LocalPlayer = { WaitForChild = function() return playerGui end } },
     TweenService = { Create = function(_, object, _, goals)
         return { Play = function() for key, value in pairs(goals) do object[key] = value end end, Cancel = function() end }

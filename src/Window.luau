@@ -1,9 +1,11 @@
 local U = require(script.Parent.internal.Util)
 local T = require(script.Parent.internal.Theme)
 local Controls = require(script.Parent.Controls)
+local Mount = require(script.Parent.internal.Mount)
+local Fade = require(script.Parent.internal.Fade)
+local Cursor = require(script.Parent.internal.Cursor)
 local Input = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
 local Http = game:GetService("HttpService")
 local Window = {}
 Window.__index = Window
@@ -21,7 +23,8 @@ function Window.new(options)
     self.Screen = U.new("ScreenGui", {
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
-    }, options.Parent or Players.LocalPlayer:WaitForChild("PlayerGui"))
+    })
+    Mount.core(self.Screen)
     local initialPosition = options.Position or UDim2.fromScale(0.5, 0.5)
     self.Root = U.new("Frame", {
         Name = "Window", AnchorPoint = Vector2.new(0, 0),
@@ -65,6 +68,10 @@ function Window.new(options)
         Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 100, Visible = self.Resizable,
     })
+    self.ResizeHandle.Modal = true
+    self.Fade = Fade.new(self.Screen)
+    self.Fade:Set(1)
+    Cursor.set(self, true)
     self.Scope:Connect(Input.InputBegan, function(input, processed)
         if self.Capturing then
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -88,8 +95,6 @@ function Window.new(options)
     self.Scope:Connect(self.Header.InputBegan, function(input)
         if not self.Open then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            local tween = self.Scope.Tweens[self.Root]
-            if tween then tween:Cancel() end
             self.Root.Position = self.RestPosition
             dragStart = input.Position; dragPosition = self.Root.Position; self.DragInput = input
         end
@@ -117,9 +122,7 @@ function Window.new(options)
         if not self.Open or not self.Resizable then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self:ClosePopup()
-            local tween = self.Scope.Tweens[self.Root]
-            if tween then tween:Cancel() end
-            -- Keep the logical position, including any interrupted opening motion.
+            -- Keep the logical position while resizing.
             -- AbsolutePosition can lag after a tween/size change; don't use it as the resize anchor.
             self.RestPosition = self.Root.Position
             dragStart = nil; self.DragInput = nil
@@ -134,7 +137,7 @@ function Window.new(options)
     self.Scope:Connect(self.Screen:GetPropertyChangedSignal("AbsoluteSize"), fit)
     if camera then self.Scope:Connect(camera:GetPropertyChangedSignal("ViewportSize"), fit) end
     task.defer(function() if not self.Dead then fit() end end)
-    task.defer(function() if not self.Dead then self:SetVisible(true, true) end end)
+    task.defer(function() if not self.Dead and self.Open then self:SetVisible(true, true) end end)
     return self
 end
 
@@ -165,15 +168,13 @@ function Window:SetVisible(value, initial)
     self:ClosePopup()
     self.Resizing = nil
     if self.Capturing then self.Capturing.Render(self.Capturing:Get()); self.Capturing = nil end
-    local wasVisible = self.Root.Visible
     self.Root.Visible = true
-    local rest = self.RestPosition
-    local shifted = UDim2.new(rest.X.Scale, rest.X.Offset, rest.Y.Scale, rest.Y.Offset + 6)
-    if value and (initial or not wasVisible) then self.Root.Position = shifted end
-    self.Scope:Tween(self.Root, value and 0.21 or 0.15, { Position = value and rest or shifted }, self.ReducedMotion)
+    self.ResizeHandle.Modal = value
+    Cursor.set(self, value)
+    self.Scope:Tween(self.Fade.Alpha, value and 0.18 or 0.15, { Value = value and 0 or 1 }, self.ReducedMotion)
     if not value then
         task.delay(self.ReducedMotion and 0 or 0.15, function()
-            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false; self.Root.Position = self.RestPosition end
+            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false end
         end)
     end
 end
@@ -358,7 +359,8 @@ end
 function Window:Destroy()
     if self.Dead then return end
     self:FlushConfig(); self:ClosePopup(); self.Dead = true; self.Capturing = nil
-    self.Scope:Destroy(); self.Screen:Destroy()
+    Cursor.set(self, false)
+    self.Scope:Destroy(); self.Fade:Destroy(); self.Screen:Destroy()
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
 return Window

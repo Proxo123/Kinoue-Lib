@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Replace position-based opening and closing with 180ms / 150ms transparency fades.
+- Fade native backgrounds, text, images, scrollbars, and matching border strokes without CanvasGroup rendering.
+- Unlock and show the cursor while a window is open, after camera updates; restore previous behavior on close or unload.
+- Always mount in CoreGui, call available GUI protection hooks, and retry permission failures with available identity helpers while restoring the original identity.
+- Clean up failed mounts and report unsupported CoreGui access without silently switching to PlayerGui.
+
 ## 0.1.3
 
 - Increase primary text from 12px to 14px and secondary counts/key hints from 11px to 12px.
