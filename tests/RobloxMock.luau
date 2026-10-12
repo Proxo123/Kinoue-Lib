@@ -81,7 +81,8 @@ local function create(className)
             if key == "AbsolutePosition" then
                 local p = props.Parent and props.Parent.AbsolutePosition or vec(0, 0)
                 local parent = props.Parent and props.Parent.AbsoluteSize or vec(0, 0)
-                return vec(p.X + props.Position.X.Offset + props.Position.X.Scale * parent.X, p.Y + props.Position.Y.Offset + props.Position.Y.Scale * parent.Y)
+                local anchor = props.AnchorPoint or vec(0, 0)
+                return vec(p.X + props.Position.X.Offset + props.Position.X.Scale * parent.X - anchor.X * width(object), p.Y + props.Position.Y.Offset + props.Position.Y.Scale * parent.Y - anchor.Y * height(object))
             end
             if key == "AbsoluteContentSize" and className == "UIListLayout" then
                 local y, n = 0, 0

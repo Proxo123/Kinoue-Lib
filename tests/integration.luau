@@ -2,6 +2,26 @@
 Mock:Advance(1)
 assert(#window.Pages == 7 and window.ActivePage.Name == "Studio")
 assert(window.ToggleKey == Mock.Enum.KeyCode.RightShift)
+assert(window.Root.ClassName == "Frame", "Text must not be rendered through a CanvasGroup texture")
+assert(window.ResizeHandle.BackgroundTransparency == 1 and window.ResizeHandle.Size.X.Offset == 18)
+local V = Mock.Environment.Vector2.new
+local before = window.Root.AbsolutePosition
+local startSize = window.Root.AbsoluteSize
+local resizeInput = { UserInputType = Mock.Enum.UserInputType.MouseButton1, Position = V(900, 600) }
+window.ResizeHandle.InputBegan:Fire(resizeInput)
+Mock.Input.InputChanged:Fire({ UserInputType = Mock.Enum.UserInputType.MouseMovement, Position = V(1000, 640) })
+assert(window.Size.X == startSize.X + 100 and window.Size.Y == startSize.Y + 40)
+assert(window.Root.AbsolutePosition.X == before.X and window.Root.AbsolutePosition.Y == before.Y, "Resize must keep the top-left fixed")
+Mock.Input.InputEnded:Fire(resizeInput)
+assert(window.Resizing == nil)
+window:SetSize(V(10, 10))
+assert(window.Size.X == 480 and window.Size.Y == 360)
+window:SetSize(V(10000, 10000))
+local endPosition, endSize = window.Root.AbsolutePosition, window.Root.AbsoluteSize
+assert(endPosition.X + endSize.X <= 1280 - 12 and endPosition.Y + endSize.Y <= 720 - 12)
+window:SetSize(V(705, 471))
+assert(window.Root.AbsolutePosition.X % 1 == 0 and window.Root.AbsolutePosition.Y % 1 == 0, "Settled window must align to whole pixels")
+window:SetSize(V(704, 470))
 local count = 0
 for _ in pairs(window.Controls) do count += 1 end
 assert(count >= 60, "Demo controls missing")

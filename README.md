@@ -2,7 +2,9 @@
 
 A reusable Roblox **Luau** UI library built from the approved Booga design: compact horizontal tabs, two-column groupboxes, Code-font labels, blue accents, and minimal text.
 
-The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window fades/scales open and closed, and **RightShift** toggles it. The menu key is rebindable.
+The title shows the live `game.PlaceId`. A thin animated rainbow accent sits against the bottom of the title bar, centered at 54.6% of the window width and capped at 364 pixels. Checkboxes animate, the window slides open and closed, and **RightShift** toggles it. The menu key is rebindable. An invisible 18 × 18 pixel handle at the bottom-right resizes the window.
+
+Text renders through native GUI objects rather than a CanvasGroup texture. Resizing changes layout instead of font scale; settled window positions and column widths align to whole pixels.
 
 ![Approved design reference](docs/design-reference.png)
 
@@ -42,7 +44,7 @@ This returns the library. It does not create a window or run Booga features. Sta
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.0 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.1 library; callbacks print values or change UI state.
 
 Open `dist/BoogaDemo.rbxlx` in Roblox Studio and press **Play**. Alternatively, import the module and put `examples/Booga.client.luau` into a LocalScript under `StarterPlayerScripts`.
 
@@ -54,6 +56,8 @@ For supported standalone client environments, `dist/BoogaDemo.lua` embeds both t
 local window = UI:CreateWindow({
     Name = "BOOGA",
     Size = Vector2.new(704, 470),
+    MinSize = Vector2.new(480, 360),
+    Resizable = true,
     ToggleKey = Enum.KeyCode.RightShift,
     ReducedMotion = false,
     -- Parent defaults to the local player's PlayerGui.
@@ -107,7 +111,7 @@ Buttons return `SetEnabled(bool)` and `SetText(text)`. A button's optional `Keyb
 
 `page:AddSubTab(name)` returns an object with `AddGroupbox(name, side)` and `Select()`. This powers Players / Resources / Style in the demo. `page:SetTitle(text)` and `page:SetMode(text)` update the page header.
 
-Window methods: `SelectTab(page)`, `SetVisible(bool)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`.
+Window methods: `SelectTab(page)`, `SetVisible(bool)`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
 
 ## Persistence
 

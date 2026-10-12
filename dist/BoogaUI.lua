@@ -329,17 +329,19 @@ function Window.new(options)
     self.ReducedMotion = options.ReducedMotion == true
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)
+    self.MinSize = options.MinSize or Vector2.new(480, 360)
+    self.Resizable = options.Resizable ~= false
     self.Open = true; self.Dead = false; self.VisibilityVersion = 0
     self.Screen = U.new("ScreenGui", {
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = options.DisplayOrder or 100,
     }, options.Parent or Players.LocalPlayer:WaitForChild("PlayerGui"))
-    self.Root = U.new("CanvasGroup", {
+    self.Root = U.new("Frame", {
         Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = options.Position or UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(self.Size.X, self.Size.Y), BackgroundColor3 = T.Background,
-        BorderColor3 = T.Outline, BorderSizePixel = 1, GroupTransparency = 0, ClipsDescendants = true,
+        BorderColor3 = T.Outline, BorderSizePixel = 1, ClipsDescendants = true,
     }, self.Screen)
-    self.Scale = U.new("UIScale", { Scale = 1 }, self.Root)
+    self.RestPosition = self.Root.Position
     self.Header = U.frame(self.Root, { Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = T.Panel, Active = true })
     U.label(self.Header, options.Name or "BOOGA", { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(0.45, -8, 1, 0), TextSize = 13 })
     U.label(self.Header, "PlaceId: " .. tostring(options.PlaceId or game.PlaceId), {
@@ -370,6 +372,11 @@ function Window.new(options)
     U.frame(self.Footer, { Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = T.Outline })
     self.Status = U.label(self.Footer, "Ready", { Position = UDim2.fromOffset(7, 0), Size = UDim2.new(0.7, -7, 1, 0), TextSize = 11 })
     U.label(self.Footer, options.Footer or "", { Position = UDim2.new(0.7, 0, 0, 0), Size = UDim2.new(0.3, -7, 1, 0), TextSize = 11, TextColor3 = T.Muted, TextXAlignment = Enum.TextXAlignment.Right })
+    self.ResizeHandle = U.button(self.Root, "", {
+        Name = "ResizeHandle", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1),
+        Size = UDim2.fromOffset(18, 18), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ZIndex = 100, Visible = self.Resizable,
+    })
     self.Scope:Connect(Input.InputBegan, function(input, processed)
         if self.Capturing then
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -391,30 +398,52 @@ function Window.new(options)
     end)
     local dragStart, dragPosition
     self.Scope:Connect(self.Header.InputBegan, function(input)
+        if not self.Open then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local tween = self.Scope.Tweens[self.Root]
+            if tween then tween:Cancel() end
+            self.Root.Position = self.RestPosition
             dragStart = input.Position; dragPosition = self.Root.Position; self.DragInput = input
         end
     end)
     self.Scope:Connect(Input.InputChanged, function(input)
+        if not self.Open then return end
+        local resize = self.Resizing
+        if resize and (input.UserInputType == Enum.UserInputType.MouseMovement or input == resize.Input) then
+            local delta = input.Position - resize.Start
+            self:SetSize(Vector2.new(resize.Size.X + delta.X, resize.Size.Y + delta.Y), resize.Origin)
+            return
+        end
         if not dragStart then return end
         if input.UserInputType ~= Enum.UserInputType.MouseMovement and input ~= self.DragInput then return end
         local delta = input.Position - dragStart
-        self.Root.Position = UDim2.new(dragPosition.X.Scale, dragPosition.X.Offset + delta.X, dragPosition.Y.Scale, dragPosition.Y.Offset + delta.Y)
+        self.RestPosition = UDim2.new(dragPosition.X.Scale, math.round(dragPosition.X.Offset + delta.X), dragPosition.Y.Scale, math.round(dragPosition.Y.Offset + delta.Y))
+        self.Root.Position = self.RestPosition
+        self:SnapPosition()
     end)
     self.Scope:Connect(Input.InputEnded, function(input)
         if input == self.DragInput then dragStart = nil; self.DragInput = nil end
+        if self.Resizing and input == self.Resizing.Input then self.Resizing = nil end
+    end)
+    self.Scope:Connect(self.ResizeHandle.InputBegan, function(input)
+        if not self.Open or not self.Resizable then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            self:ClosePopup()
+            local tween = self.Scope.Tweens[self.Root]
+            if tween then tween:Cancel() end
+            self.Root.Position = self.RestPosition
+            self.Resizing = { Input = input, Start = input.Position, Size = self.Root.AbsoluteSize, Origin = self.Root.AbsolutePosition }
+        end
     end)
     self.Scope:Connect(self.Root:GetPropertyChangedSignal("AbsoluteSize"), function() self:Relayout() end)
     local camera = workspace.CurrentCamera
     local function fit()
-        local viewport = self.Screen.AbsoluteSize
-        self.Root.Size = UDim2.fromOffset(math.min(self.Size.X, math.max(280, viewport.X - 24)), math.min(self.Size.Y, math.max(240, viewport.Y - 24)))
-        self:Relayout()
+        self:Fit()
     end
     self.Scope:Connect(self.Screen:GetPropertyChangedSignal("AbsoluteSize"), fit)
     if camera then self.Scope:Connect(camera:GetPropertyChangedSignal("ViewportSize"), fit) end
     task.defer(function() if not self.Dead then fit() end end)
-    self:SetVisible(true, true)
+    task.defer(function() if not self.Dead then self:SetVisible(true, true) end end)
     return self
 end
 
@@ -443,20 +472,52 @@ function Window:SetVisible(value, initial)
     self.Open = value; self.VisibilityVersion += 1
     local version = self.VisibilityVersion
     self:ClosePopup()
+    self.Resizing = nil
     if self.Capturing then self.Capturing.Render(self.Capturing:Get()); self.Capturing = nil end
+    local wasVisible = self.Root.Visible
     self.Root.Visible = true
-    if value and initial then self.Root.GroupTransparency = 1; self.Scale.Scale = 0.975 end
-    self.Scope:Tween(self.Root, value and 0.21 or 0.15, { GroupTransparency = value and 0 or 1 }, self.ReducedMotion)
-    self.Scope:Tween(self.Scale, value and 0.21 or 0.15, { Scale = value and 1 or 0.985 }, self.ReducedMotion)
+    local rest = self.RestPosition
+    local shifted = UDim2.new(rest.X.Scale, rest.X.Offset, rest.Y.Scale, rest.Y.Offset + 6)
+    if value and (initial or not wasVisible) then self.Root.Position = shifted end
+    self.Scope:Tween(self.Root, value and 0.21 or 0.15, { Position = value and rest or shifted }, self.ReducedMotion)
     if not value then
         task.delay(self.ReducedMotion and 0 or 0.15, function()
-            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false end
+            if not self.Dead and version == self.VisibilityVersion then self.Root.Visible = false; self.Root.Position = self.RestPosition end
         end)
     end
 end
+function Window:SnapPosition()
+    local viewport, size, anchor = self.Screen.AbsoluteSize, self.Root.AbsoluteSize, self.Root.AnchorPoint
+    local position = self.RestPosition
+    local x = math.round(position.X.Scale * viewport.X + position.X.Offset - anchor.X * size.X)
+    local y = math.round(position.Y.Scale * viewport.Y + position.Y.Offset - anchor.Y * size.Y)
+    x = math.clamp(x, 12, math.max(12, viewport.X - size.X - 12))
+    y = math.clamp(y, 12, math.max(12, viewport.Y - size.Y - 12))
+    self.RestPosition = UDim2.fromOffset(x + anchor.X * size.X, y + anchor.Y * size.Y)
+    self.Root.Position = self.RestPosition
+end
+function Window:Fit()
+    local viewport = self.Screen.AbsoluteSize
+    self.Root.Size = UDim2.fromOffset(math.round(math.min(self.Size.X, math.max(1, viewport.X - 24))), math.round(math.min(self.Size.Y, math.max(1, viewport.Y - 24))))
+    self:SnapPosition(); self:Relayout()
+end
+function Window:SetSize(size, origin)
+    assert(typeof(size) == "Vector2", "SetSize requires Vector2")
+    local viewport = self.Screen.AbsoluteSize
+    origin = origin or self.Root.AbsolutePosition
+    local maxX = math.max(1, viewport.X - math.max(12, origin.X) - 12)
+    local maxY = math.max(1, viewport.Y - math.max(12, origin.Y) - 12)
+    local width = math.round(math.clamp(size.X, math.min(self.MinSize.X, maxX), maxX))
+    local height = math.round(math.clamp(size.Y, math.min(self.MinSize.Y, maxY), maxY))
+    self.Size = Vector2.new(width, height)
+    self.Root.Size = UDim2.fromOffset(width, height)
+    self.RestPosition = UDim2.fromOffset(math.round(origin.X) + self.Root.AnchorPoint.X * width, math.round(origin.Y) + self.Root.AnchorPoint.Y * height)
+    self.Root.Position = self.RestPosition
+    self:Relayout()
+end
 function Window:Relayout()
     local width = self.Root.AbsoluteSize.X
-    local accentWidth = math.min(364, width * 0.546)
+    local accentWidth = math.floor(math.min(364, width * 0.546) / 2) * 2
     self.Accent.Size = UDim2.fromOffset(accentWidth, 1)
     self.Accent.Position = UDim2.new(0.5, -accentWidth / 2, 0, 31)
     for _, page in ipairs(self.Pages) do page:Relayout() end
@@ -476,9 +537,11 @@ function Window:AddTab(name)
     function page:Relayout()
         local narrow = self.Scroll.AbsoluteSize.X < 520
         local leftHeight, rightHeight = self.LeftList.AbsoluteContentSize.Y, self.RightList.AbsoluteContentSize.Y
-        self.Left.Size = UDim2.new(narrow and 1 or 0.5, narrow and 0 or -4, 0, leftHeight)
-        self.Right.Size = UDim2.new(narrow and 1 or 0.5, narrow and 0 or -4, 0, rightHeight)
-        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + 8) or UDim2.new(0.5, 4, 0, 0)
+        local available = math.floor(self.Scroll.AbsoluteSize.X)
+        local leftWidth = narrow and available or math.floor((available - 8) / 2)
+        self.Left.Size = UDim2.fromOffset(leftWidth, leftHeight)
+        self.Right.Size = UDim2.fromOffset(narrow and available or available - leftWidth - 8, rightHeight)
+        self.Right.Position = narrow and UDim2.fromOffset(0, leftHeight + 8) or UDim2.fromOffset(leftWidth + 8, 0)
         self.Scroll.CanvasSize = UDim2.fromOffset(0, narrow and leftHeight + rightHeight + 8 or math.max(leftHeight, rightHeight))
     end
     function page:SetTitle(text) self.Title.Text = text end
@@ -608,7 +671,7 @@ return Window
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.0", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.1", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -703,7 +766,7 @@ end
 function Util.label(parent, text, props)
     local defaults = {
         BackgroundTransparency = 1, BorderSizePixel = 0, Font = Theme.Font,
-        TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        TextSize = Theme.TextSize, TextScaled = false, TextColor3 = Theme.Text, Text = text,
         TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
         Size = UDim2.new(1, 0, 0, Theme.RowHeight),
     }
@@ -713,7 +776,7 @@ end
 function Util.button(parent, text, props)
     local defaults = {
         BackgroundColor3 = Theme.Panel, BorderColor3 = Theme.Outline, BorderSizePixel = 1,
-        Font = Theme.Font, TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        Font = Theme.Font, TextSize = Theme.TextSize, TextScaled = false, TextColor3 = Theme.Text, Text = text,
         AutoButtonColor = false, Size = UDim2.new(1, 0, 0, Theme.RowHeight),
     }
     for k, v in pairs(props or {}) do defaults[k] = v end

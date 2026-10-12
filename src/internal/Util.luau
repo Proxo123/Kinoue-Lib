@@ -15,7 +15,7 @@ end
 function Util.label(parent, text, props)
     local defaults = {
         BackgroundTransparency = 1, BorderSizePixel = 0, Font = Theme.Font,
-        TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        TextSize = Theme.TextSize, TextScaled = false, TextColor3 = Theme.Text, Text = text,
         TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
         Size = UDim2.new(1, 0, 0, Theme.RowHeight),
     }
@@ -25,7 +25,7 @@ end
 function Util.button(parent, text, props)
     local defaults = {
         BackgroundColor3 = Theme.Panel, BorderColor3 = Theme.Outline, BorderSizePixel = 1,
-        Font = Theme.Font, TextSize = Theme.TextSize, TextColor3 = Theme.Text, Text = text,
+        Font = Theme.Font, TextSize = Theme.TextSize, TextScaled = false, TextColor3 = Theme.Text, Text = text,
         AutoButtonColor = false, Size = UDim2.new(1, 0, 0, Theme.RowHeight),
     }
     for k, v in pairs(props or {}) do defaults[k] = v end
