@@ -19,7 +19,10 @@ end
 local function update()
     local visible = false
     for owner in pairs(owners) do
-        if not owner.Dead and owner.Open and owner.Screen.Enabled and owner.Root.Visible then visible = true; break end
+        if not owner.Dead and owner.Open and owner.Screen.Enabled and owner.Root.Visible then
+            local position, size, viewport = owner.Root.AbsolutePosition, owner.Root.AbsoluteSize, owner.Screen.AbsoluteSize
+            if position.X < viewport.X and position.Y < viewport.Y and position.X + size.X > 0 and position.Y + size.Y > 0 then visible = true; break end
+        end
     end
     local inFirstPerson = firstPerson()
     if visible and inFirstPerson then

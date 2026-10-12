@@ -35,3 +35,7 @@ cursor_checks = (ROOT / "tests/cursor.luau").read_text(encoding="utf-8")
 cursor_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + cursor_checks
 (cache / "cursor.luau").write_text(cursor_harness, encoding="utf-8")
 subprocess.run([args.luau, ".cache/cursor.luau"], cwd=ROOT, check=True)
+window_checks = (ROOT / "tests/window.luau").read_text(encoding="utf-8")
+window_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + window_checks
+(cache / "window.luau").write_text(window_harness, encoding="utf-8")
+subprocess.run([args.luau, ".cache/window.luau"], cwd=ROOT, check=True)

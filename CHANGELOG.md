@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.7
+
+- Add optional `AllowOffscreen` window dragging with flush corner/edge snapping and configurable `SnapDistance`.
+- Add `Window:SetPosition(Vector2, snapEdges)`; offscreen placement survives resize, fitting, and visibility fades.
+- Release first-person cursor ownership when the window is completely outside the viewport.
+- Preserve bounded placement by default; Booga enables offscreen movement explicitly.
+- Add regressions for all four corners, offscreen dragging, resize stability, and cursor release.
+
 ## 0.1.6
 
 - Only unlock the menu cursor when the current camera is in first person; leave zoomed-out camera controls untouched.

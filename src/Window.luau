@@ -20,6 +20,8 @@ function Window.new(options)
     self.Size = options.Size or Vector2.new(704, 470)
     self.MinSize = options.MinSize or Vector2.new(480, 360)
     self.Resizable = options.Resizable ~= false
+    self.AllowOffscreen = options.AllowOffscreen == true
+    self.SnapDistance = math.max(0, options.SnapDistance or 8)
     self.Open = true; self.Dead = false; self.VisibilityVersion = 0
     self.Screen = U.new("ScreenGui", {
         Name = options.Id or "BoogaUI", ResetOnSpawn = false, IgnoreGuiInset = true,
@@ -112,7 +114,7 @@ function Window.new(options)
         local delta = input.Position - dragStart
         self.RestPosition = UDim2.new(dragPosition.X.Scale, math.round(dragPosition.X.Offset + delta.X), dragPosition.Y.Scale, math.round(dragPosition.Y.Offset + delta.Y))
         self.Root.Position = self.RestPosition
-        self:SnapPosition()
+        self:SnapPosition(true)
     end)
     self.Scope:Connect(Input.InputEnded, function(input)
         if input == self.DragInput then dragStart = nil; self.DragInput = nil end
@@ -177,24 +179,38 @@ function Window:SetVisible(value, initial)
         end)
     end
 end
-function Window:SnapPosition()
+function Window:SnapPosition(snapEdges)
     local viewport, size, anchor = self.Screen.AbsoluteSize, self.Root.AbsoluteSize, self.Root.AnchorPoint
     local position = self.RestPosition
     local x = math.round(position.X.Scale * viewport.X + position.X.Offset - anchor.X * size.X)
     local y = math.round(position.Y.Scale * viewport.Y + position.Y.Offset - anchor.Y * size.Y)
-    x = math.clamp(x, 12, math.max(12, viewport.X - size.X - 12))
-    y = math.clamp(y, 12, math.max(12, viewport.Y - size.Y - 12))
+    if self.AllowOffscreen then
+        if snapEdges then
+            for _,edge in ipairs({0, viewport.X - size.X}) do if math.abs(x - edge) <= self.SnapDistance then x = edge; break end end
+            for _,edge in ipairs({0, viewport.Y - size.Y}) do if math.abs(y - edge) <= self.SnapDistance then y = edge; break end end
+        end
+    else
+        x = math.clamp(x, 12, math.max(12, viewport.X - size.X - 12))
+        y = math.clamp(y, 12, math.max(12, viewport.Y - size.Y - 12))
+    end
     self.RestPosition = UDim2.fromOffset(x + anchor.X * size.X, y + anchor.Y * size.Y)
     self.Root.Position = self.RestPosition
 end
 function Window:Fit()
     local viewport = self.Screen.AbsoluteSize
-    self.Root.Size = UDim2.fromOffset(math.round(math.min(self.Size.X, math.max(1, viewport.X - 24))), math.round(math.min(self.Size.Y, math.max(1, viewport.Y - 24))))
+    local margin = self.AllowOffscreen and 0 or 24
+    self.Root.Size = UDim2.fromOffset(math.round(math.min(self.Size.X, math.max(1, viewport.X - margin))), math.round(math.min(self.Size.Y, math.max(1, viewport.Y - margin))))
     self:SnapPosition(); self:Relayout()
 end
 function Window:GetPosition()
     local position, viewport = self.RestPosition, self.Screen.AbsoluteSize
     return Vector2.new(position.X.Scale * viewport.X + position.X.Offset, position.Y.Scale * viewport.Y + position.Y.Offset)
+end
+function Window:SetPosition(position, snapEdges)
+    assert(typeof(position) == "Vector2", "SetPosition requires Vector2")
+    self.RestPosition = UDim2.fromOffset(position.X, position.Y)
+    self:SnapPosition(snapEdges)
+    return self
 end
 function Window:SetSize(size, origin)
     assert(typeof(size) == "Vector2", "SetSize requires Vector2")
@@ -202,6 +218,7 @@ function Window:SetSize(size, origin)
     origin = origin or self:GetPosition()
     local maxX = math.max(1, viewport.X - math.max(12, origin.X) - 12)
     local maxY = math.max(1, viewport.Y - math.max(12, origin.Y) - 12)
+    if self.AllowOffscreen then maxX = math.max(1, viewport.X); maxY = math.max(1, viewport.Y) end
     local width = math.round(math.clamp(size.X, math.min(self.MinSize.X, maxX), maxX))
     local height = math.round(math.clamp(size.Y, math.min(self.MinSize.Y, maxY), maxY))
     self.Size = Vector2.new(width, height)

@@ -1,4 +1,4 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/booga-ui/v0.1.6/dist/BoogaUI.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/booga-ui/v0.1.7/dist/BoogaUI.lua"))()
 
 local Players = game:GetService("Players")
 local environment = type(getgenv) == "function" and getgenv() or shared

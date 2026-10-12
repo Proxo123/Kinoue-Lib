@@ -46,7 +46,7 @@ This returns the library. It does not create a window or run Booga features. Cre
 
 ## Run the complete UI demo
 
-For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.6 library; callbacks print values or change UI state.
+For a small paste-and-run example covering toggles, sliders, material quantities, text input, buttons, colors, and Settings key rebinding, see [examples/Example.lua](examples/Example.lua). It loads the pinned v0.1.7 library; callbacks print values or change UI state.
 
 For a working player-highlight example, run [examples/ESP.lua](examples/ESP.lua):
 
@@ -68,6 +68,8 @@ local window = UI:CreateWindow({
     Size = Vector2.new(704, 470),
     MinSize = Vector2.new(480, 360),
     Resizable = true,
+    AllowOffscreen = true, -- Drag beyond screen edges and tuck flush into corners.
+    SnapDistance = 8, -- Pixels; 0 disables proximity snapping.
     ToggleKey = Enum.KeyCode.RightShift,
     ReducedMotion = false,
     -- Always parented to CoreGui; the client must permit CoreGui access.
@@ -122,6 +124,8 @@ Buttons return `SetEnabled(bool)` and `SetText(text)`. A button's optional `Keyb
 `page:AddSubTab(name)` returns an object with `AddGroupbox(name, side)` and `Select()`. This powers Players / Resources / Style in the demo. `page:SetTitle(text)` and `page:SetMode(text)` update the page header.
 
 Window methods: `SelectTab(page)`, `SetVisible(bool)`, `GetPosition()`, `SetSize(Vector2)`, `SetToggleKey(key)`, `SetStatus(text)`, `GetConfig()`, `LoadConfig(table)`, `EncodeConfig()`, `DecodeConfig(json)`, and `Destroy()`. Resize keeps the top-left fixed, clamps to `MinSize` and the available screen area, and supports mouse or touch. Set `Resizable = false` to hide and disable the corner handle.
+
+Set `AllowOffscreen = true` to drag through viewport edges. The window snaps flush to nearby edges while dragging, without preventing movement beyond them. `window:SetPosition(Vector2.new(x, y), snapEdges)` sets the top-left; pass `true` for optional edge snapping. Offscreen positions are preserved during fitting, resizing, and fade animations. The default remains bounded. A completely offscreen window yields first-person cursor control back to the game. Reloading a window with no supplied position centers it again.
 
 Use `window:OnDestroy(function() ... end)` to clean up objects or connections owned by a feature. Cleanup runs once on unload, including when a registered callback calls `Destroy()` again. Registering after destruction runs the cleanup immediately.
 
