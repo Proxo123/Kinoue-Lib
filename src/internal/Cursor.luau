@@ -27,8 +27,9 @@ local function update()
     local inFirstPerson = firstPerson()
     if visible and inFirstPerson then
         if not overriding then previousIcon = Input.MouseIconEnabled; overriding = true end
-        Input.MouseBehavior = Enum.MouseBehavior.Default
-        Input.MouseIconEnabled = true
+        -- Runs every frame; skip redundant property writes.
+        if Input.MouseBehavior ~= Enum.MouseBehavior.Default then Input.MouseBehavior = Enum.MouseBehavior.Default end
+        if not Input.MouseIconEnabled then Input.MouseIconEnabled = true end
     else
         release(inFirstPerson)
     end

@@ -25,14 +25,16 @@ local function control(group, id, initial, normalize, callback)
         value = value == true
         if self.Enabled == value then return self end
         self.Enabled = value
+        if not value and window.Capturing == self then window.Capturing = nil end
         if self.Root then self.Root.Active = self.Enabled end
         if self.Render then self.Render(self:Get()) end
         return self
     end
     function c:SetVisible(value) self.Row.Visible = value == true return self end
+    U.protect(c, { "Set", "SetEnabled", "SetVisible" })
     return window:Register(id, c)
 end
-local function keyButton(group, parent, id, info)
+local function keyButton(group, parent, id, info, inline)
     local window = group.Window
     local c = control(group, id, info.Value or Enum.KeyCode.Unknown, function(value)
         assert(typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode, "Keybind requires Enum.KeyCode")
@@ -50,6 +52,11 @@ local function keyButton(group, parent, id, info)
         if window.Capturing then window.Capturing.Render(window.Capturing:Get()) end
         window.Capturing = c; c.Root.Text = "[Press a key]"
     end)
+    -- An inline keybind shares its row with a toggle or button; hide only the key.
+    if inline then
+        function c:SetVisible(value) self.Root.Visible = value == true return self end
+        U.protect(c, { "SetVisible" })
+    end
     table.insert(window.Keybinds, c)
     c.Render(c:Get())
     return c
@@ -61,7 +68,7 @@ function Controls.attach(group)
         local result = { Root = label }
         function result:SetText(value) label.Text = tostring(value) end
         function result:SetVisible(value) label.Visible = value end
-        return result
+        return U.protect(result, { "SetText", "SetVisible" })
     end
     function group:AddToggle(id, info)
         info = info or {}
@@ -80,7 +87,7 @@ function Controls.attach(group)
             name.TextTransparency = c.Enabled and 0 or 0.55
         end
         self.Window.Scope:Connect(hit.Activated, function() if c.Enabled then c:Set(not c:Get()) end end)
-        if info.Keybind then c.Keybind = keyButton(self, c.Row, info.Keybind.Id or id .. "Key", info.Keybind) end
+        if info.Keybind then c.Keybind = keyButton(self, c.Row, info.Keybind.Id or id .. "Key", info.Keybind, true) end
         c.Render(c:Get())
         return c
     end
@@ -108,22 +115,32 @@ function Controls.attach(group)
             output.Text = string.format(info.Format or "%g", value) .. (info.Suffix and " " .. info.Suffix or "")
             output.TextTransparency = c.Enabled and 0 or 0.55
         end
-        local dragging, touch
+        -- Global input listeners exist only while this slider is dragged.
+        local scope = self.Window.Scope
+        local dragging, moved, ended
         local function update(x)
             if not c.Enabled then return end
             local fraction = math.clamp((x - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X), 0, 1)
             c:Set(minimum + fraction * (maximum - minimum))
         end
-        self.Window.Scope:Connect(track.InputBegan, function(input)
+        local function stop()
+            dragging = nil
+            scope:Release(moved); scope:Release(ended)
+            moved, ended = nil, nil
+        end
+        scope:Connect(track.InputBegan, function(input)
             if not c.Enabled then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; touch = input; update(input.Position.X)
+                dragging = input
+                if not moved then
+                    moved = scope:Connect(Input.InputChanged, function(changed)
+                        if changed.UserInputType == Enum.UserInputType.MouseMovement or changed == dragging then update(changed.Position.X) end
+                    end)
+                    ended = scope:Connect(Input.InputEnded, function(released) if U.sameInput(released, dragging) then stop() end end)
+                end
+                update(input.Position.X)
             end
         end)
-        self.Window.Scope:Connect(Input.InputChanged, function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input == touch) then update(input.Position.X) end
-        end)
-        self.Window.Scope:Connect(Input.InputEnded, function(input) if input == touch then dragging = false; touch = nil end end)
         c.Render(c:Get())
         return c
     end
@@ -158,6 +175,12 @@ function Controls.attach(group)
             local textWidth = U.textWidth(name.Text)
             meta.Position = UDim2.fromOffset(textWidth + 12, 0)
             name.TextTransparency = c.Enabled and 0 or 0.55
+            if not c.Enabled and self.Window.PopupOwner == c then self.Window:ClosePopup() end
+        end
+        local setVisible = c.SetVisible
+        function c:SetVisible(value)
+            if not value and self.Window.PopupOwner == self then self.Window:ClosePopup() end
+            return setVisible(self, value)
         end
         function c:UpdateOptions(values)
             self.Window:ClosePopup()
@@ -167,6 +190,7 @@ function Controls.attach(group)
             self:SetSilent(selected)
             if unchanged then self.Render(selected) end
         end
+        U.protect(c, { "UpdateOptions" })
         c.Window = self.Window
         local function open()
             if not c.Enabled or #options == 0 then return end
@@ -216,9 +240,15 @@ function Controls.attach(group)
             local width = info.Width or (U.textWidth(text) + 14)
             return text, UDim2.fromOffset(width, T.RowHeight)
         end
-        local text, size = setText(info.Text or "Button")
+        local baseText = info.Text or "Button"
+        local text, size = setText(baseText)
         local button = U.button(container, text, { Size = size, BorderColor3 = info.Primary and T.Accent or T.Outline })
         local result = { Root = button, Row = container, Enabled = info.Disabled ~= true }
+        local function render()
+            local shown = baseText
+            if result.Keybind then shown = shown .. " [" .. U.keyName(result.Keybind:Get()) .. "]" end
+            button.Text, button.Size = setText(shown)
+        end
         function result:SetEnabled(value)
             value = value == true
             if self.Enabled == value and self.Rendered then return self end
@@ -227,18 +257,19 @@ function Controls.attach(group)
             button.TextTransparency = 0
             return self
         end
-        function result:SetText(text) button.Text, button.Size = setText(text) end
+        -- Keeps the " [Key]" suffix of a button keybind.
+        function result:SetText(value) baseText = tostring(value); render() end
         self.Window.Scope:Connect(button.Activated, function() if result.Enabled then self.Window:Dispatch(info.Callback) end end)
         if info.Keybind then
             local config = table.clone(info.Keybind)
             local changed = config.Callback
             config.Pressed = config.Pressed or function() if result.Enabled then self.Window:Dispatch(info.Callback) end end
-            config.Callback = function(value) result:SetText((info.Text or "Button") .. " [" .. U.keyName(value) .. "]"); if changed then changed(value) end end
-            result.Keybind = keyButton(self, container, config.Id, config)
-            result:SetText((info.Text or "Button") .. " [" .. U.keyName(result.Keybind:Get()) .. "]")
+            config.Callback = function(value) render(); if changed then changed(value) end end
+            result.Keybind = keyButton(self, container, config.Id or baseText .. "Key", config, true)
+            render()
         end
         result:SetEnabled(result.Enabled)
-        return result
+        return U.protect(result, { "SetEnabled", "SetText" })
     end
     function group:AddButtons(definitions)
         local container = row(self)
@@ -335,8 +366,12 @@ function Controls.attach(group)
         end
         group.Window.Scope:Connect(preview.Root:GetPropertyChangedSignal("AbsoluteSize"), layout)
         preview:SetPoints(info.Points or {})
-        return preview
+        return U.protect(preview, { "SetPoints", "SetCount", "Recoil" })
     end
+    U.protect(group, {
+        "AddLabel", "AddToggle", "AddKeybind", "AddSlider", "AddTextbox", "AddDropdown",
+        "AddButton", "AddButtons", "AddDisclosure", "AddColorPicker", "AddPreview",
+    })
 end
 return Controls
 
@@ -431,30 +466,50 @@ function Window.new(options)
         if self.Capturing then
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
             local control = self.Capturing; self.Capturing = nil
+            control.Down = false
             if input.KeyCode ~= Enum.KeyCode.Escape then control:Set(input.KeyCode) else control.Render(control:Get()) end
             return
         end
         if processed or Input:GetFocusedTextBox() then return end
         if input.KeyCode == self.ToggleKey then self:SetVisible(not self.Open) return end
         if not self.Open then return end
+        -- Mouse and touch input report KeyCode.Unknown, which unbound keybinds also hold.
+        if input.KeyCode == Enum.KeyCode.Unknown then return end
         for _, control in ipairs(self.Keybinds) do
-            if control.Enabled and input.KeyCode == control:Get() and control.Pressed then self:Dispatch(control.Pressed, input) end
+            if control.Enabled and input.KeyCode == control:Get() then
+                control.Down = true
+                if control.Pressed then self:Dispatch(control.Pressed, input) end
+            end
         end
     end)
     self.Scope:Connect(Input.InputEnded, function(input)
+        if input.KeyCode == Enum.KeyCode.Unknown then return end
+        -- Released pairs with Pressed: no release for presses that were ignored.
         for _, control in ipairs(self.Keybinds) do
-            if input.KeyCode == control:Get() and control.Released then self:Dispatch(control.Released, input) end
+            if control.Down and input.KeyCode == control:Get() then
+                control.Down = false
+                if control.Released then self:Dispatch(control.Released, input) end
+            end
         end
     end)
-    local dragStart, dragPosition
+    -- The global move listener exists only while dragging or resizing.
+    local dragStart, dragPosition, moved
+    local onMove
+    local function track()
+        if not moved then moved = self.Scope:Connect(Input.InputChanged, function(input) onMove(input) end) end
+    end
+    local function untrack()
+        if moved and not dragStart and not self.Resizing then self.Scope:Release(moved); moved = nil end
+    end
     self.Scope:Connect(self.Header.InputBegan, function(input)
         if not self.Open then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Root.Position = self.RestPosition
             dragStart = input.Position; dragPosition = self.Root.Position; self.DragInput = input
+            track()
         end
     end)
-    self.Scope:Connect(Input.InputChanged, function(input)
+    onMove = function(input)
         if not self.Open then return end
         local resize = self.Resizing
         if resize and (input.UserInputType == Enum.UserInputType.MouseMovement or input == resize.Input) then
@@ -468,10 +523,11 @@ function Window.new(options)
         self.RestPosition = UDim2.new(dragPosition.X.Scale, math.round(dragPosition.X.Offset + delta.X), dragPosition.Y.Scale, math.round(dragPosition.Y.Offset + delta.Y))
         self.Root.Position = self.RestPosition
         self:SnapPosition(true)
-    end)
+    end
     self.Scope:Connect(Input.InputEnded, function(input)
-        if input == self.DragInput then dragStart = nil; self.DragInput = nil end
-        if self.Resizing and input == self.Resizing.Input then self.Resizing = nil end
+        if U.sameInput(input, self.DragInput) then dragStart = nil; self.DragInput = nil end
+        if self.Resizing and U.sameInput(input, self.Resizing.Input) then self.Resizing = nil end
+        untrack()
     end)
     self.Scope:Connect(self.ResizeHandle.InputBegan, function(input)
         if not self.Open or not self.Resizable then return end
@@ -482,6 +538,7 @@ function Window.new(options)
             self.RestPosition = self.Root.Position
             dragStart = nil; self.DragInput = nil
             self.Resizing = { Input = input, Start = input.Position, Size = Vector2.new(self.Root.Size.X.Offset, self.Root.Size.Y.Offset), Origin = self:GetPosition() }
+            track()
         end
     end)
     self.Scope:Connect(self.Root:GetPropertyChangedSignal("AbsoluteSize"), function() self:Relayout() end)
@@ -647,6 +704,7 @@ function Window:AddTab(name)
             group.Frame.Visible = self.Page.ActiveSubpage == self
             return group
         end
+        U.protect(child, { "Select", "AddGroupbox" })
         table.insert(self.Subpages, child)
         self.Window.Scope:Connect(child.Button.Activated, function() child:Select() end)
         if #self.Subpages == 1 then child:Select() end
@@ -667,6 +725,7 @@ function Window:AddTab(name)
         return group
     end
     function page:Select() self.Window:SelectTab(self) end
+    U.protect(page, { "SetTitle", "SetMode", "AddSubTab", "AddGroupbox", "Select" })
     self.Scope:Connect(button.Activated, function() self:SelectTab(page) end)
     self.Scope:Connect(page.LeftList:GetPropertyChangedSignal("AbsoluteContentSize"), function() page:Relayout() end)
     self.Scope:Connect(page.RightList:GetPropertyChangedSignal("AbsoluteContentSize"), function() page:Relayout() end)
@@ -700,12 +759,17 @@ function Window:GetConfig()
 end
 function Window:LoadConfig(config)
     assert(type(config) == "table" and config.Version == 1 and type(config.Values) == "table", "Unsupported UI config")
-    for id, value in pairs(config.Values) do
+    -- One stale value (a removed dropdown option, a renamed key) must not discard the rest.
+    for id, saved in pairs(config.Values) do
         local control = self.Controls[id]
         if control then
-            if type(value) == "table" and value.Type == "KeyCode" then value = Enum.KeyCode[value.Name] end
-            if type(value) == "table" and value.Type == "Color3" then value = Color3.new(value.R, value.G, value.B) end
-            control:Set(value)
+            local ok, message = pcall(function()
+                local value = saved
+                if type(value) == "table" and value.Type == "KeyCode" then value = Enum.KeyCode[value.Name] end
+                if type(value) == "table" and value.Type == "Color3" then value = Color3.new(value.R, value.G, value.B) end
+                control:Set(value)
+            end)
+            if not ok then warn("[BoogaUI] Skipped saved value for " .. id .. ": " .. tostring(message)) end
         end
     end
 end
@@ -767,12 +831,19 @@ function Window:Destroy()
     table.clear(self.Cleanup)
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
+-- Window methods may be called from feature threads without CoreGui access.
+-- Destroy restores context per cleanup step and runs feature callbacks in the caller's context.
+local methods = {}
+for name, fn in pairs(Window) do
+    if type(fn) == "function" and name ~= "new" and name ~= "Destroy" and name ~= "Dispatch" then table.insert(methods, name) end
+end
+U.protect(Window, methods)
 return Window
 
 end
 __factories["init"] = function()
 local Window = __require("Window")
-local Library = { Version = "0.1.11", Theme = __require("internal/Theme") }
+local Library = { Version = "0.1.12", Theme = __require("internal/Theme") }
 function Library:CreateWindow(options) return Window.new(options or {}) end
 function Library.FileStorage(path)
     assert(type(readfile) == "function" and type(writefile) == "function", "File APIs unavailable; supply your own Read/Write adapter")
@@ -867,7 +938,7 @@ function ColorPicker.attach(group, c, info)
         scope:Connect(Input.InputChanged, function(input)
             if dragging and (input == touch or input.UserInputType == Enum.UserInputType.MouseMovement) then update(input.Position) end
         end)
-        scope:Connect(Input.InputEnded, function(input) if input == touch then dragging, touch = nil, nil end end)
+        scope:Connect(Input.InputEnded, function(input) if U.sameInput(input, touch) then dragging, touch = nil, nil end end)
         scope:Connect(hex.FocusLost, function()
             local value = hex.Text:gsub("%s", ""):gsub("^#", "")
             if value:match("^%x%x%x%x%x%x$") then c:Set(Color3.fromHex(value))
@@ -888,6 +959,7 @@ function ColorPicker.attach(group, c, info)
     window.Scope:Connect(c.Root.Activated, open)
     function c:Open() if window.PopupOwner ~= self then open() end return self end
     function c:Close() if window.PopupOwner == self then window:ClosePopup() end return self end
+    U.protect(c, { "Open", "Close" })
     c.Render(c:Get())
 end
 return ColorPicker
@@ -923,8 +995,9 @@ local function update()
     local inFirstPerson = firstPerson()
     if visible and inFirstPerson then
         if not overriding then previousIcon = Input.MouseIconEnabled; overriding = true end
-        Input.MouseBehavior = Enum.MouseBehavior.Default
-        Input.MouseIconEnabled = true
+        -- Runs every frame; skip redundant property writes.
+        if Input.MouseBehavior ~= Enum.MouseBehavior.Default then Input.MouseBehavior = Enum.MouseBehavior.Default end
+        if not Input.MouseIconEnabled then Input.MouseIconEnabled = true end
     else
         release(inFirstPerson)
     end
@@ -1148,8 +1221,33 @@ function Util.withContext(fn, ...)
     end
     return fn(...)
 end
+-- Text measurement is an engine call; labels re-render with the same strings constantly.
+local widths, widthCount = {}, 0
+-- Public methods may be called from feature threads (task.defer, Heartbeat) that lack
+-- CoreGui access. Run them in the same context the GUI was mounted with.
+function Util.protect(object, names)
+    for _, name in ipairs(names) do
+        local fn = object[name]
+        if type(fn) == "function" then
+            object[name] = function(...) return Util.withContext(fn, ...) end
+        end
+    end
+    return object
+end
 function Util.textWidth(text, size)
-    return math.ceil(TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(10000, 1000)).X)
+    size = size or Theme.TextSize
+    local key = size .. "\0" .. text
+    local width = widths[key]
+    if width then return width end
+    if widthCount >= 512 then table.clear(widths); widthCount = 0 end
+    width = math.ceil(TextService:GetTextSize(text, size, Theme.Font, Vector2.new(10000, 1000)).X)
+    widths[key] = width; widthCount += 1
+    return width
+end
+-- Mouse button InputObjects are not guaranteed to be the same object across began/ended.
+function Util.sameInput(a, b)
+    if a == b then return a ~= nil end
+    return a ~= nil and b ~= nil and a.UserInputType == Enum.UserInputType.MouseButton1 and b.UserInputType == Enum.UserInputType.MouseButton1
 end
 function Util.new(className, props, parent)
     local object = Instance.new(className)
@@ -1199,25 +1297,21 @@ function Util.scope()
         local connection = signal:Connect(function(...)
             if self.Dead then return end
             -- Roblox GUI signals may run below the identity used to mount CoreGui.
-            local getIdentity = getthreadidentity or getidentity or (type(syn) == "table" and syn.get_thread_identity)
-            local setIdentity = setthreadidentity or setidentity or (type(syn) == "table" and syn.set_thread_identity)
-            if type(getIdentity) == "function" and type(setIdentity) == "function" then
-                local read, identity = pcall(getIdentity)
-                if read and type(identity) == "number" and identity < 8 then
-                    local elevated = pcall(setIdentity, 8)
-                    if elevated then
-                        local result = table.pack(pcall(fn, ...))
-                        local restored, message = pcall(setIdentity, identity)
-                        if not restored then error("[BoogaUI] Failed to restore callback identity: " .. tostring(message), 0) end
-                        if not result[1] then error(result[2], 0) end
-                        return table.unpack(result, 2, result.n)
-                    end
-                end
-            end
-            return fn(...)
+            return Util.withContext(fn, ...)
         end)
         table.insert(self.Connections, connection)
         return connection
+    end
+    -- Disconnects a short-lived connection (drags) without keeping it until Destroy.
+    function scope:Release(connection)
+        if not connection then return end
+        pcall(function() connection:Disconnect() end)
+        local index = table.find(self.Connections, connection)
+        if index then
+            local last = #self.Connections
+            self.Connections[index] = self.Connections[last]
+            self.Connections[last] = nil
+        end
     end
     function scope:Tween(object, duration, props, reduced)
         local prior = self.Tweens[object]

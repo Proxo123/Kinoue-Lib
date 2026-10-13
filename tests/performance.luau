@@ -32,6 +32,21 @@ preview:SetPoints({V(0, 0)})
 assert(#preview.Parts == 1 and preview.Parts[1] == first)
 preview:SetPoints({V(0, 0), V(1, 0)})
 assert(#preview.Parts == 2 and preview.Parts[1] == first)
+local slider = group:AddSlider("Drag", { Min = 0, Max = 10 })
+local idle = Mock:ConnectionCount()
+slider.Root.InputBegan:Fire({ UserInputType = Mock.Enum.UserInputType.MouseButton1, Position = V(0, 0) })
+assert(Mock:ConnectionCount() == idle + 2, "Dragging connects move/end listeners")
+Mock.Input.InputEnded:Fire({ UserInputType = Mock.Enum.UserInputType.MouseButton1 })
+assert(Mock:ConnectionCount() == idle, "Idle sliders must not listen to global input")
+local presses = 0
+group:AddKeybind("Unbound", { Pressed = function() presses += 1 end })
+Mock.Input.InputBegan:Fire({ KeyCode = Mock.Enum.KeyCode.Unknown, UserInputType = Mock.Enum.UserInputType.MouseButton1 }, false)
+assert(presses == 0, "Mouse clicks must not trigger unbound keybinds")
+Mock.Environment.warn = function() end
+local stale = window:GetConfig()
+stale.Values.Material = "Removed option"; stale.Values.Mode2 = true
+window:LoadConfig(stale)
+assert(controls[2]:Get() == true, "A stale saved value must not discard the rest")
 local connections = Mock:ConnectionCount()
 for _ = 1, 10 do
     window:SetVisible(false)

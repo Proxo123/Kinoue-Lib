@@ -76,7 +76,7 @@ function ColorPicker.attach(group, c, info)
         scope:Connect(Input.InputChanged, function(input)
             if dragging and (input == touch or input.UserInputType == Enum.UserInputType.MouseMovement) then update(input.Position) end
         end)
-        scope:Connect(Input.InputEnded, function(input) if input == touch then dragging, touch = nil, nil end end)
+        scope:Connect(Input.InputEnded, function(input) if U.sameInput(input, touch) then dragging, touch = nil, nil end end)
         scope:Connect(hex.FocusLost, function()
             local value = hex.Text:gsub("%s", ""):gsub("^#", "")
             if value:match("^%x%x%x%x%x%x$") then c:Set(Color3.fromHex(value))
@@ -97,6 +97,7 @@ function ColorPicker.attach(group, c, info)
     window.Scope:Connect(c.Root.Activated, open)
     function c:Open() if window.PopupOwner ~= self then open() end return self end
     function c:Close() if window.PopupOwner == self then window:ClosePopup() end return self end
+    U.protect(c, { "Open", "Close" })
     c.Render(c:Get())
 end
 return ColorPicker

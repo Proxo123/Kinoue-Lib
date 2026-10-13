@@ -20,14 +20,16 @@ local function control(group, id, initial, normalize, callback)
         value = value == true
         if self.Enabled == value then return self end
         self.Enabled = value
+        if not value and window.Capturing == self then window.Capturing = nil end
         if self.Root then self.Root.Active = self.Enabled end
         if self.Render then self.Render(self:Get()) end
         return self
     end
     function c:SetVisible(value) self.Row.Visible = value == true return self end
+    U.protect(c, { "Set", "SetEnabled", "SetVisible" })
     return window:Register(id, c)
 end
-local function keyButton(group, parent, id, info)
+local function keyButton(group, parent, id, info, inline)
     local window = group.Window
     local c = control(group, id, info.Value or Enum.KeyCode.Unknown, function(value)
         assert(typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode, "Keybind requires Enum.KeyCode")
@@ -45,6 +47,11 @@ local function keyButton(group, parent, id, info)
         if window.Capturing then window.Capturing.Render(window.Capturing:Get()) end
         window.Capturing = c; c.Root.Text = "[Press a key]"
     end)
+    -- An inline keybind shares its row with a toggle or button; hide only the key.
+    if inline then
+        function c:SetVisible(value) self.Root.Visible = value == true return self end
+        U.protect(c, { "SetVisible" })
+    end
     table.insert(window.Keybinds, c)
     c.Render(c:Get())
     return c
@@ -56,7 +63,7 @@ function Controls.attach(group)
         local result = { Root = label }
         function result:SetText(value) label.Text = tostring(value) end
         function result:SetVisible(value) label.Visible = value end
-        return result
+        return U.protect(result, { "SetText", "SetVisible" })
     end
     function group:AddToggle(id, info)
         info = info or {}
@@ -75,7 +82,7 @@ function Controls.attach(group)
             name.TextTransparency = c.Enabled and 0 or 0.55
         end
         self.Window.Scope:Connect(hit.Activated, function() if c.Enabled then c:Set(not c:Get()) end end)
-        if info.Keybind then c.Keybind = keyButton(self, c.Row, info.Keybind.Id or id .. "Key", info.Keybind) end
+        if info.Keybind then c.Keybind = keyButton(self, c.Row, info.Keybind.Id or id .. "Key", info.Keybind, true) end
         c.Render(c:Get())
         return c
     end
@@ -103,22 +110,32 @@ function Controls.attach(group)
             output.Text = string.format(info.Format or "%g", value) .. (info.Suffix and " " .. info.Suffix or "")
             output.TextTransparency = c.Enabled and 0 or 0.55
         end
-        local dragging, touch
+        -- Global input listeners exist only while this slider is dragged.
+        local scope = self.Window.Scope
+        local dragging, moved, ended
         local function update(x)
             if not c.Enabled then return end
             local fraction = math.clamp((x - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X), 0, 1)
             c:Set(minimum + fraction * (maximum - minimum))
         end
-        self.Window.Scope:Connect(track.InputBegan, function(input)
+        local function stop()
+            dragging = nil
+            scope:Release(moved); scope:Release(ended)
+            moved, ended = nil, nil
+        end
+        scope:Connect(track.InputBegan, function(input)
             if not c.Enabled then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; touch = input; update(input.Position.X)
+                dragging = input
+                if not moved then
+                    moved = scope:Connect(Input.InputChanged, function(changed)
+                        if changed.UserInputType == Enum.UserInputType.MouseMovement or changed == dragging then update(changed.Position.X) end
+                    end)
+                    ended = scope:Connect(Input.InputEnded, function(released) if U.sameInput(released, dragging) then stop() end end)
+                end
+                update(input.Position.X)
             end
         end)
-        self.Window.Scope:Connect(Input.InputChanged, function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input == touch) then update(input.Position.X) end
-        end)
-        self.Window.Scope:Connect(Input.InputEnded, function(input) if input == touch then dragging = false; touch = nil end end)
         c.Render(c:Get())
         return c
     end
@@ -153,6 +170,12 @@ function Controls.attach(group)
             local textWidth = U.textWidth(name.Text)
             meta.Position = UDim2.fromOffset(textWidth + 12, 0)
             name.TextTransparency = c.Enabled and 0 or 0.55
+            if not c.Enabled and self.Window.PopupOwner == c then self.Window:ClosePopup() end
+        end
+        local setVisible = c.SetVisible
+        function c:SetVisible(value)
+            if not value and self.Window.PopupOwner == self then self.Window:ClosePopup() end
+            return setVisible(self, value)
         end
         function c:UpdateOptions(values)
             self.Window:ClosePopup()
@@ -162,6 +185,7 @@ function Controls.attach(group)
             self:SetSilent(selected)
             if unchanged then self.Render(selected) end
         end
+        U.protect(c, { "UpdateOptions" })
         c.Window = self.Window
         local function open()
             if not c.Enabled or #options == 0 then return end
@@ -211,9 +235,15 @@ function Controls.attach(group)
             local width = info.Width or (U.textWidth(text) + 14)
             return text, UDim2.fromOffset(width, T.RowHeight)
         end
-        local text, size = setText(info.Text or "Button")
+        local baseText = info.Text or "Button"
+        local text, size = setText(baseText)
         local button = U.button(container, text, { Size = size, BorderColor3 = info.Primary and T.Accent or T.Outline })
         local result = { Root = button, Row = container, Enabled = info.Disabled ~= true }
+        local function render()
+            local shown = baseText
+            if result.Keybind then shown = shown .. " [" .. U.keyName(result.Keybind:Get()) .. "]" end
+            button.Text, button.Size = setText(shown)
+        end
         function result:SetEnabled(value)
             value = value == true
             if self.Enabled == value and self.Rendered then return self end
@@ -222,18 +252,19 @@ function Controls.attach(group)
             button.TextTransparency = 0
             return self
         end
-        function result:SetText(text) button.Text, button.Size = setText(text) end
+        -- Keeps the " [Key]" suffix of a button keybind.
+        function result:SetText(value) baseText = tostring(value); render() end
         self.Window.Scope:Connect(button.Activated, function() if result.Enabled then self.Window:Dispatch(info.Callback) end end)
         if info.Keybind then
             local config = table.clone(info.Keybind)
             local changed = config.Callback
             config.Pressed = config.Pressed or function() if result.Enabled then self.Window:Dispatch(info.Callback) end end
-            config.Callback = function(value) result:SetText((info.Text or "Button") .. " [" .. U.keyName(value) .. "]"); if changed then changed(value) end end
-            result.Keybind = keyButton(self, container, config.Id, config)
-            result:SetText((info.Text or "Button") .. " [" .. U.keyName(result.Keybind:Get()) .. "]")
+            config.Callback = function(value) render(); if changed then changed(value) end end
+            result.Keybind = keyButton(self, container, config.Id or baseText .. "Key", config, true)
+            render()
         end
         result:SetEnabled(result.Enabled)
-        return result
+        return U.protect(result, { "SetEnabled", "SetText" })
     end
     function group:AddButtons(definitions)
         local container = row(self)
@@ -330,7 +361,11 @@ function Controls.attach(group)
         end
         group.Window.Scope:Connect(preview.Root:GetPropertyChangedSignal("AbsoluteSize"), layout)
         preview:SetPoints(info.Points or {})
-        return preview
+        return U.protect(preview, { "SetPoints", "SetCount", "Recoil" })
     end
+    U.protect(group, {
+        "AddLabel", "AddToggle", "AddKeybind", "AddSlider", "AddTextbox", "AddDropdown",
+        "AddButton", "AddButtons", "AddDisclosure", "AddColorPicker", "AddPreview",
+    })
 end
 return Controls

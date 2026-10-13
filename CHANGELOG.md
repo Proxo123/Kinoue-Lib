@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.12
+
+- Run public control, page, and window methods with CoreGui context, so calls from feature threads (`task.defer` config restores, Heartbeat loops) no longer fail with "lacking capability Plugin".
+- Load the remaining saved values when one is stale (removed dropdown option, unknown key) instead of discarding the whole config.
+- Stop mouse clicks from triggering unbound keybinds (`KeyCode.Unknown`).
+- Fire keybind `Released` only after a matching `Pressed`.
+- End slider, window, and color picker drags on any left-button release, not only the original InputObject.
+- Close an open dropdown when it is disabled or hidden; cancel key capture when a keybind is disabled.
+- Keep a button keybind's `[Key]` suffix after `SetText`; button keybinds no longer require an `Id`.
+- Hide only the key for inline toggle/button keybinds on `SetVisible(false)`.
+- Connect global input listeners for sliders and window drag/resize only while dragging.
+- Cache text measurements and skip redundant per-frame cursor writes.
+
 ## 0.1.11
 
 - Hide and remove the window before feature cleanup, preserving control values until settings saves finish.

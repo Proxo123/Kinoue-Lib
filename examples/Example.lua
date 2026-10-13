@@ -1,4 +1,4 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/booga-ui/v0.1.11/dist/BoogaUI.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/v0.1.12/dist/BoogaUI.lua"))()
 
 -- In Roblox Studio, replace the loader above with:
 -- local UI = require(game.ReplicatedStorage:WaitForChild("BoogaUI"))

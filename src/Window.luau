@@ -87,30 +87,50 @@ function Window.new(options)
         if self.Capturing then
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
             local control = self.Capturing; self.Capturing = nil
+            control.Down = false
             if input.KeyCode ~= Enum.KeyCode.Escape then control:Set(input.KeyCode) else control.Render(control:Get()) end
             return
         end
         if processed or Input:GetFocusedTextBox() then return end
         if input.KeyCode == self.ToggleKey then self:SetVisible(not self.Open) return end
         if not self.Open then return end
+        -- Mouse and touch input report KeyCode.Unknown, which unbound keybinds also hold.
+        if input.KeyCode == Enum.KeyCode.Unknown then return end
         for _, control in ipairs(self.Keybinds) do
-            if control.Enabled and input.KeyCode == control:Get() and control.Pressed then self:Dispatch(control.Pressed, input) end
+            if control.Enabled and input.KeyCode == control:Get() then
+                control.Down = true
+                if control.Pressed then self:Dispatch(control.Pressed, input) end
+            end
         end
     end)
     self.Scope:Connect(Input.InputEnded, function(input)
+        if input.KeyCode == Enum.KeyCode.Unknown then return end
+        -- Released pairs with Pressed: no release for presses that were ignored.
         for _, control in ipairs(self.Keybinds) do
-            if input.KeyCode == control:Get() and control.Released then self:Dispatch(control.Released, input) end
+            if control.Down and input.KeyCode == control:Get() then
+                control.Down = false
+                if control.Released then self:Dispatch(control.Released, input) end
+            end
         end
     end)
-    local dragStart, dragPosition
+    -- The global move listener exists only while dragging or resizing.
+    local dragStart, dragPosition, moved
+    local onMove
+    local function track()
+        if not moved then moved = self.Scope:Connect(Input.InputChanged, function(input) onMove(input) end) end
+    end
+    local function untrack()
+        if moved and not dragStart and not self.Resizing then self.Scope:Release(moved); moved = nil end
+    end
     self.Scope:Connect(self.Header.InputBegan, function(input)
         if not self.Open then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Root.Position = self.RestPosition
             dragStart = input.Position; dragPosition = self.Root.Position; self.DragInput = input
+            track()
         end
     end)
-    self.Scope:Connect(Input.InputChanged, function(input)
+    onMove = function(input)
         if not self.Open then return end
         local resize = self.Resizing
         if resize and (input.UserInputType == Enum.UserInputType.MouseMovement or input == resize.Input) then
@@ -124,10 +144,11 @@ function Window.new(options)
         self.RestPosition = UDim2.new(dragPosition.X.Scale, math.round(dragPosition.X.Offset + delta.X), dragPosition.Y.Scale, math.round(dragPosition.Y.Offset + delta.Y))
         self.Root.Position = self.RestPosition
         self:SnapPosition(true)
-    end)
+    end
     self.Scope:Connect(Input.InputEnded, function(input)
-        if input == self.DragInput then dragStart = nil; self.DragInput = nil end
-        if self.Resizing and input == self.Resizing.Input then self.Resizing = nil end
+        if U.sameInput(input, self.DragInput) then dragStart = nil; self.DragInput = nil end
+        if self.Resizing and U.sameInput(input, self.Resizing.Input) then self.Resizing = nil end
+        untrack()
     end)
     self.Scope:Connect(self.ResizeHandle.InputBegan, function(input)
         if not self.Open or not self.Resizable then return end
@@ -138,6 +159,7 @@ function Window.new(options)
             self.RestPosition = self.Root.Position
             dragStart = nil; self.DragInput = nil
             self.Resizing = { Input = input, Start = input.Position, Size = Vector2.new(self.Root.Size.X.Offset, self.Root.Size.Y.Offset), Origin = self:GetPosition() }
+            track()
         end
     end)
     self.Scope:Connect(self.Root:GetPropertyChangedSignal("AbsoluteSize"), function() self:Relayout() end)
@@ -303,6 +325,7 @@ function Window:AddTab(name)
             group.Frame.Visible = self.Page.ActiveSubpage == self
             return group
         end
+        U.protect(child, { "Select", "AddGroupbox" })
         table.insert(self.Subpages, child)
         self.Window.Scope:Connect(child.Button.Activated, function() child:Select() end)
         if #self.Subpages == 1 then child:Select() end
@@ -323,6 +346,7 @@ function Window:AddTab(name)
         return group
     end
     function page:Select() self.Window:SelectTab(self) end
+    U.protect(page, { "SetTitle", "SetMode", "AddSubTab", "AddGroupbox", "Select" })
     self.Scope:Connect(button.Activated, function() self:SelectTab(page) end)
     self.Scope:Connect(page.LeftList:GetPropertyChangedSignal("AbsoluteContentSize"), function() page:Relayout() end)
     self.Scope:Connect(page.RightList:GetPropertyChangedSignal("AbsoluteContentSize"), function() page:Relayout() end)
@@ -356,12 +380,17 @@ function Window:GetConfig()
 end
 function Window:LoadConfig(config)
     assert(type(config) == "table" and config.Version == 1 and type(config.Values) == "table", "Unsupported UI config")
-    for id, value in pairs(config.Values) do
+    -- One stale value (a removed dropdown option, a renamed key) must not discard the rest.
+    for id, saved in pairs(config.Values) do
         local control = self.Controls[id]
         if control then
-            if type(value) == "table" and value.Type == "KeyCode" then value = Enum.KeyCode[value.Name] end
-            if type(value) == "table" and value.Type == "Color3" then value = Color3.new(value.R, value.G, value.B) end
-            control:Set(value)
+            local ok, message = pcall(function()
+                local value = saved
+                if type(value) == "table" and value.Type == "KeyCode" then value = Enum.KeyCode[value.Name] end
+                if type(value) == "table" and value.Type == "Color3" then value = Color3.new(value.R, value.G, value.B) end
+                control:Set(value)
+            end)
+            if not ok then warn("[BoogaUI] Skipped saved value for " .. id .. ": " .. tostring(message)) end
         end
     end
 end
@@ -423,4 +452,11 @@ function Window:Destroy()
     table.clear(self.Cleanup)
     table.clear(self.Controls); table.clear(self.Keybinds)
 end
+-- Window methods may be called from feature threads without CoreGui access.
+-- Destroy restores context per cleanup step and runs feature callbacks in the caller's context.
+local methods = {}
+for name, fn in pairs(Window) do
+    if type(fn) == "function" and name ~= "new" and name ~= "Destroy" and name ~= "Dispatch" then table.insert(methods, name) end
+end
+U.protect(Window, methods)
 return Window
