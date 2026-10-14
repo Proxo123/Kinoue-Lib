@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Rename the bundle to `dist/Kinoue.lua` and `dist/Kinoue.rbxmx`, and the demo to `dist/KinoueDemo.lua` and `dist/KinoueDemo.rbxlx`. Update `loadstring` URLs that point at `dist/BoogaUI.lua`.
+- Default window ID, title, warnings and cursor binding now use `Kinoue`.
+- Split `Window` into `Chrome`, `Input`, `Page` and `Config` modules, and `Controls` into one module per control.
+- Replace the game-specific demo with a generic showcase in `examples/Demo.client.luau`.
+- Format all Luau with StyLua and check formatting in CI.
+- Write `.rbxmx` and `.rbxlx` output with LF line endings on every platform.
+
 ## 0.1.12
 
 - Run public control, page, and window methods with CoreGui context, so calls from feature threads (`task.defer` config restores, Heartbeat loops) no longer fail with "lacking capability Plugin".
@@ -19,7 +28,7 @@
 - Restore CoreGui context for direct teardown and isolate cleanup steps so a stale tween, popup, or callback cannot stop window removal.
 - Continue disconnecting/cancelling other resources after individual cleanup failures.
 - Ignore late status updates after destruction.
-- Add optional `ReplaceExisting` for removing orphaned ScreenGuis with the same ID; Booga enables it.
+- Add optional `ReplaceExisting` for removing orphaned ScreenGuis with the same ID.
 - Cover unload-button interaction, direct low-identity teardown, injected cleanup failures, recursion, context restoration, and orphan replacement.
 
 ## 0.1.10
@@ -48,7 +57,7 @@
 - Add optional `AllowOffscreen` window dragging with flush corner/edge snapping and configurable `SnapDistance`.
 - Add `Window:SetPosition(Vector2, snapEdges)`; offscreen placement survives resize, fitting, and visibility fades.
 - Release first-person cursor ownership when the window is completely outside the viewport.
-- Preserve bounded placement by default; Booga enables offscreen movement explicitly.
+- Preserve bounded placement by default.
 - Add regressions for all four corners, offscreen dragging, resize stability, and cursor release.
 
 ## 0.1.6

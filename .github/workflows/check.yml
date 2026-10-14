@@ -13,6 +13,13 @@ jobs:
           curl --fail --location --silent --show-error https://github.com/luau-lang/luau/releases/download/0.742/luau-ubuntu.zip -o .cache/luau.zip
           unzip -q .cache/luau.zip -d .cache/luau
           chmod +x .cache/luau/luau .cache/luau/luau-compile
+      - name: Get StyLua
+        run: |
+          curl --fail --location --silent --show-error https://github.com/JohnnyMorganz/StyLua/releases/download/v2.0.2/stylua-linux-x86_64.zip -o .cache/stylua.zip
+          unzip -q .cache/stylua.zip -d .cache
+          chmod +x .cache/stylua
+      - name: Check formatting
+        run: .cache/stylua --check src tests examples
       - name: Compile and check behavior
         run: python3 tools/test.py --luau .cache/luau/luau --compiler .cache/luau/luau-compile
       - name: Check reproducible build

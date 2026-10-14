@@ -1,4 +1,3 @@
--- Original implementation of the approved Booga UI concept.
 return {
     Background = Color3.fromRGB(20, 20, 20),
     Panel = Color3.fromRGB(28, 28, 28),
@@ -16,4 +15,5 @@ return {
     Gap = 6,
     ControlGap = 2,
     Padding = 6,
+    DisabledTransparency = 0.55,
 }

@@ -1,53 +1,68 @@
-"""Run with: python tools/test.py --luau PATH_TO_LUAU --compiler PATH_TO_LUAU_COMPILE"""
 import argparse
 import subprocess
 from pathlib import Path
+
 import build
 
 ROOT = Path(__file__).resolve().parents[1]
-parser = argparse.ArgumentParser()
-parser.add_argument("--luau", default="luau")
-parser.add_argument("--compiler", default="luau-compile")
-args = parser.parse_args()
-build.main()
-subprocess.run([args.compiler, "--null", "dist/BoogaUI.lua", "dist/BoogaDemo.lua", "examples/Example.lua", "examples/ESP.lua"], cwd=ROOT, check=True)
-subprocess.run([args.luau, "tests/model.luau"], cwd=ROOT, check=True)
-mock = (ROOT / "tests/RobloxMock.luau").read_text(encoding="utf-8")
-bundle = (ROOT / "dist/BoogaUI.lua").read_text(encoding="utf-8")
-demo = (ROOT / "examples/Booga.client.luau").read_text(encoding="utf-8").split("\n", 1)[1]
-checks = (ROOT / "tests/integration.luau").read_text(encoding="utf-8")
-harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal Library = factory()\nlocal demo = function(Library)\n" + demo + "\nend\nsetfenv(demo, Mock.Environment)\nlocal window = demo(Library)\n" + checks
-cache = ROOT / ".cache"
-cache.mkdir(exist_ok=True)
-(cache / "integration.luau").write_text(harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/integration.luau"], cwd=ROOT, check=True)
-example = (ROOT / "examples/Example.lua").read_text(encoding="utf-8").split("\n", 1)[1]
-example_checks = (ROOT / "tests/example.luau").read_text(encoding="utf-8")
-example_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\nlocal example = function(UI)\n" + example + "\nend\nsetfenv(example, Mock.Environment)\nlocal window = example(UI)\n" + example_checks
-(cache / "example.luau").write_text(example_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/example.luau"], cwd=ROOT, check=True)
-esp = (ROOT / "examples/ESP.lua").read_text(encoding="utf-8").split("\n", 1)[1]
-esp_checks = (ROOT / "tests/esp.luau").read_text(encoding="utf-8")
-esp_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\nlocal example = function(UI)\n" + esp + "\nend\nsetfenv(example, Mock.Environment)\nlocal window = example(UI)\n" + esp_checks
-(cache / "esp.luau").write_text(esp_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/esp.luau"], cwd=ROOT, check=True)
-cursor_checks = (ROOT / "tests/cursor.luau").read_text(encoding="utf-8")
-cursor_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + cursor_checks
-(cache / "cursor.luau").write_text(cursor_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/cursor.luau"], cwd=ROOT, check=True)
-window_checks = (ROOT / "tests/window.luau").read_text(encoding="utf-8")
-window_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + window_checks
-(cache / "window.luau").write_text(window_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/window.luau"], cwd=ROOT, check=True)
-context_checks = (ROOT / "tests/context.luau").read_text(encoding="utf-8")
-context_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + context_checks
-(cache / "context.luau").write_text(context_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/context.luau"], cwd=ROOT, check=True)
-performance_checks = (ROOT / "tests/performance.luau").read_text(encoding="utf-8")
-performance_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + performance_checks
-(cache / "performance.luau").write_text(performance_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/performance.luau"], cwd=ROOT, check=True)
-destruction_checks = (ROOT / "tests/destruction.luau").read_text(encoding="utf-8")
-destruction_harness = "local Mock = (function()\n" + mock + "\nend)()\nlocal factory = function()\n" + bundle + "\nend\nsetfenv(factory, Mock.Environment)\nlocal UI = factory()\n" + destruction_checks
-(cache / "destruction.luau").write_text(destruction_harness, encoding="utf-8")
-subprocess.run([args.luau, ".cache/destruction.luau"], cwd=ROOT, check=True)
+CACHE = ROOT / ".cache"
+
+COMPILE_TARGETS = [
+    "dist/Kinoue.lua",
+    "dist/KinoueDemo.lua",
+    "examples/Example.lua",
+    "examples/ESP.lua",
+]
+
+SUITES = [
+    ("integration", "Library", "examples/Demo.client.luau"),
+    ("example", "UI", "examples/Example.lua"),
+    ("esp", "UI", "examples/ESP.lua"),
+    ("cursor", "UI", None),
+    ("window", "UI", None),
+    ("context", "UI", None),
+    ("performance", "UI", None),
+    ("destruction", "UI", None),
+]
+
+
+def read(relative):
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def harness(library, checks, example):
+    parts = [
+        "local Mock = (function()\n" + read("tests/RobloxMock.luau") + "\nend)()",
+        "local factory = function()\n" + read("dist/Kinoue.lua") + "\nend",
+        "setfenv(factory, Mock.Environment)",
+        f"local {library} = factory()",
+    ]
+    if example:
+        parts += [
+            f"local example = function({library})\n" + build.strip_loader(read(example)) + "\nend",
+            "setfenv(example, Mock.Environment)",
+            f"local window = example({library})",
+        ]
+    parts.append(read(f"tests/{checks}.luau"))
+    return "\n".join(parts)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--luau", default="luau")
+    parser.add_argument("--compiler", default="luau-compile")
+    args = parser.parse_args()
+
+    build.main()
+    subprocess.run([args.compiler, "--null", *COMPILE_TARGETS], cwd=ROOT, check=True)
+    subprocess.run([args.luau, "tests/model.luau"], cwd=ROOT, check=True)
+
+    CACHE.mkdir(exist_ok=True)
+    for name, library, example in SUITES:
+        path = CACHE / f"{name}.luau"
+        path.write_text(harness(library, name, example), encoding="utf-8", newline="\n")
+        subprocess.run([args.luau, path.relative_to(ROOT).as_posix()], cwd=ROOT, check=True)
+
+
+if __name__ == "__main__":
+    main()

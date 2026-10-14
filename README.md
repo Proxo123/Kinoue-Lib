@@ -6,81 +6,177 @@ Compact Luau UI library for Roblox. Requires a client context with CoreGui acces
 
 ```lua
 local UI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/main/dist/BoogaUI.lua"
+    "https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/main/dist/Kinoue.lua"
 ))()
 ```
 
-Or import `dist/BoogaUI.rbxmx` as a ModuleScript and `require` it.
+Or import `dist/Kinoue.rbxmx` as a ModuleScript and `require` it.
 
-## Usage
+## Quick start
 
-Every function in the library:
+```lua
+local window = UI:CreateWindow({ Name = "Kinoue", Footer = "v" .. UI.Version })
+local main = window:AddTab("Main")
+local group = main:AddGroupbox("Controls", "Left")
+
+group:AddToggle("Enabled", {
+    Text = "Enabled",
+    Callback = function(value)
+        window:SetStatus("Enabled: " .. tostring(value))
+    end,
+})
+```
+
+RightShift shows and hides the window.
+
+## Window
 
 ```lua
 local window = UI:CreateWindow({
-    Name = "Kinoue", Id = "Kinoue", Footer = "v" .. UI.Version,
-    Size = Vector2.new(704, 470), MinSize = Vector2.new(480, 360),
-    Position = UDim2.fromScale(0.5, 0.5), DisplayOrder = 100,
-    Resizable = true, AllowOffscreen = true, SnapDistance = 8,
-    ToggleKey = Enum.KeyCode.RightShift, ReducedMotion = false, ReplaceExisting = true,
+    Name = "Kinoue",
+    Id = "Kinoue",
+    Footer = "v" .. UI.Version,
+    Size = Vector2.new(704, 470),
+    MinSize = Vector2.new(480, 360),
+    Position = UDim2.fromScale(0.5, 0.5),
+    DisplayOrder = 100,
+    Resizable = true,
+    AllowOffscreen = true,
+    SnapDistance = 8,
+    ToggleKey = Enum.KeyCode.RightShift,
+    ReducedMotion = false,
+    ReplaceExisting = true,
 })
+```
 
--- Tabs and groupboxes
+| Method | Description |
+| --- | --- |
+| `window:AddTab(name)` | Adds a tab and returns its page. |
+| `window:SelectTab(page)` | Shows a tab. |
+| `window:SetStatus(text)` | Sets the footer status text. |
+| `window:SetToggleKey(keyCode)` | Changes the show/hide key. |
+| `window:SetVisible(open)` | Shows or hides the window. |
+| `window:SetSize(Vector2)` | Resizes the window, keeping the top-left corner fixed. |
+| `window:SetPosition(Vector2, snapEdges)` | Moves the window; `snapEdges` snaps to nearby screen edges. |
+| `window:GetPosition()` | Returns the top-left corner as a `Vector2`. |
+| `window:ClosePopup()` | Closes an open dropdown or color picker. |
+| `window:OnDestroy(callback)` | Runs `callback` after the window is removed. |
+| `window:Destroy()` | Removes the window and disconnects everything. |
+
+## Pages and groupboxes
+
+```lua
 local main = window:AddTab("Main")
 main:SetTitle("Main")
 main:SetMode("Example")
+main:Select()
+
 local left = main:AddGroupbox("Controls", "Left")
 local right = main:AddGroupbox("Actions", "Right")
 
--- Controls
+local layout = window:AddTab("Layout")
+local preview = layout:AddSubTab("Preview")
+preview:AddGroupbox("Preview", "Left")
+preview:Select()
+
+local advanced = left:AddDisclosure("Advanced")
+```
+
+A disclosure is a collapsible section. It supports the same `Add*` methods as a groupbox.
+
+## Controls
+
+Every control with an ID is registered in `window.Controls[id]` and saved with the config.
+
+```lua
 local label = left:AddLabel("Hello")
 left:AddLabel("Small muted text", true)
 
 local toggle
 toggle = left:AddToggle("Enabled", {
-    Text = "Enabled", Value = false,
-    Keybind = { Id = "EnabledKey", Value = Enum.KeyCode.E, Pressed = function() toggle:Set(not toggle:Get()) end },
-    Callback = function(value) window:SetStatus("Enabled: " .. tostring(value)) end,
+    Text = "Enabled",
+    Value = false,
+    Keybind = {
+        Id = "EnabledKey",
+        Value = Enum.KeyCode.E,
+        Pressed = function()
+            toggle:Set(not toggle:Get())
+        end,
+    },
+    Callback = print,
 })
 
 local slider = left:AddSlider("Speed", {
-    Text = "Speed", Min = 0, Max = 50, Step = 0.5, Value = 16,
-    Format = "%.1f", Suffix = "studs/s", Callback = print,
+    Text = "Speed",
+    Min = 0,
+    Max = 50,
+    Step = 0.5,
+    Value = 16,
+    Format = "%.1f",
+    Suffix = "studs/s",
+    Callback = print,
 })
 
-local textbox = left:AddTextbox("Name", { Text = "Name", Placeholder = "Type here", MaxLength = 24, Callback = print })
+local textbox = left:AddTextbox("Name", {
+    Text = "Name",
+    Placeholder = "Type here",
+    MaxLength = 24,
+    Callback = print,
+})
 
 local dropdown = left:AddDropdown("Mode", {
-    Text = "Mode", Value = "Normal",
+    Text = "Mode",
+    Value = "Normal",
     Options = { "Normal", { Value = "Fast", Label = "Fast", Meta = "x2" } },
     Callback = print,
 })
 
 local key = left:AddKeybind("ActionKey", {
-    Text = "Action", Value = Enum.KeyCode.Q,
-    Pressed = function() print("down") end,
-    Released = function() print("up") end,
-    Callback = function(newKey) print("Rebound to", newKey.Name) end,
+    Text = "Action",
+    Value = Enum.KeyCode.Q,
+    Pressed = function()
+        print("down")
+    end,
+    Released = function()
+        print("up")
+    end,
+    Callback = function(newKey)
+        print("Rebound to", newKey.Name)
+    end,
 })
 
-local color = left:AddDisclosure("Advanced"):AddColorPicker("Color", {
-    Text = "Color", Value = Color3.fromRGB(57, 128, 233), Callback = print,
+local color = advanced:AddColorPicker("Color", {
+    Text = "Color",
+    Value = Color3.fromRGB(57, 128, 233),
+    Callback = print,
 })
+```
 
--- Control methods (toggle, slider, textbox, dropdown, keybind, color picker)
-slider:Set(20)        -- fires the callback
-slider:SetSilent(10)  -- skips the callback
-textbox:RawSet("Kinoue") -- same as SetSilent
-slider:SetCallback(function(value) print("Speed", value) end)
-key:SetEnabled(true)
-color:SetVisible(true)
-dropdown:UpdateOptions({ "Normal", "Fast", "Slow" })
-label:SetText("Ready")
-label:SetVisible(true)
+Toggles, sliders, textboxes, dropdowns, keybinds and color pickers share these methods:
 
--- Buttons
+| Method | Description |
+| --- | --- |
+| `control:Get()` | Returns the current value. |
+| `control:Set(value)` | Sets the value and fires the callback if it changed. |
+| `control:SetSilent(value)` / `control:RawSet(value)` | Sets the value without firing the callback. |
+| `control:SetCallback(fn)` | Replaces the callback. |
+| `control:SetEnabled(enabled)` | Enables or disables input. |
+| `control:SetVisible(visible)` | Shows or hides the control. |
+
+Extra methods:
+
+| Method | Description |
+| --- | --- |
+| `dropdown:UpdateOptions(options)` | Replaces the options, keeping the selection when it still exists. |
+| `color:Open()` / `color:Close()` | Opens or closes the picker popup. |
+| `label:SetText(text)` / `label:SetVisible(visible)` | Updates a label. |
+
+## Buttons
+
+```lua
 right:AddButton({
-    Text = "Print", Primary = true,
+    Text = "Print",
+    Primary = true,
     Keybind = { Id = "PrintKey", Value = Enum.KeyCode.P },
     Callback = function()
         print(toggle:Get(), slider:Get(), textbox:Get(), dropdown:Get(), key:Get(), color:Get())
@@ -95,48 +191,66 @@ local row = right:AddButtons({
     { Text = "Open color", Callback = function() color:Open() end },
     { Text = "Close color", Callback = function() color:Close() end },
 })
-row[1].TextColor3 = UI.Theme.Accent -- AddButtons returns the TextButtons
+row[1].TextColor3 = UI.Theme.Accent
+```
 
--- Sub-tabs and preview
-local layout = window:AddTab("Layout")
-local shapes = layout:AddSubTab("Preview")
-layout:AddSubTab("Other"):AddGroupbox("Empty", "Left")
-shapes:Select()
+`AddButtons` returns the underlying `TextButton` instances.
 
-local preview = shapes:AddGroupbox("Preview", "Left"):AddPreview({
-    Points = { Vector2.new(0, 0), Vector2.new(1, 0) }, Height = 148,
+## Preview
+
+```lua
+local preview = group:AddPreview({
+    Points = { Vector2.new(0, 0), Vector2.new(1, 0) },
+    Height = 148,
 })
 preview:SetPoints({ Vector2.new(0, 0), Vector2.new(1, 0), Vector2.new(0, 1) })
 preview:SetCount(1, 3)
 preview:Recoil()
+```
 
--- Window
-main:Select()
-window:SelectTab(main)
-window:SetToggleKey(Enum.KeyCode.RightShift)
-window:SetSize(Vector2.new(704, 470))
-window:SetPosition(Vector2.new(100, 100), true) -- true snaps to nearby edges
-print(window:GetPosition())
-window:SetVisible(true)
-window:ClosePopup()
+## Config
 
--- Config
+```lua
 local json = window:EncodeConfig()
 window:DecodeConfig(json)
 window:LoadConfig(window:GetConfig())
-window:EnablePersistence(UI.FileStorage("Kinoue/config.json")) -- or { Read = fn, Write = fn }
-window:FlushConfig()
 
--- Cleanup
-window:OnDestroy(function() print("Unloaded") end)
--- window:Destroy()
+window:EnablePersistence(UI.FileStorage("Kinoue/config.json"))
+window:FlushConfig()
 ```
 
-RightShift toggles the menu.
+`EnablePersistence` also accepts any `{ Read = fn, Write = fn }` adapter. Changes are saved at most twice per second.
 
-## Build
+## Project layout
 
-```powershell
+```text
+src/
+  init.luau            Library entry point
+  Window/
+    init.luau          Window class: visibility, position, size, tabs, teardown
+    Chrome.luau        Header, accent, tab bar, footer and resize handle
+    Input.luau         Keybinds, dragging and resizing
+    Page.luau          Tabs, sub-tabs and groupboxes
+    Config.luau        Config encoding, loading and persistence
+  Controls/
+    init.luau          Group class with the Add* methods
+    Control.luau       Shared control behavior and popup helpers
+    Button.luau, ColorPicker.luau, Disclosure.luau, Dropdown.luau, Keybind.luau,
+    Label.luau, Preview.luau, Slider.luau, Textbox.luau, Toggle.luau
+  internal/
+    Cursor.luau, Fade.luau, Model.luau, Mount.luau, Theme.luau, Util.luau
+examples/              Demo place script, minimal example and ESP example
+tests/                 Headless behavior tests against a Roblox mock
+tools/                 Bundler and test runner
+dist/                  Generated bundle, model and demo place
+```
+
+## Development
+
+```bash
 python tools/build.py
 python tools/test.py --luau path/to/luau --compiler path/to/luau-compile
+stylua src tests examples
 ```
+
+`dist/` is generated by `tools/build.py`. Edit `src/` and rebuild instead of editing `dist/` directly.

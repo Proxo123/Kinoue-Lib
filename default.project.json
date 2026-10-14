@@ -1,8 +1,8 @@
 {
-  "name": "BoogaUI",
+  "name": "Kinoue",
   "tree": {
     "$className": "DataModel",
-    "ReplicatedStorage": { "BoogaUI": { "$path": "src" } },
-    "StarterPlayer": { "StarterPlayerScripts": { "BoogaDemo": { "$path": "examples/Booga.client.luau" } } }
+    "ReplicatedStorage": { "Kinoue": { "$path": "src" } },
+    "StarterPlayer": { "StarterPlayerScripts": { "KinoueDemo": { "$path": "examples/Demo.client.luau" } } }
   }
 }
