@@ -72,6 +72,7 @@ local function buildWindow(window, page, options)
 
     group:AddToggle("UI.LockToScreen", {
         Text = "Lock to screen",
+        Keybind = false,
         Value = not window.AllowOffscreen,
         Callback = function(value)
             window:SetLockToScreen(value)
@@ -79,6 +80,7 @@ local function buildWindow(window, page, options)
     })
     group:AddToggle("UI.SnapToEdges", {
         Text = "Snap to edges",
+        Keybind = false,
         Value = window.SnapDistance > 0,
         Callback = function(value)
             window.SnapDistance = value and defaultSnap or 0
@@ -89,6 +91,7 @@ local function buildWindow(window, page, options)
     local look = page:AddGroupbox("Appearance", "Right")
     look:AddToggle("UI.Animations", {
         Text = "Animations",
+        Keybind = false,
         Value = not window.ReducedMotion,
         Callback = function(value)
             window:SetReducedMotion(not value)
@@ -96,6 +99,7 @@ local function buildWindow(window, page, options)
     })
     look:AddToggle("UI.RainbowAccent", {
         Text = "Rainbow accent line",
+        Keybind = false,
         Value = window.RainbowAccent,
         Callback = function(value)
             window:SetRainbowAccent(value)

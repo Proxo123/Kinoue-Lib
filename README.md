@@ -118,19 +118,14 @@ Every control with an ID is registered in `window.Controls[id]` and saved with t
 local label = left:AddLabel("Hello")
 left:AddLabel("Small muted text", true)
 
-local toggle
-toggle = left:AddToggle("Enabled", {
+local toggle = left:AddToggle("Enabled", {
     Text = "Enabled",
     Value = false,
-    Keybind = {
-        Id = "EnabledKey",
-        Value = Enum.KeyCode.E,
-        Pressed = function()
-            toggle:Set(not toggle:Get())
-        end,
-    },
+    Keybind = { Id = "EnabledKey", Value = Enum.KeyCode.E },
     Callback = print,
 })
+
+left:AddToggle("Hints", { Text = "Hints", Keybind = true })
 
 local slider = left:AddSlider("Speed", {
     Text = "Speed",
@@ -194,8 +189,19 @@ Extra methods:
 | Method | Description |
 | --- | --- |
 | `dropdown:UpdateOptions(options)` | Replaces the options, keeping the selection when it still exists. |
+| `keybind:Unbind()` | Clears the key; the bind shows `[Unbound]`. |
 | `color:Open()` / `color:Close()` | Opens or closes the picker popup. |
 | `label:SetText(text)` / `label:SetVisible(visible)` | Updates a label. |
+
+## Keybinds
+
+Keybinds can sit on their own row (`AddKeybind`) or next to a toggle or button (`Keybind = {...}`).
+
+- Click the key label, then press a key to rebind it. Escape cancels.
+- Click the grey × left of the key to unbind it. Unbound keys show `[Unbound]`.
+- `Keybind = true` adds an empty slot that starts unbound.
+- A toggle's keybind flips the toggle unless you pass your own `Pressed`.
+- Pass `BindableToggles = true` to `CreateWindow` to give every toggle a slot. Use `Keybind = false` to opt one out.
 
 ## Buttons
 

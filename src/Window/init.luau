@@ -31,6 +31,7 @@ function Window.new(options)
     self.ThemeHooks = {}
     self.ReducedMotion = options.ReducedMotion == true
     self.RainbowAccent = options.RainbowAccent ~= false
+    self.BindableToggles = options.BindableToggles == true
     self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)

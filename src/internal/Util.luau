@@ -94,7 +94,10 @@ function Util.contains(gui, point)
 end
 
 function Util.keyName(key)
-    return key and key.Name or "None"
+    if key == nil or key == Enum.KeyCode.Unknown then
+        return "Unbound"
+    end
+    return key.Name
 end
 
 local function merge(defaults, props)
