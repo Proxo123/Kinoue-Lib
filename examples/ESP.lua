@@ -148,13 +148,6 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 local settings = window:AddTab("Settings"):AddGroupbox("Window", "Left")
-settings:AddKeybind("MenuKey", {
-    Text = "Show / hide menu",
-    Value = Enum.KeyCode.RightShift,
-    Callback = function(key)
-        window:SetToggleKey(key)
-    end,
-})
 settings:AddButton({
     Text = "Unload",
     Callback = function()

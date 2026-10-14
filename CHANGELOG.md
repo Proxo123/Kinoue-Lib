@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Add sub-toggles: `SubToggle = true` puts a cog on the right of a toggle that opens an animated settings panel (`toggle.Settings`).
+- Replace the text arrow on disclosures with a chevron icon that rotates, and animate opening and closing.
+- Draw every icon (header gear, sub-toggle cog, chevron) from one shared module; the header gear now spins when settings open.
+- Add a built-in Menu key setting (RightShift by default) that cannot be cleared. `SetToggleKey` keeps it in sync, and the examples no longer need their own menu key bind.
+- Add the `Clearable` keybind option and the `AddDisclosure(title, open)` and `SetOpen` disclosure API.
+
 ## 0.4.0
 
 - Add a grey × button left of every bound key that unbinds it, plus `keybind:Unbind()`. Unbinding cancels key capture and releases a held key.

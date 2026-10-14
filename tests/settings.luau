@@ -25,10 +25,13 @@ assert(box.BackgroundColor3 == Theme.Accent and box.BorderColor3 == Theme.Accent
 window.SettingsButton.Activated:Fire()
 assert(window.SettingsOpen and window.ActivePage == window.SettingsPage)
 assert(window.SettingsPage.Frame.Visible and not page.Frame.Visible, "Settings replace the current page")
-assert(window.SettingsIcon[1].BackgroundColor3 == Theme.Accent, "Open settings highlight the icon")
+assert(
+    window.SettingsIcon.Color == Theme.Accent and window.SettingsIcon.Root.Rotation == 90,
+    "Open settings highlight the icon"
+)
 window.SettingsButton.Activated:Fire()
 assert(not window.SettingsOpen and window.ActivePage == page and page.Frame.Visible, "Second press returns to the page")
-assert(window.SettingsIcon[1].BackgroundColor3 == Theme.Muted)
+assert(window.SettingsIcon.Color == Theme.Muted and window.SettingsIcon.Root.Rotation == 0)
 
 local custom = group:AddLabel("Custom color")
 custom.Root.TextColor3 = Mock.Environment.Color3.fromRGB(1, 2, 3)

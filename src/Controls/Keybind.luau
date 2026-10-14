@@ -29,7 +29,9 @@ function Keybind.options(keybind)
     return nil
 end
 
-function Keybind.attach(group, row, id, info, inline)
+function Keybind.attach(group, row, id, info, inline, inset)
+    inset = inset or 0
+    local clearable = info.Clearable ~= false
     local window = group.Window
     local control = Control.new(group, id, info.Value or Enum.KeyCode.Unknown, normalize, info.Callback)
     control.Pressed = info.Pressed
@@ -37,7 +39,7 @@ function Keybind.attach(group, row, id, info, inline)
     control.Row = row
     control.Root = Util.button(row, "", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, 0, 0.5, 0),
+        Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -61,7 +63,7 @@ function Keybind.attach(group, row, id, info, inline)
         local width = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
         control.Root.Text = text
         control.Root.Size = UDim2.fromOffset(width, KEY_HEIGHT)
-        control.Clear.Position = UDim2.new(1, -(width + CLEAR_GAP), 0.5, 0)
+        control.Clear.Position = UDim2.new(1, -(inset + width + CLEAR_GAP), 0.5, 0)
     end
 
     control.Render = function(value)
@@ -70,7 +72,7 @@ function Keybind.attach(group, row, id, info, inline)
         control.Root.TextTransparency = transparency
         control.Clear.TextTransparency = transparency
         control.Root.Visible = not hidden
-        control.Clear.Visible = not hidden and Keybind.isBound(value)
+        control.Clear.Visible = clearable and not hidden and Keybind.isBound(value)
     end
 
     function control:Unbind()
@@ -103,7 +105,7 @@ function Keybind.attach(group, row, id, info, inline)
     end)
 
     window.Scope:Connect(control.Clear.Activated, function()
-        if control.Enabled then
+        if control.Enabled and clearable then
             control:Unbind()
         end
     end)

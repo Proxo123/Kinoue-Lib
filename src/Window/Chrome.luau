@@ -1,5 +1,6 @@
 local RunService = game:GetService("RunService")
 
+local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
@@ -10,7 +11,7 @@ local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
 local SETTINGS_BUTTON_SIZE = 20
-local GEAR_TEETH = 8
+local SETTINGS_ICON_SIZE = 16
 
 local Chrome = {}
 
@@ -53,7 +54,7 @@ local function buildHeader(window, options)
 end
 
 local function buildSettingsButton(window)
-    local button = Util.button(window.Header, "", {
+    window.SettingsButton = Util.button(window.Header, "", {
         Name = "SettingsButton",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -6, 0.5, 0),
@@ -61,44 +62,12 @@ local function buildSettingsButton(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
-    local parts = {}
-    local center = UDim2.fromScale(0.5, 0.5)
-    local disc = Util.frame(button, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = center,
-        Size = UDim2.fromOffset(12, 12),
-    })
-    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, disc)
-    table.insert(parts, disc)
-    for index = 0, GEAR_TEETH - 1 do
-        local angle = index * (360 / GEAR_TEETH)
-        local radians = math.rad(angle)
-        local tooth = Util.frame(button, {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, math.sin(radians) * 6.5, 0.5, -math.cos(radians) * 6.5),
-            Size = UDim2.fromOffset(3, 4),
-            Rotation = angle,
-        })
-        table.insert(parts, tooth)
-    end
-    local hole = Util.frame(button, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = center,
-        Size = UDim2.fromOffset(5, 5),
-        BackgroundColor3 = Theme.Color.Panel,
-        ZIndex = 2,
-    })
-    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, hole)
-
-    window.SettingsButton = button
-    window.SettingsIcon = parts
+    window.SettingsIcon = Icons.gear(window.SettingsButton, SETTINGS_ICON_SIZE)
 end
 
 function Chrome.paintSettingsButton(window)
-    local color = window.SettingsOpen and Theme.Accent or Theme.Muted
-    for _, part in ipairs(window.SettingsIcon) do
-        part.BackgroundColor3 = color
-    end
+    window.SettingsIcon:SetColor(window.SettingsOpen and Theme.Accent or Theme.Muted)
+    window.SettingsIcon:SetRotation(window, window.SettingsOpen and 90 or 0)
 end
 
 local function buildAccent(window)

@@ -3,7 +3,7 @@ local Util = require(script.internal.Util)
 local Window = require(script.Window)
 
 local Library = {
-    Version = "0.4.0",
+    Version = "0.5.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }

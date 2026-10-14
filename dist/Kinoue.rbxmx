@@ -110,6 +110,99 @@ end
 return Button
 end
 
+__factories["Controls/Collapsible"] = function()
+local Theme = __require("internal/Theme")
+local Util = __require("internal/Util")
+
+local OPEN_DURATION = 0.18
+local CLOSE_DURATION = 0.14
+
+local Collapsible = {}
+Collapsible.__index = Collapsible
+
+function Collapsible.new(window, parent, indent)
+    indent = indent or 0
+    local clip = Util.frame(parent, {
+        Name = "Collapsible",
+        Size = UDim2.new(1, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Visible = false,
+    })
+    local container = Util.frame(clip, {
+        Position = UDim2.fromOffset(indent, 0),
+        Size = UDim2.new(1, -indent, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    Util.list(container, false, Theme.ControlGap)
+
+    local self = setmetatable({
+        Window = window,
+        Clip = clip,
+        Container = container,
+        Open = false,
+        Version = 0,
+        Listeners = {},
+    }, Collapsible)
+
+    window.Scope:Connect(container:GetPropertyChangedSignal("AbsoluteSize"), function()
+        if self.Open then
+            window.Scope:Tween(clip, 0, { Size = self:OpenSize() }, true)
+        end
+    end)
+
+    return self
+end
+
+function Collapsible:OpenSize()
+    return UDim2.new(1, 0, 0, self.Container.AbsoluteSize.Y)
+end
+
+function Collapsible:OnChanged(listener)
+    table.insert(self.Listeners, listener)
+end
+
+function Collapsible:SetOpen(open, instant)
+    open = open == true
+    if self.Open == open then
+        return self
+    end
+    self.Open = open
+    self.Version += 1
+
+    local window = self.Window
+    local version = self.Version
+    local reduced = instant or window.ReducedMotion
+    if open then
+        self.Clip.Visible = true
+        window.Scope:Tween(self.Clip, OPEN_DURATION, { Size = self:OpenSize() }, reduced)
+    else
+        window.Scope:Tween(self.Clip, CLOSE_DURATION, { Size = UDim2.new(1, 0, 0, 0) }, reduced)
+        if reduced then
+            self.Clip.Visible = false
+        else
+            task.delay(CLOSE_DURATION, function()
+                if not window.Dead and version == self.Version then
+                    self.Clip.Visible = false
+                end
+            end)
+        end
+    end
+
+    for _, listener in ipairs(self.Listeners) do
+        listener(open, reduced)
+    end
+    return self
+end
+
+function Collapsible:Toggle()
+    return self:SetOpen(not self.Open)
+end
+
+return Collapsible
+end
+
 __factories["Controls/ColorPicker"] = function()
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -479,12 +572,19 @@ return Control
 end
 
 __factories["Controls/Disclosure"] = function()
+local Collapsible = __require("Controls/Collapsible")
+local Icons = __require("internal/Icons")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
+local ICON_SIZE = 10
+local TEXT_INSET = 16
+local CONTENT_INDENT = 8
+
 local Disclosure = {}
 
-function Disclosure.add(group, title, newGroup)
+function Disclosure.add(group, title, newGroup, open)
+    local window = group.Window
     local frame = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -492,27 +592,56 @@ function Disclosure.add(group, title, newGroup)
     })
     Util.list(frame, false, 0)
 
-    local button = Util.button(frame, "▸ " .. title, {
+    local button = Util.button(frame, title, {
+        Name = "Header",
         TextXAlignment = Enum.TextXAlignment.Left,
         TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
-    local container = Util.frame(frame, {
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        Visible = false,
+    Util.new("UIPadding", { PaddingLeft = UDim.new(0, TEXT_INSET) }, button)
+    local icon = Icons.chevron(button, ICON_SIZE, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0, -TEXT_INSET / 2, 0.5, 0),
+        Color = Theme.Color.Muted,
     })
-    Util.list(container, false, Theme.ControlGap)
-    local child = newGroup(group.Window, container)
 
-    group.Window.Scope:Connect(button.Activated, function()
-        container.Visible = not container.Visible
-        button.Text = (container.Visible and "▾ " or "▸ ") .. title
+    local section = Collapsible.new(window, frame, CONTENT_INDENT)
+    local child = newGroup(window, section.Container)
+    child.Header = button
+    child.Icon = icon
+    child.Section = section
+
+    local function paint()
+        icon:SetColor(section.Open and Theme.Text or Theme.Muted)
+        button.TextColor3 = section.Open and Theme.Text or Theme.Muted
+    end
+
+    section:OnChanged(function(isOpen, reduced)
+        icon:SetRotation(window, isOpen and 90 or 0, reduced)
+        paint()
+    end)
+    table.insert(window.ThemeHooks, paint)
+
+    function child:SetOpen(value)
+        section:SetOpen(value)
+        return self
+    end
+
+    function child:IsOpen()
+        return section.Open
+    end
+
+    Util.protect(child, { "SetOpen" })
+
+    window.Scope:Connect(button.Activated, function()
+        section:Toggle()
     end)
 
+    if open then
+        section:SetOpen(true, true)
+    end
     return child
 end
 
@@ -723,7 +852,9 @@ function Keybind.options(keybind)
     return nil
 end
 
-function Keybind.attach(group, row, id, info, inline)
+function Keybind.attach(group, row, id, info, inline, inset)
+    inset = inset or 0
+    local clearable = info.Clearable ~= false
     local window = group.Window
     local control = Control.new(group, id, info.Value or Enum.KeyCode.Unknown, normalize, info.Callback)
     control.Pressed = info.Pressed
@@ -731,7 +862,7 @@ function Keybind.attach(group, row, id, info, inline)
     control.Row = row
     control.Root = Util.button(row, "", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, 0, 0.5, 0),
+        Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -755,7 +886,7 @@ function Keybind.attach(group, row, id, info, inline)
         local width = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
         control.Root.Text = text
         control.Root.Size = UDim2.fromOffset(width, KEY_HEIGHT)
-        control.Clear.Position = UDim2.new(1, -(width + CLEAR_GAP), 0.5, 0)
+        control.Clear.Position = UDim2.new(1, -(inset + width + CLEAR_GAP), 0.5, 0)
     end
 
     control.Render = function(value)
@@ -764,7 +895,7 @@ function Keybind.attach(group, row, id, info, inline)
         control.Root.TextTransparency = transparency
         control.Clear.TextTransparency = transparency
         control.Root.Visible = not hidden
-        control.Clear.Visible = not hidden and Keybind.isBound(value)
+        control.Clear.Visible = clearable and not hidden and Keybind.isBound(value)
     end
 
     function control:Unbind()
@@ -797,7 +928,7 @@ function Keybind.attach(group, row, id, info, inline)
     end)
 
     window.Scope:Connect(control.Clear.Activated, function()
-        if control.Enabled then
+        if control.Enabled and clearable then
             control:Unbind()
         end
     end)
@@ -1161,16 +1292,91 @@ return Textbox
 end
 
 __factories["Controls/Toggle"] = function()
+local Collapsible = __require("Controls/Collapsible")
 local Control = __require("Controls/Control")
 local Keybind = __require("Controls/Keybind")
+local Icons = __require("internal/Icons")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
 local KEYBIND_INSET = 95
+local COG_SIZE = 18
+local COG_ICON_SIZE = 14
+local COG_GAP = 4
+local SETTINGS_INDENT = 20
+local GUIDE_OFFSET = 6
 
 local Toggle = {}
 
-function Toggle.add(group, id, info)
+local function buildRow(group, subToggle)
+    if not subToggle then
+        local row = Control.row(group)
+        return row, row
+    end
+    local holder = Util.frame(group.Container, {
+        Name = "SubToggle",
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    Util.list(holder, false, Theme.ControlGap)
+    local row = Util.frame(holder, {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, Theme.RowHeight),
+    })
+    return holder, row
+end
+
+local function attachSettings(control, window, row, newGroup)
+    local cog = Util.button(row, "", {
+        Name = "SettingsButton",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.fromOffset(COG_SIZE, COG_SIZE),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    })
+    local icon = Icons.gear(cog, COG_ICON_SIZE)
+    local panel = Collapsible.new(window, control.Row, SETTINGS_INDENT)
+    Util.frame(panel.Clip, {
+        Name = "Guide",
+        Position = UDim2.fromOffset(GUIDE_OFFSET, 0),
+        Size = UDim2.new(0, 1, 1, 0),
+        BackgroundColor3 = Theme.Color.Outline,
+    })
+
+    control.SettingsButton = cog
+    control.SettingsIcon = icon
+    control.SettingsPanel = panel
+    control.Settings = newGroup(window, panel.Container)
+
+    local function paint()
+        icon:SetColor(panel.Open and Theme.Accent or Theme.Muted)
+    end
+    panel:OnChanged(function(open, reduced)
+        icon:SetRotation(window, open and 90 or 0, reduced)
+        paint()
+    end)
+    table.insert(window.ThemeHooks, paint)
+
+    window.Scope:Connect(cog.Activated, function()
+        panel:Toggle()
+    end)
+
+    function control:SetSettingsOpen(open)
+        panel:SetOpen(open)
+        return self
+    end
+
+    function control:IsSettingsOpen()
+        return panel.Open
+    end
+
+    Util.protect(control, { "SetSettingsOpen" })
+    return COG_SIZE + COG_GAP
+end
+
+function Toggle.add(group, id, info, newGroup)
     info = info or {}
     local window = group.Window
     local control = Control.new(group, id, info.Value == true, function(value)
@@ -1183,9 +1389,16 @@ function Toggle.add(group, id, info)
     end
     keybind = Keybind.options(keybind)
 
-    control.Row = Control.row(group)
-    local hit = Util.button(control.Row, "", {
-        Size = UDim2.new(1, keybind and -KEYBIND_INSET or 0, 1, 0),
+    local holder, row = buildRow(group, info.SubToggle == true)
+    control.Row = holder
+
+    local rightInset = 0
+    if info.SubToggle == true then
+        rightInset = attachSettings(control, window, row, newGroup)
+    end
+
+    local hit = Util.button(row, "", {
+        Size = UDim2.new(1, -(rightInset + (keybind and KEYBIND_INSET or 0)), 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
@@ -1224,7 +1437,7 @@ function Toggle.add(group, id, info)
                     control:Set(not control:Get())
                 end
             end
-        control.Keybind = Keybind.attach(group, control.Row, keybind.Id or id .. "Key", keybind, true)
+        control.Keybind = Keybind.attach(group, row, keybind.Id or id .. "Key", keybind, true, rightInset)
     end
 
     control.Render(control:Get())
@@ -1264,7 +1477,7 @@ function Group:AddLabel(text, small)
 end
 
 function Group:AddToggle(id, info)
-    return Toggle.add(self, id, info)
+    return Toggle.add(self, id, info, Group.new)
 end
 
 function Group:AddKeybind(id, info)
@@ -1291,8 +1504,8 @@ function Group:AddButtons(definitions)
     return Button.addRow(self, definitions)
 end
 
-function Group:AddDisclosure(title)
-    return Disclosure.add(self, title, Group.new)
+function Group:AddDisclosure(title, open)
+    return Disclosure.add(self, title, Group.new, open)
 end
 
 function Group:AddColorPicker(id, info)
@@ -1323,6 +1536,7 @@ end
 __factories["Window/Chrome"] = function()
 local RunService = game:GetService("RunService")
 
+local Icons = __require("internal/Icons")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
@@ -1333,7 +1547,7 @@ local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
 local SETTINGS_BUTTON_SIZE = 20
-local GEAR_TEETH = 8
+local SETTINGS_ICON_SIZE = 16
 
 local Chrome = {}
 
@@ -1376,7 +1590,7 @@ local function buildHeader(window, options)
 end
 
 local function buildSettingsButton(window)
-    local button = Util.button(window.Header, "", {
+    window.SettingsButton = Util.button(window.Header, "", {
         Name = "SettingsButton",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -6, 0.5, 0),
@@ -1384,44 +1598,12 @@ local function buildSettingsButton(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
-    local parts = {}
-    local center = UDim2.fromScale(0.5, 0.5)
-    local disc = Util.frame(button, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = center,
-        Size = UDim2.fromOffset(12, 12),
-    })
-    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, disc)
-    table.insert(parts, disc)
-    for index = 0, GEAR_TEETH - 1 do
-        local angle = index * (360 / GEAR_TEETH)
-        local radians = math.rad(angle)
-        local tooth = Util.frame(button, {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, math.sin(radians) * 6.5, 0.5, -math.cos(radians) * 6.5),
-            Size = UDim2.fromOffset(3, 4),
-            Rotation = angle,
-        })
-        table.insert(parts, tooth)
-    end
-    local hole = Util.frame(button, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = center,
-        Size = UDim2.fromOffset(5, 5),
-        BackgroundColor3 = Theme.Color.Panel,
-        ZIndex = 2,
-    })
-    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, hole)
-
-    window.SettingsButton = button
-    window.SettingsIcon = parts
+    window.SettingsIcon = Icons.gear(window.SettingsButton, SETTINGS_ICON_SIZE)
 end
 
 function Chrome.paintSettingsButton(window)
-    local color = window.SettingsOpen and Theme.Accent or Theme.Muted
-    for _, part in ipairs(window.SettingsIcon) do
-        part.BackgroundColor3 = color
-    end
+    window.SettingsIcon:SetColor(window.SettingsOpen and Theme.Accent or Theme.Muted)
+    window.SettingsIcon:SetRotation(window, window.SettingsOpen and 90 or 0)
 end
 
 local function buildAccent(window)
@@ -2122,6 +2304,15 @@ local function buildWindow(window, page, options)
     local group = page:AddGroupbox("Window", "Right")
     local defaultSnap = math.max(1, options.SnapDistance or 8)
 
+    group:AddKeybind("UI.MenuKey", {
+        Text = "Menu key",
+        Value = window.ToggleKey,
+        Clearable = false,
+        Callback = function(key)
+            window:SetToggleKey(key)
+        end,
+    })
+
     group:AddToggle("UI.LockToScreen", {
         Text = "Lock to screen",
         Keybind = false,
@@ -2310,6 +2501,10 @@ end
 function Window:SetToggleKey(key)
     assert(typeof(key) == "EnumItem" and key.EnumType == Enum.KeyCode, "ToggleKey requires Enum.KeyCode")
     self.ToggleKey = key
+    local control = self.Controls["UI.MenuKey"]
+    if control then
+        control:SetSilent(key)
+    end
 end
 
 function Window:ClosePopup()
@@ -2640,7 +2835,7 @@ local Util = __require("internal/Util")
 local Window = __require("Window")
 
 local Library = {
-    Version = "0.4.0",
+    Version = "0.5.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -2914,6 +3109,121 @@ function Fade:Destroy()
 end
 
 return Fade
+end
+
+__factories["internal/Icons"] = function()
+local Theme = __require("internal/Theme")
+local Util = __require("internal/Util")
+
+local GEAR_TEETH = 8
+local SPIN_DURATION = 0.2
+
+local Icons = {}
+
+local Icon = {}
+Icon.__index = Icon
+
+local function resolve(color)
+    if Theme.isToken(color) then
+        return Theme[color.Key]
+    end
+    return color
+end
+
+function Icon:SetColor(color)
+    color = resolve(color)
+    self.Color = color
+    for _, part in ipairs(self.Fills) do
+        part.BackgroundColor3 = color
+    end
+    for _, stroke in ipairs(self.Strokes) do
+        stroke.Color = color
+    end
+    return self
+end
+
+function Icon:SetRotation(window, rotation, instant)
+    window.Scope:Tween(self.Root, SPIN_DURATION, { Rotation = rotation }, instant or window.ReducedMotion)
+    return self
+end
+
+local function newIcon(parent, size, props)
+    local root = Util.frame(parent, {
+        Name = props.Name or "Icon",
+        AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5),
+        Position = props.Position or UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(size, size),
+        Rotation = 0,
+        BackgroundTransparency = 1,
+        ZIndex = props.ZIndex,
+    })
+    return setmetatable({ Root = root, Fills = {}, Strokes = {} }, Icon)
+end
+
+function Icons.gear(parent, size, props)
+    props = props or {}
+    local icon = newIcon(parent, size, props)
+    local ringSize = math.max(4, math.floor(size * 0.5))
+    local thickness = math.max(1, math.floor(size / 8))
+    local ring = Util.frame(icon.Root, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(ringSize, ringSize),
+        BackgroundTransparency = 1,
+        ZIndex = props.ZIndex,
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, ring)
+    table.insert(
+        icon.Strokes,
+        Util.new("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Thickness = thickness,
+        }, ring)
+    )
+
+    local radius = size * 0.4
+    local toothWidth = math.max(2, math.floor(size * 0.19))
+    local toothHeight = math.max(2, math.floor(size * 0.25))
+    for index = 0, GEAR_TEETH - 1 do
+        local angle = index * (360 / GEAR_TEETH)
+        local radians = math.rad(angle)
+        table.insert(
+            icon.Fills,
+            Util.frame(icon.Root, {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, math.sin(radians) * radius, 0.5, -math.cos(radians) * radius),
+                Size = UDim2.fromOffset(toothWidth, toothHeight),
+                Rotation = angle,
+                ZIndex = props.ZIndex,
+            })
+        )
+    end
+
+    return icon:SetColor(props.Color or Theme.Muted)
+end
+
+function Icons.chevron(parent, size, props)
+    props = props or {}
+    local icon = newIcon(parent, size, props)
+    local length = math.max(3, math.floor(size * 0.6))
+    local thickness = math.max(1, math.floor(size / 5))
+    local offset = length * math.cos(math.rad(45)) / 2
+    for _, entry in ipairs({ { -offset, 45 }, { offset, -45 } }) do
+        table.insert(
+            icon.Fills,
+            Util.frame(icon.Root, {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, entry[1]),
+                Size = UDim2.fromOffset(length, thickness),
+                Rotation = entry[2],
+                ZIndex = props.ZIndex,
+            })
+        )
+    end
+    return icon:SetColor(props.Color or Theme.Muted)
+end
+
+return Icons
 end
 
 __factories["internal/Model"] = function()
