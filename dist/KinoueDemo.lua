@@ -1885,7 +1885,7 @@ local function onKeyBegan(window, input, processed)
         window:SetVisible(not window.Open)
         return
     end
-    if not window.Open or input.KeyCode == Enum.KeyCode.Unknown then
+    if input.KeyCode == Enum.KeyCode.Unknown then
         return
     end
     for _, control in ipairs(window.Keybinds) do
@@ -2831,7 +2831,7 @@ local Util = __require("internal/Util")
 local Window = __require("Window")
 
 local Library = {
-    Version = "0.5.0",
+    Version = "0.5.1",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }

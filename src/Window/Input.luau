@@ -30,7 +30,7 @@ local function onKeyBegan(window, input, processed)
         window:SetVisible(not window.Open)
         return
     end
-    if not window.Open or input.KeyCode == Enum.KeyCode.Unknown then
+    if input.KeyCode == Enum.KeyCode.Unknown then
         return
     end
     for _, control in ipairs(window.Keybinds) do
