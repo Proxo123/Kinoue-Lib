@@ -13,7 +13,7 @@ function Disclosure.add(group, title, newGroup)
 
     local button = Util.button(frame, "▸ " .. title, {
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

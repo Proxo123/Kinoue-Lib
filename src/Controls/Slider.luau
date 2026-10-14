@@ -31,12 +31,12 @@ function Slider.add(group, id, info)
     control.Root = track
     local fill = Util.frame(track, {
         Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
     local thumb = Util.frame(track, {
         AnchorPoint = Vector2.new(0.5, 0),
         Size = UDim2.new(0, 4, 1, 0),
-        BackgroundColor3 = Theme.Text,
+        BackgroundColor3 = Theme.Color.Text,
     })
 
     local suffix = info.Suffix and " " .. info.Suffix or ""

@@ -39,7 +39,7 @@ function Preview.add(group, info)
 
     preview.Root = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, info.Height or 148),
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         BorderSizePixel = 1,
         ClipsDescendants = true,
     })
@@ -56,11 +56,11 @@ function Preview.add(group, info)
     local count = Label.add(group, "0 / 0")
     local track = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, 3),
-        BackgroundColor3 = Theme.Hover,
+        BackgroundColor3 = Theme.Color.Hover,
     })
     local fill = Util.frame(track, {
         Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
 
     local dots, columns, rows = {}, -1, -1
@@ -84,7 +84,7 @@ function Preview.add(group, info)
                     dots[key] = Util.frame(grid, {
                         Position = UDim2.fromOffset(x, y),
                         Size = UDim2.fromOffset(1, 1),
-                        BackgroundColor3 = Theme.Outline,
+                        BackgroundColor3 = Theme.Color.Outline,
                         BackgroundTransparency = 0.35,
                     })
                 end
@@ -124,7 +124,7 @@ function Preview.add(group, info)
             self.Parts[index] = nil
         end
         for index = #self.Parts + 1, #points do
-            self.Parts[index] = Util.frame(drawing, { BackgroundColor3 = Theme.Accent })
+            self.Parts[index] = Util.frame(drawing, { BackgroundColor3 = Theme.Color.Accent })
             Util.new("UICorner", { CornerRadius = UDim.new(0, 1) }, self.Parts[index])
         end
         self.Points = table.clone(points)

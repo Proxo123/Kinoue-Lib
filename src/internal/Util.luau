@@ -107,6 +107,10 @@ end
 function Util.new(className, props, parent)
     local object = Instance.new(className)
     for key, value in pairs(props or {}) do
+        if Theme.isToken(value) then
+            Theme.bind(object, key, value.Key)
+            value = Theme[value.Key]
+        end
         object[key] = value
     end
     object.Parent = parent
@@ -118,7 +122,7 @@ function Util.frame(parent, props)
         "Frame",
         merge({
             BorderSizePixel = 0,
-            BackgroundColor3 = Theme.Background,
+            BackgroundColor3 = Theme.Color.Background,
         }, props),
         parent
     )
@@ -133,7 +137,7 @@ function Util.label(parent, text, props)
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             Text = text,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
@@ -147,13 +151,13 @@ function Util.button(parent, text, props)
     return Util.new(
         "TextButton",
         merge({
-            BackgroundColor3 = Theme.Panel,
-            BorderColor3 = Theme.Outline,
+            BackgroundColor3 = Theme.Color.Panel,
+            BorderColor3 = Theme.Color.Outline,
             BorderSizePixel = 1,
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             Text = text,
             AutoButtonColor = false,
             Size = UDim2.new(1, 0, 0, Theme.RowHeight),
@@ -166,13 +170,13 @@ function Util.textbox(parent, props)
     return Util.new(
         "TextBox",
         merge({
-            BackgroundColor3 = Theme.Input,
+            BackgroundColor3 = Theme.Color.Input,
             BorderSizePixel = 1,
-            BorderColor3 = Theme.Outline,
+            BorderColor3 = Theme.Color.Outline,
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             ClearTextOnFocus = false,
         }, props),
         parent

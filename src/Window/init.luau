@@ -7,6 +7,7 @@ local Chrome = require(script.Chrome)
 local Config = require(script.Config)
 local Input = require(script.Input)
 local Page = require(script.Page)
+local Settings = require(script.Settings)
 
 local EDGE_MARGIN = 12
 local FIT_MARGIN = 24
@@ -27,7 +28,10 @@ function Window.new(options)
     self.Pages = {}
     self.Keybinds = {}
     self.Cleanup = {}
+    self.ThemeHooks = {}
     self.ReducedMotion = options.ReducedMotion == true
+    self.RainbowAccent = options.RainbowAccent ~= false
+    self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)
     self.MinSize = options.MinSize or Vector2.new(480, 360)
@@ -54,6 +58,15 @@ function Window.new(options)
 
     Input.bindKeys(self)
     Input.bindPointer(self)
+
+    self.SettingsPage = Settings.build(self, options)
+    self.SettingsButton.Visible = options.ShowSettings ~= false
+    self.Scope:Connect(self.SettingsButton.Activated, function()
+        self:ToggleSettings()
+    end)
+    self.ThemeListener = Theme.onChanged(function()
+        self:RefreshTheme()
+    end)
 
     local function fit()
         self:Fit()
@@ -236,23 +249,118 @@ function Window:Relayout()
     for _, page in ipairs(self.Pages) do
         page:Relayout()
     end
+    if self.SettingsPage then
+        self.SettingsPage:Relayout()
+    end
 end
 
 function Window:AddTab(name)
     return Page.new(self, name)
 end
 
-function Window:SelectTab(page)
-    self:ClosePopup()
+function Window:StyleTabs()
     for _, item in ipairs(self.Pages) do
-        local active = item == page
-        item.Frame.Visible = active
+        local active = item == self.ActivePage
         item.Line.Visible = active
         item.Button.BackgroundTransparency = active and 0 or 1
         item.Button.TextColor3 = active and Theme.Text or Theme.Muted
     end
+end
+
+function Window:SelectTab(page)
+    self:ClosePopup()
+    local settings = self.SettingsPage
+    self.SettingsOpen = settings ~= nil and page == settings
+    if not self.SettingsOpen then
+        self.LastPage = page
+    end
+    if settings then
+        settings.Frame.Visible = self.SettingsOpen
+    end
+    for _, item in ipairs(self.Pages) do
+        item.Frame.Visible = item == page
+    end
     self.ActivePage = page
+    self:StyleTabs()
+    Chrome.paintSettingsButton(self)
     page:Relayout()
+end
+
+function Window:OpenSettings()
+    if not self.SettingsOpen then
+        self:SelectTab(self.SettingsPage)
+    end
+    return self
+end
+
+function Window:CloseSettings()
+    if not self.SettingsOpen then
+        return self
+    end
+    local page = self.LastPage or self.Pages[1]
+    if page then
+        self:SelectTab(page)
+    else
+        self:ClosePopup()
+        self.SettingsOpen = false
+        self.SettingsPage.Frame.Visible = false
+        self.ActivePage = nil
+        Chrome.paintSettingsButton(self)
+    end
+    return self
+end
+
+function Window:ToggleSettings()
+    if self.SettingsOpen then
+        return self:CloseSettings()
+    end
+    return self:OpenSettings()
+end
+
+local function syncSetting(window, id, value)
+    local control = window.Controls[id]
+    if control then
+        control:SetSilent(value)
+    end
+end
+
+function Window:SetLockToScreen(locked)
+    self.AllowOffscreen = locked ~= true
+    syncSetting(self, "UI.LockToScreen", not self.AllowOffscreen)
+    self:Fit()
+    return self
+end
+
+function Window:SetReducedMotion(reduced)
+    self.ReducedMotion = reduced == true
+    syncSetting(self, "UI.Animations", not self.ReducedMotion)
+    self.UpdateAccent()
+    return self
+end
+
+function Window:SetRainbowAccent(enabled)
+    self.RainbowAccent = enabled == true
+    syncSetting(self, "UI.RainbowAccent", self.RainbowAccent)
+    self.UpdateAccent()
+    return self
+end
+
+function Window:RefreshTheme()
+    if self.Dead then
+        return
+    end
+    for _, control in pairs(self.Controls) do
+        if control.Render and control ~= self.Capturing then
+            control.Render(control:Get())
+        end
+    end
+    self.SettingsPage.Controls.sync()
+    for _, hook in ipairs(self.ThemeHooks) do
+        hook()
+    end
+    self:StyleTabs()
+    Chrome.paintSettingsButton(self)
+    self.UpdateAccent()
 end
 
 function Window:OnDestroy(callback)
@@ -297,6 +405,12 @@ function Window:Destroy()
     self.PopupOwner = nil
     cleanupStep("Cursor", function()
         Cursor.set(self, false)
+    end)
+    cleanupStep("Theme", function()
+        if self.ThemeListener then
+            self.ThemeListener()
+            self.ThemeListener = nil
+        end
     end)
     cleanupStep("Accent", function()
         if self.AccentScope then

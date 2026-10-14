@@ -23,6 +23,7 @@ SUITES = [
     ("context", "UI", None),
     ("performance", "UI", None),
     ("destruction", "UI", None),
+    ("settings", "UI", None),
 ]
 
 
