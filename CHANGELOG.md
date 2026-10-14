@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Add a grey × button left of every bound key that unbinds it, plus `keybind:Unbind()`. Unbinding cancels key capture and releases a held key.
+- Show `[Unbound]` instead of `[Unknown]` for empty binds. Buttons drop the key suffix while unbound.
+- Allow `Keybind = true` on toggles and buttons for an empty slot, and add the `BindableToggles` window option.
+- Toggle keybinds flip the toggle by default.
+- Ignore mouse clicks when the menu key is unbound; before this, every click toggled the window.
+
 ## 0.3.0
 
 - Toggles no longer show a check mark; an enabled toggle fills with the accent color.

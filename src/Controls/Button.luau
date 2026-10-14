@@ -25,7 +25,7 @@ function Button.add(group, info)
 
     local function render()
         local shown = baseText
-        if result.Keybind then
+        if result.Keybind and Keybind.isBound(result.Keybind:Get()) then
             shown = shown .. " [" .. Util.keyName(result.Keybind:Get()) .. "]"
         end
         button.Text = shown
@@ -61,8 +61,8 @@ function Button.add(group, info)
 
     window.Scope:Connect(button.Activated, activate)
 
-    if info.Keybind then
-        local config = table.clone(info.Keybind)
+    local config = Keybind.options(info.Keybind)
+    if config then
         local changed = config.Callback
         config.Pressed = config.Pressed or activate
         config.Callback = function(value)

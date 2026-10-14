@@ -29,7 +29,7 @@ function Button.add(group, info)
 
     local function render()
         local shown = baseText
-        if result.Keybind then
+        if result.Keybind and Keybind.isBound(result.Keybind:Get()) then
             shown = shown .. " [" .. Util.keyName(result.Keybind:Get()) .. "]"
         end
         button.Text = shown
@@ -65,8 +65,8 @@ function Button.add(group, info)
 
     window.Scope:Connect(button.Activated, activate)
 
-    if info.Keybind then
-        local config = table.clone(info.Keybind)
+    local config = Keybind.options(info.Keybind)
+    if config then
         local changed = config.Callback
         config.Pressed = config.Pressed or activate
         config.Callback = function(value)
@@ -691,13 +691,31 @@ local Control = __require("Controls/Control")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
-local KEY_WIDTH = 110
+local LABEL_INSET = 110
+local KEY_HEIGHT = 20
+local KEY_PADDING = 4
+local CLEAR_SIZE = 14
+local CLEAR_GAP = 2
 
 local Keybind = {}
 
 local function normalize(value)
     assert(typeof(value) == "EnumItem" and value.EnumType == Enum.KeyCode, "Keybind requires Enum.KeyCode")
     return value
+end
+
+function Keybind.isBound(key)
+    return key ~= nil and key ~= Enum.KeyCode.Unknown
+end
+
+function Keybind.options(keybind)
+    if keybind == true then
+        return {}
+    end
+    if type(keybind) == "table" then
+        return table.clone(keybind)
+    end
+    return nil
 end
 
 function Keybind.attach(group, row, id, info, inline)
@@ -709,17 +727,57 @@ function Keybind.attach(group, row, id, info, inline)
     control.Root = Util.button(row, "", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.fromOffset(KEY_WIDTH, 20),
+        Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
+    control.Clear = Util.button(row, "×", {
+        Name = "Unbind",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Size = UDim2.fromOffset(CLEAR_SIZE, CLEAR_SIZE),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        TextColor3 = Theme.Color.Muted,
+        TextSize = Theme.SmallSize,
+    })
+
+    local hidden = false
+
+    local function show(text)
+        local width = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
+        control.Root.Text = text
+        control.Root.Size = UDim2.fromOffset(width, KEY_HEIGHT)
+        control.Clear.Position = UDim2.new(1, -(width + CLEAR_GAP), 0.5, 0)
+    end
 
     control.Render = function(value)
-        control.Root.Text = "[" .. Util.keyName(value) .. "]"
-        control.Root.TextTransparency = control.Enabled and 0 or Theme.DisabledTransparency
+        show("[" .. Util.keyName(value) .. "]")
+        local transparency = control.Enabled and 0 or Theme.DisabledTransparency
+        control.Root.TextTransparency = transparency
+        control.Clear.TextTransparency = transparency
+        control.Root.Visible = not hidden
+        control.Clear.Visible = not hidden and Keybind.isBound(value)
+    end
+
+    function control:Unbind()
+        local wasCapturing = window.Capturing == self
+        if wasCapturing then
+            window.Capturing = nil
+        end
+        if self.Down then
+            self.Down = false
+            if self.Released then
+                window:Dispatch(self.Released)
+            end
+        end
+        self:Set(Enum.KeyCode.Unknown)
+        if wasCapturing then
+            self.Render(self:Get())
+        end
+        return self
     end
 
     window.Scope:Connect(control.Root.Activated, function()
@@ -730,16 +788,24 @@ function Keybind.attach(group, row, id, info, inline)
             window.Capturing.Render(window.Capturing:Get())
         end
         window.Capturing = control
-        control.Root.Text = "[Press a key]"
+        show("[Press a key]")
+    end)
+
+    window.Scope:Connect(control.Clear.Activated, function()
+        if control.Enabled then
+            control:Unbind()
+        end
     end)
 
     if inline then
         function control:SetVisible(value)
-            self.Root.Visible = value == true
+            hidden = value ~= true
+            self.Render(self:Get())
             return self
         end
         Util.protect(control, { "SetVisible" })
     end
+    Util.protect(control, { "Unbind" })
 
     table.insert(window.Keybinds, control)
     control.Render(control:Get())
@@ -749,7 +815,7 @@ end
 function Keybind.add(group, id, info)
     info = info or {}
     local row = Control.row(group)
-    Util.label(row, info.Text or id, { Size = UDim2.new(1, -KEY_WIDTH, 1, 0) })
+    Util.label(row, info.Text or id, { Size = UDim2.new(1, -LABEL_INSET, 1, 0) })
     return Keybind.attach(group, row, id, info)
 end
 
@@ -1095,6 +1161,8 @@ local Keybind = __require("Controls/Keybind")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
+local KEYBIND_INSET = 95
+
 local Toggle = {}
 
 function Toggle.add(group, id, info)
@@ -1104,9 +1172,15 @@ function Toggle.add(group, id, info)
         return value == true
     end, info.Callback)
 
+    local keybind = info.Keybind
+    if keybind == nil and window.BindableToggles then
+        keybind = true
+    end
+    keybind = Keybind.options(keybind)
+
     control.Row = Control.row(group)
     local hit = Util.button(control.Row, "", {
-        Size = UDim2.new(1, info.Keybind and -65 or 0, 1, 0),
+        Size = UDim2.new(1, keybind and -KEYBIND_INSET or 0, 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
@@ -1138,8 +1212,14 @@ function Toggle.add(group, id, info)
         end
     end)
 
-    if info.Keybind then
-        control.Keybind = Keybind.attach(group, control.Row, info.Keybind.Id or id .. "Key", info.Keybind, true)
+    if keybind then
+        keybind.Pressed = keybind.Pressed
+            or function()
+                if control.Enabled then
+                    control:Set(not control:Get())
+                end
+            end
+        control.Keybind = Keybind.attach(group, control.Row, keybind.Id or id .. "Key", keybind, true)
     end
 
     control.Render(control:Get())
@@ -1618,7 +1698,7 @@ local function onKeyBegan(window, input, processed)
     if processed or UserInputService:GetFocusedTextBox() then
         return
     end
-    if input.KeyCode == window.ToggleKey then
+    if input.KeyCode == window.ToggleKey and window.ToggleKey ~= Enum.KeyCode.Unknown then
         window:SetVisible(not window.Open)
         return
     end
@@ -2039,6 +2119,7 @@ local function buildWindow(window, page, options)
 
     group:AddToggle("UI.LockToScreen", {
         Text = "Lock to screen",
+        Keybind = false,
         Value = not window.AllowOffscreen,
         Callback = function(value)
             window:SetLockToScreen(value)
@@ -2046,6 +2127,7 @@ local function buildWindow(window, page, options)
     })
     group:AddToggle("UI.SnapToEdges", {
         Text = "Snap to edges",
+        Keybind = false,
         Value = window.SnapDistance > 0,
         Callback = function(value)
             window.SnapDistance = value and defaultSnap or 0
@@ -2056,6 +2138,7 @@ local function buildWindow(window, page, options)
     local look = page:AddGroupbox("Appearance", "Right")
     look:AddToggle("UI.Animations", {
         Text = "Animations",
+        Keybind = false,
         Value = not window.ReducedMotion,
         Callback = function(value)
             window:SetReducedMotion(not value)
@@ -2063,6 +2146,7 @@ local function buildWindow(window, page, options)
     })
     look:AddToggle("UI.RainbowAccent", {
         Text = "Rainbow accent line",
+        Keybind = false,
         Value = window.RainbowAccent,
         Callback = function(value)
             window:SetRainbowAccent(value)
@@ -2125,6 +2209,7 @@ function Window.new(options)
     self.ThemeHooks = {}
     self.ReducedMotion = options.ReducedMotion == true
     self.RainbowAccent = options.RainbowAccent ~= false
+    self.BindableToggles = options.BindableToggles == true
     self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)
@@ -2550,7 +2635,7 @@ local Util = __require("internal/Util")
 local Window = __require("Window")
 
 local Library = {
-    Version = "0.3.0",
+    Version = "0.4.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -3235,7 +3320,10 @@ function Util.contains(gui, point)
 end
 
 function Util.keyName(key)
-    return key and key.Name or "None"
+    if key == nil or key == Enum.KeyCode.Unknown then
+        return "Unbound"
+    end
+    return key.Name
 end
 
 local function merge(defaults, props)

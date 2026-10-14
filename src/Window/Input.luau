@@ -26,7 +26,7 @@ local function onKeyBegan(window, input, processed)
     if processed or UserInputService:GetFocusedTextBox() then
         return
     end
-    if input.KeyCode == window.ToggleKey then
+    if input.KeyCode == window.ToggleKey and window.ToggleKey ~= Enum.KeyCode.Unknown then
         window:SetVisible(not window.Open)
         return
     end

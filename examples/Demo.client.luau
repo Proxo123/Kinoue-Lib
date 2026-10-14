@@ -15,6 +15,13 @@ local function status(text)
     window:SetStatus(text)
 end
 
+local function withKey(text, key)
+    if key == Enum.KeyCode.Unknown then
+        return text
+    end
+    return text .. " [" .. key.Name .. "]"
+end
+
 local function action(text)
     return function()
         status(text)
@@ -33,8 +40,8 @@ quick:AddDropdown("Language", { Text = "Language", Options = { "English", "Germa
 
 local toggles = pages.Inputs:AddGroupbox("Toggles", "Left")
 toggles:AddToggle("AutoSave", { Text = "Auto save", Value = true })
-toggles:AddToggle("ShowHints", { Text = "Show hints" })
-toggles:AddToggle("CompactMode", { Text = "Compact mode" })
+toggles:AddToggle("ShowHints", { Text = "Show hints", Keybind = true })
+toggles:AddToggle("CompactMode", { Text = "Compact mode", Keybind = { Value = Enum.KeyCode.C } })
 
 local sliders = pages.Inputs:AddGroupbox("Sliders", "Left")
 sliders:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 24, Value = 16, Suffix = "studs/s" })
@@ -243,7 +250,7 @@ composition:AddKeybind("FillKey", {
     Pressed = fill,
     Callback = function(key)
         if fillButtons then
-            fillButtons[2].Text = "Fill [" .. key.Name .. "]"
+            fillButtons[2].Text = withKey("Fill", key)
         end
     end,
 })
@@ -256,7 +263,7 @@ animate = effects:AddToggle("Animate", {
         Value = Enum.KeyCode.F,
         Pressed = pulse,
         Callback = function(key)
-            pulseButton:SetText("Pulse [" .. key.Name .. "]")
+            pulseButton:SetText(withKey("Pulse", key))
         end,
     },
     Callback = refresh,

@@ -3,6 +3,8 @@ local Keybind = require(script.Parent.Keybind)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
+local KEYBIND_INSET = 95
+
 local Toggle = {}
 
 function Toggle.add(group, id, info)
@@ -12,9 +14,15 @@ function Toggle.add(group, id, info)
         return value == true
     end, info.Callback)
 
+    local keybind = info.Keybind
+    if keybind == nil and window.BindableToggles then
+        keybind = true
+    end
+    keybind = Keybind.options(keybind)
+
     control.Row = Control.row(group)
     local hit = Util.button(control.Row, "", {
-        Size = UDim2.new(1, info.Keybind and -65 or 0, 1, 0),
+        Size = UDim2.new(1, keybind and -KEYBIND_INSET or 0, 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
@@ -46,8 +54,14 @@ function Toggle.add(group, id, info)
         end
     end)
 
-    if info.Keybind then
-        control.Keybind = Keybind.attach(group, control.Row, info.Keybind.Id or id .. "Key", info.Keybind, true)
+    if keybind then
+        keybind.Pressed = keybind.Pressed
+            or function()
+                if control.Enabled then
+                    control:Set(not control:Get())
+                end
+            end
+        control.Keybind = Keybind.attach(group, control.Row, keybind.Id or id .. "Key", keybind, true)
     end
 
     control.Render(control:Get())

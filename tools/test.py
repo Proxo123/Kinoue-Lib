@@ -24,6 +24,7 @@ SUITES = [
     ("performance", "UI", None),
     ("destruction", "UI", None),
     ("settings", "UI", None),
+    ("keybinds", "UI", None),
 ]
 
 
