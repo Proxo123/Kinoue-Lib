@@ -1,13 +1,88 @@
+local Collapsible = require(script.Parent.Collapsible)
 local Control = require(script.Parent.Control)
 local Keybind = require(script.Parent.Keybind)
+local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
 local KEYBIND_INSET = 95
+local COG_SIZE = 18
+local COG_ICON_SIZE = 14
+local COG_GAP = 4
+local SETTINGS_INDENT = 20
+local GUIDE_OFFSET = 6
 
 local Toggle = {}
 
-function Toggle.add(group, id, info)
+local function buildRow(group, subToggle)
+    if not subToggle then
+        local row = Control.row(group)
+        return row, row
+    end
+    local holder = Util.frame(group.Container, {
+        Name = "SubToggle",
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    Util.list(holder, false, Theme.ControlGap)
+    local row = Util.frame(holder, {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, Theme.RowHeight),
+    })
+    return holder, row
+end
+
+local function attachSettings(control, window, row, newGroup)
+    local cog = Util.button(row, "", {
+        Name = "SettingsButton",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.fromOffset(COG_SIZE, COG_SIZE),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    })
+    local icon = Icons.gear(cog, COG_ICON_SIZE)
+    local panel = Collapsible.new(window, control.Row, SETTINGS_INDENT)
+    Util.frame(panel.Clip, {
+        Name = "Guide",
+        Position = UDim2.fromOffset(GUIDE_OFFSET, 0),
+        Size = UDim2.new(0, 1, 1, 0),
+        BackgroundColor3 = Theme.Color.Outline,
+    })
+
+    control.SettingsButton = cog
+    control.SettingsIcon = icon
+    control.SettingsPanel = panel
+    control.Settings = newGroup(window, panel.Container)
+
+    local function paint()
+        icon:SetColor(panel.Open and Theme.Accent or Theme.Muted)
+    end
+    panel:OnChanged(function(open, reduced)
+        icon:SetRotation(window, open and 90 or 0, reduced)
+        paint()
+    end)
+    table.insert(window.ThemeHooks, paint)
+
+    window.Scope:Connect(cog.Activated, function()
+        panel:Toggle()
+    end)
+
+    function control:SetSettingsOpen(open)
+        panel:SetOpen(open)
+        return self
+    end
+
+    function control:IsSettingsOpen()
+        return panel.Open
+    end
+
+    Util.protect(control, { "SetSettingsOpen" })
+    return COG_SIZE + COG_GAP
+end
+
+function Toggle.add(group, id, info, newGroup)
     info = info or {}
     local window = group.Window
     local control = Control.new(group, id, info.Value == true, function(value)
@@ -20,9 +95,16 @@ function Toggle.add(group, id, info)
     end
     keybind = Keybind.options(keybind)
 
-    control.Row = Control.row(group)
-    local hit = Util.button(control.Row, "", {
-        Size = UDim2.new(1, keybind and -KEYBIND_INSET or 0, 1, 0),
+    local holder, row = buildRow(group, info.SubToggle == true)
+    control.Row = holder
+
+    local rightInset = 0
+    if info.SubToggle == true then
+        rightInset = attachSettings(control, window, row, newGroup)
+    end
+
+    local hit = Util.button(row, "", {
+        Size = UDim2.new(1, -(rightInset + (keybind and KEYBIND_INSET or 0)), 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
@@ -61,7 +143,7 @@ function Toggle.add(group, id, info)
                     control:Set(not control:Get())
                 end
             end
-        control.Keybind = Keybind.attach(group, control.Row, keybind.Id or id .. "Key", keybind, true)
+        control.Keybind = Keybind.attach(group, row, keybind.Id or id .. "Key", keybind, true, rightInset)
     end
 
     control.Render(control:Get())

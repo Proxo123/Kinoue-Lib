@@ -34,7 +34,9 @@ welcome:AddLabel("RightShift shows or hides the menu.", true)
 welcome:AddLabel("Every control here is live.", true)
 
 local quick = pages.Home:AddGroupbox("Quick settings", "Right")
-quick:AddToggle("Notifications", { Text = "Notifications", Value = true })
+local notifications = quick:AddToggle("Notifications", { Text = "Notifications", Value = true, SubToggle = true })
+notifications.Settings:AddSlider("NotifyDuration", { Text = "Duration", Min = 1, Max = 10, Value = 3, Suffix = "s" })
+notifications.Settings:AddDropdown("NotifyCorner", { Text = "Corner", Options = { "Bottom right", "Top right" } })
 quick:AddToggle("Sounds", { Text = "Sounds" })
 quick:AddDropdown("Language", { Text = "Language", Options = { "English", "German", "Spanish", "French" } })
 
@@ -292,11 +294,12 @@ opacity:AddSlider("FillOpacity", { Text = "Fill opacity", Min = 0, Max = 100, Va
 opacity:AddSlider("OutlineOpacity", { Text = "Outline opacity", Min = 0, Max = 100, Value = 100, Suffix = "%" })
 
 local glow = glowTab:AddGroupbox("Glow", "Left")
-glow:AddToggle("Glow", { Text = "Glow" })
+local glowToggle = glow:AddToggle("Glow", { Text = "Glow", SubToggle = true, Keybind = true })
+glowToggle.Settings:AddSlider("GlowSize", { Text = "Size", Min = 1, Max = 16, Value = 4, Suffix = "px" })
+glowToggle.Settings:AddSlider("GlowSpeed", { Text = "Speed", Min = 1, Max = 10, Value = 3 })
+glowToggle.Settings:AddToggle("GlowPulse", { Text = "Pulse" })
 local glowAdvanced = glow:AddDisclosure("Advanced")
-glowAdvanced:AddSlider("GlowSize", { Text = "Size", Min = 1, Max = 16, Value = 4, Suffix = "px" })
-glowAdvanced:AddSlider("GlowSpeed", { Text = "Speed", Min = 1, Max = 10, Value = 3 })
-glowAdvanced:AddToggle("GlowPulse", { Text = "Pulse" })
+glowAdvanced:AddDropdown("GlowStyle", { Text = "Style", Options = { "Soft", "Sharp", "Outline" } })
 
 local blur = glowTab:AddGroupbox("Blur", "Right")
 blur:AddToggle("Blur", { Text = "Background blur" })
@@ -325,13 +328,6 @@ for index, name in ipairs({ "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"
 end
 
 local windowSettings = pages.Settings:AddGroupbox("Window", "Left")
-windowSettings:AddKeybind("MenuKey", {
-    Text = "Show / hide menu",
-    Value = Enum.KeyCode.RightShift,
-    Callback = function(key)
-        window:SetToggleKey(key)
-    end,
-})
 windowSettings:AddKeybind("UnloadKey", {
     Text = "Unload interface",
     Value = Enum.KeyCode.End,

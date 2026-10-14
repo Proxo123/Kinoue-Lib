@@ -70,6 +70,15 @@ local function buildWindow(window, page, options)
     local group = page:AddGroupbox("Window", "Right")
     local defaultSnap = math.max(1, options.SnapDistance or 8)
 
+    group:AddKeybind("UI.MenuKey", {
+        Text = "Menu key",
+        Value = window.ToggleKey,
+        Clearable = false,
+        Callback = function(key)
+            window:SetToggleKey(key)
+        end,
+    })
+
     group:AddToggle("UI.LockToScreen", {
         Text = "Lock to screen",
         Keybind = false,

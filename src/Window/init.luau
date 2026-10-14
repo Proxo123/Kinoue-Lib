@@ -127,6 +127,10 @@ end
 function Window:SetToggleKey(key)
     assert(typeof(key) == "EnumItem" and key.EnumType == Enum.KeyCode, "ToggleKey requires Enum.KeyCode")
     self.ToggleKey = key
+    local control = self.Controls["UI.MenuKey"]
+    if control then
+        control:SetSilent(key)
+    end
 end
 
 function Window:ClosePopup()

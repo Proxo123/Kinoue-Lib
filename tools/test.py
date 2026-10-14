@@ -25,6 +25,7 @@ SUITES = [
     ("destruction", "UI", None),
     ("settings", "UI", None),
     ("keybinds", "UI", None),
+    ("subtoggle", "UI", None),
 ]
 
 

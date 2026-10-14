@@ -99,15 +99,6 @@ advanced:AddColorPicker("Color", {
     end,
 })
 
-local binds = settings:AddGroupbox("Keybinds", "Left")
-binds:AddKeybind("MenuKey", {
-    Text = "Show / hide menu",
-    Value = Enum.KeyCode.RightShift,
-    Callback = function(key)
-        window:SetToggleKey(key)
-    end,
-})
-
 settings:AddGroupbox("Session", "Right"):AddButton({
     Text = "Unload UI",
     Callback = function()

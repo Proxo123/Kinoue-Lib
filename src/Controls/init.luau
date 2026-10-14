@@ -27,7 +27,7 @@ function Group:AddLabel(text, small)
 end
 
 function Group:AddToggle(id, info)
-    return Toggle.add(self, id, info)
+    return Toggle.add(self, id, info, Group.new)
 end
 
 function Group:AddKeybind(id, info)
@@ -54,8 +54,8 @@ function Group:AddButtons(definitions)
     return Button.addRow(self, definitions)
 end
 
-function Group:AddDisclosure(title)
-    return Disclosure.add(self, title, Group.new)
+function Group:AddDisclosure(title, open)
+    return Disclosure.add(self, title, Group.new, open)
 end
 
 function Group:AddColorPicker(id, info)

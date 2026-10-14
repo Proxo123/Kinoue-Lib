@@ -76,7 +76,7 @@ local window = UI:CreateWindow({
 The gear button in the top-right corner of the header opens the settings page. Press it again to go back. The page has:
 
 - **Theme:** a preset (Dark, Midnight, Ocean, Rose, Forest, Light), color pickers for the accent, background, panels, outlines, text and muted text, and a reset button.
-- **Window:** Lock to screen and Snap to edges.
+- **Window:** Menu key (RightShift by default), Lock to screen and Snap to edges.
 - **Appearance:** Animations and Rainbow accent line.
 
 Settings are saved with the rest of the config under IDs that start with `UI.`. Themes apply to every window at once.
@@ -108,7 +108,7 @@ preview:Select()
 local advanced = left:AddDisclosure("Advanced")
 ```
 
-A disclosure is a collapsible section. It supports the same `Add*` methods as a groupbox.
+A disclosure is a collapsible section with a chevron icon that rotates as it opens. It supports the same `Add*` methods as a groupbox. Pass `true` as the second argument to start it open, and use `advanced:SetOpen(open)` to open or close it from code.
 
 ## Controls
 
@@ -126,6 +126,10 @@ local toggle = left:AddToggle("Enabled", {
 })
 
 left:AddToggle("Hints", { Text = "Hints", Keybind = true })
+
+local esp = left:AddToggle("ESP", { Text = "ESP", SubToggle = true })
+esp.Settings:AddSlider("ESPRange", { Text = "Range", Min = 50, Max = 1000, Value = 300 })
+esp.Settings:AddToggle("ESPNames", { Text = "Names" })
 
 local slider = left:AddSlider("Speed", {
     Text = "Speed",
@@ -190,8 +194,13 @@ Extra methods:
 | --- | --- |
 | `dropdown:UpdateOptions(options)` | Replaces the options, keeping the selection when it still exists. |
 | `keybind:Unbind()` | Clears the key; the bind shows `[Unbound]`. |
+| `toggle:SetSettingsOpen(open)` / `toggle:IsSettingsOpen()` | Opens, closes or reads a sub-toggle's settings panel. |
 | `color:Open()` / `color:Close()` | Opens or closes the picker popup. |
 | `label:SetText(text)` / `label:SetVisible(visible)` | Updates a label. |
+
+## Sub-toggles
+
+`SubToggle = true` adds a cog on the right of a toggle. The cog opens an animated settings panel under the toggle, and `toggle.Settings` is a group for adding that panel's controls. Clicking the cog never flips the toggle itself. Sub settings are saved like any other control.
 
 ## Keybinds
 
@@ -201,6 +210,7 @@ Keybinds can sit on their own row (`AddKeybind`) or next to a toggle or button (
 - Click the grey × left of the key to unbind it. Unbound keys show `[Unbound]`.
 - `Keybind = true` adds an empty slot that starts unbound.
 - A toggle's keybind flips the toggle unless you pass your own `Pressed`.
+- `Clearable = false` hides the ×, as on the built-in menu key.
 - Pass `BindableToggles = true` to `CreateWindow` to give every toggle a slot. Use `Keybind = false` to opt one out.
 
 ## Buttons
@@ -268,10 +278,11 @@ src/
   Controls/
     init.luau          Group class with the Add* methods
     Control.luau       Shared control behavior and popup helpers
+    Collapsible.luau   Animated expand and collapse for sections and sub-toggles
     Button.luau, ColorPicker.luau, Disclosure.luau, Dropdown.luau, Keybind.luau,
     Label.luau, Preview.luau, Slider.luau, Textbox.luau, Toggle.luau
   internal/
-    Cursor.luau, Fade.luau, Model.luau, Mount.luau, Theme.luau, Util.luau
+    Cursor.luau, Fade.luau, Icons.luau, Model.luau, Mount.luau, Theme.luau, Util.luau
 examples/              Demo place script, minimal example and ESP example
 tests/                 Headless behavior tests against a Roblox mock
 tools/                 Bundler and test runner
