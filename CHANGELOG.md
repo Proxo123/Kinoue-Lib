@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Toggles no longer show a check mark; an enabled toggle fills with the accent color.
+- Replace the header's PlaceId label with a gear button that opens a built-in settings page.
+- Add live themes: six presets, per-color editing, `UI:SetTheme`, `UI:GetTheme` and `UI.Themes`. Theme changes update every open window, and colors set manually on instances are kept.
+- Add Lock to screen, Snap to edges, Animations and Rainbow accent line settings, plus `SetLockToScreen`, `SetReducedMotion` and `SetRainbowAccent`.
+- Save settings with the window config under `UI.*` IDs.
+- Add `ShowSettings` and `RainbowAccent` window options.
+
 ## 0.2.0
 
 - Rename the bundle to `dist/Kinoue.lua` and `dist/Kinoue.rbxmx`, and the demo to `dist/KinoueDemo.lua` and `dist/KinoueDemo.rbxlx`. Update `loadstring` URLs that point at `dist/BoogaUI.lua`.

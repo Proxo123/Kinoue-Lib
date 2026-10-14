@@ -1,13 +1,23 @@
 local Theme = require(script.internal.Theme)
+local Util = require(script.internal.Util)
 local Window = require(script.Window)
 
 local Library = {
-    Version = "0.2.0",
+    Version = "0.3.0",
     Theme = Theme,
+    Themes = Theme.PresetNames,
 }
 
 function Library:CreateWindow(options)
     return Window.new(options or {})
+end
+
+function Library:SetTheme(theme)
+    Util.withContext(Theme.apply, theme)
+end
+
+function Library:GetTheme()
+    return Theme.Preset
 end
 
 function Library.FileStorage(path)

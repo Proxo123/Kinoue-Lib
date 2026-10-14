@@ -6,7 +6,7 @@ local Label = {}
 function Label.add(group, text, small)
     local label = Util.label(group.Container, text, {
         TextSize = small and Theme.SmallSize or Theme.TextSize,
-        TextColor3 = small and Theme.Muted or Theme.Text,
+        TextColor3 = small and Theme.Color.Muted or Theme.Color.Text,
     })
     local result = { Root = label }
 

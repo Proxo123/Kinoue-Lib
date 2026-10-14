@@ -45,9 +45,13 @@ local window = UI:CreateWindow({
     SnapDistance = 8,
     ToggleKey = Enum.KeyCode.RightShift,
     ReducedMotion = false,
+    RainbowAccent = true,
+    ShowSettings = true,
     ReplaceExisting = true,
 })
 ```
+
+`AllowOffscreen = false` (the default) locks the window to the screen: dragging stops at the edges. With `AllowOffscreen = true` the window can be dragged partly or fully off screen, and it snaps to edges within `SnapDistance` pixels.
 
 | Method | Description |
 | --- | --- |
@@ -60,8 +64,30 @@ local window = UI:CreateWindow({
 | `window:SetPosition(Vector2, snapEdges)` | Moves the window; `snapEdges` snaps to nearby screen edges. |
 | `window:GetPosition()` | Returns the top-left corner as a `Vector2`. |
 | `window:ClosePopup()` | Closes an open dropdown or color picker. |
+| `window:OpenSettings()` / `window:CloseSettings()` / `window:ToggleSettings()` | Shows or hides the settings page. |
+| `window:SetLockToScreen(locked)` | Keeps the window on screen, or lets it be dragged past the edges. |
+| `window:SetReducedMotion(reduced)` | Turns animations off or on. |
+| `window:SetRainbowAccent(enabled)` | Switches the header line between rainbow and the accent color. |
 | `window:OnDestroy(callback)` | Runs `callback` after the window is removed. |
 | `window:Destroy()` | Removes the window and disconnects everything. |
+
+## Settings and themes
+
+The gear button in the top-right corner of the header opens the settings page. Press it again to go back. The page has:
+
+- **Theme:** a preset (Dark, Midnight, Ocean, Rose, Forest, Light), color pickers for the accent, background, panels, outlines, text and muted text, and a reset button.
+- **Window:** Lock to screen and Snap to edges.
+- **Appearance:** Animations and Rainbow accent line.
+
+Settings are saved with the rest of the config under IDs that start with `UI.`. Themes apply to every window at once.
+
+```lua
+UI:SetTheme("Ocean")
+UI:SetTheme({ Accent = Color3.fromRGB(255, 120, 0) })
+print(UI:GetTheme(), UI.Themes)
+```
+
+Pass `ShowSettings = false` to `CreateWindow` to hide the gear button.
 
 ## Pages and groupboxes
 
@@ -231,6 +257,7 @@ src/
     Chrome.luau        Header, accent, tab bar, footer and resize handle
     Input.luau         Keybinds, dragging and resizing
     Page.luau          Tabs, sub-tabs and groupboxes
+    Settings.luau      Built-in settings page
     Config.luau        Config encoding, loading and persistence
   Controls/
     init.luau          Group class with the Add* methods

@@ -15,9 +15,9 @@ local function openMenu(window, control, options)
     local scope = Util.scope()
     local menu = Util.new("ScrollingFrame", {
         Name = "Dropdown",
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         ZIndex = 50,
         CanvasSize = UDim2.fromOffset(0, #options * OPTION_HEIGHT),
         ScrollBarThickness = 3,
@@ -55,7 +55,7 @@ local function openMenu(window, control, options)
             Util.label(entry, tostring(option.Meta), {
                 Position = UDim2.fromOffset(Util.textWidth(option.Label) + 12, 0),
                 Size = UDim2.new(0, 48, 1, 0),
-                TextColor3 = Theme.Muted,
+                TextColor3 = Theme.Color.Muted,
                 TextSize = Theme.SmallSize,
                 ZIndex = 52,
             })
@@ -113,13 +113,13 @@ function Dropdown.add(group, id, info)
     })
     local meta = Util.label(control.Root, "", {
         TextSize = Theme.SmallSize,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         Size = UDim2.new(0, 50, 1, 0),
     })
     Util.label(control.Root, "▾", {
         Position = UDim2.new(1, -16, 0, 0),
         Size = UDim2.new(0, 12, 1, 0),
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
     })
 
     control.Render = function(value)

@@ -23,7 +23,7 @@ function Keybind.attach(group, row, id, info, inline)
         Size = UDim2.fromOffset(KEY_WIDTH, 20),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })

@@ -340,8 +340,8 @@ local session = pages.Settings:AddGroupbox("Session", "Right")
 session:AddButton({
     Text = "Reset toggles",
     Callback = function()
-        for _, control in pairs(window.Controls) do
-            if type(control:Get()) == "boolean" then
+        for id, control in pairs(window.Controls) do
+            if not id:find("^UI%.") and type(control:Get()) == "boolean" then
                 control:Set(false)
             end
         end

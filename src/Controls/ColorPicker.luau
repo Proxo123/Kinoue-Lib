@@ -25,9 +25,9 @@ local function buildPanel(window, control, info)
     local panel = Util.frame(window.Screen, {
         Name = "ColorPicker",
         Size = UDim2.fromOffset(PANEL_WIDTH, PANEL_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         ZIndex = 50,
     })
     Util.label(panel, info.Text or control.Id, {

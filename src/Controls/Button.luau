@@ -19,7 +19,7 @@ function Button.add(group, info)
     local baseText = info.Text or "Button"
     local button = Util.button(row, baseText, {
         Size = UDim2.fromOffset(width(baseText, info.Width), Theme.RowHeight),
-        BorderColor3 = info.Primary and Theme.Accent or Theme.Outline,
+        BorderColor3 = info.Primary and Theme.Color.Accent or Theme.Color.Outline,
     })
     local result = { Root = button, Row = row, Enabled = info.Disabled ~= true }
 
@@ -38,6 +38,11 @@ function Button.add(group, info)
         end
     end
 
+    local function paint()
+        button.TextColor3 = result.Enabled and Theme.Text or Theme.Muted
+        button.TextTransparency = 0
+    end
+
     function result:SetEnabled(value)
         value = value == true
         if self.Enabled == value and self.Rendered then
@@ -45,8 +50,7 @@ function Button.add(group, info)
         end
         self.Enabled = value
         self.Rendered = true
-        button.TextColor3 = value and Theme.Text or Theme.Muted
-        button.TextTransparency = 0
+        paint()
         return self
     end
 
@@ -72,6 +76,7 @@ function Button.add(group, info)
     end
 
     result:SetEnabled(result.Enabled)
+    table.insert(window.ThemeHooks, paint)
     return Util.protect(result, { "SetEnabled", "SetText" })
 end
 
@@ -83,7 +88,7 @@ function Button.addRow(group, definitions)
     for _, info in ipairs(definitions) do
         local button = Util.button(row, info.Text, {
             Size = UDim2.fromOffset(width(info.Text, info.Width), Theme.RowHeight),
-            BorderColor3 = info.Primary and Theme.Accent or Theme.Outline,
+            BorderColor3 = info.Primary and Theme.Color.Accent or Theme.Color.Outline,
         })
         window.Scope:Connect(button.Activated, function()
             window:Dispatch(info.Callback)

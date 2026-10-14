@@ -24,7 +24,7 @@ for _ = 1, 1000 do
 end
 assert(Mock.TweenCreates == before, "Unchanged synchronization must not start animations")
 controls[1]:Set(true)
-assert(Mock.TweenCreates == before + 3, "Changed toggles must still animate")
+assert(Mock.TweenCreates == before + 1, "Changed toggles must still animate")
 local dropdown = group:AddDropdown("Material", { Options = { { Value = "Wood", Meta = 10 } } })
 dropdown:UpdateOptions({ { Value = "Wood", Meta = 20 } })
 local found = false

@@ -32,7 +32,7 @@ function Button.add(group, info)
     local baseText = info.Text or "Button"
     local button = Util.button(row, baseText, {
         Size = UDim2.fromOffset(width(baseText, info.Width), Theme.RowHeight),
-        BorderColor3 = info.Primary and Theme.Accent or Theme.Outline,
+        BorderColor3 = info.Primary and Theme.Color.Accent or Theme.Color.Outline,
     })
     local result = { Root = button, Row = row, Enabled = info.Disabled ~= true }
 
@@ -51,6 +51,11 @@ function Button.add(group, info)
         end
     end
 
+    local function paint()
+        button.TextColor3 = result.Enabled and Theme.Text or Theme.Muted
+        button.TextTransparency = 0
+    end
+
     function result:SetEnabled(value)
         value = value == true
         if self.Enabled == value and self.Rendered then
@@ -58,8 +63,7 @@ function Button.add(group, info)
         end
         self.Enabled = value
         self.Rendered = true
-        button.TextColor3 = value and Theme.Text or Theme.Muted
-        button.TextTransparency = 0
+        paint()
         return self
     end
 
@@ -85,6 +89,7 @@ function Button.add(group, info)
     end
 
     result:SetEnabled(result.Enabled)
+    table.insert(window.ThemeHooks, paint)
     return Util.protect(result, { "SetEnabled", "SetText" })
 end
 
@@ -96,7 +101,7 @@ function Button.addRow(group, definitions)
     for _, info in ipairs(definitions) do
         local button = Util.button(row, info.Text, {
             Size = UDim2.fromOffset(width(info.Text, info.Width), Theme.RowHeight),
-            BorderColor3 = info.Primary and Theme.Accent or Theme.Outline,
+            BorderColor3 = info.Primary and Theme.Color.Accent or Theme.Color.Outline,
         })
         window.Scope:Connect(button.Activated, function()
             window:Dispatch(info.Callback)
@@ -137,9 +142,9 @@ local function buildPanel(window, control, info)
     local panel = Util.frame(window.Screen, {
         Name = "ColorPicker",
         Size = UDim2.fromOffset(PANEL_WIDTH, PANEL_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         ZIndex = 50,
     })
     Util.label(panel, info.Text or control.Id, {
@@ -493,7 +498,7 @@ function Disclosure.add(group, title, newGroup)
 
     local button = Util.button(frame, "▸ " .. title, {
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -536,9 +541,9 @@ local function openMenu(window, control, options)
     local scope = Util.scope()
     local menu = Util.new("ScrollingFrame", {
         Name = "Dropdown",
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         ZIndex = 50,
         CanvasSize = UDim2.fromOffset(0, #options * OPTION_HEIGHT),
         ScrollBarThickness = 3,
@@ -576,7 +581,7 @@ local function openMenu(window, control, options)
             Util.label(entry, tostring(option.Meta), {
                 Position = UDim2.fromOffset(Util.textWidth(option.Label) + 12, 0),
                 Size = UDim2.new(0, 48, 1, 0),
-                TextColor3 = Theme.Muted,
+                TextColor3 = Theme.Color.Muted,
                 TextSize = Theme.SmallSize,
                 ZIndex = 52,
             })
@@ -634,13 +639,13 @@ function Dropdown.add(group, id, info)
     })
     local meta = Util.label(control.Root, "", {
         TextSize = Theme.SmallSize,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         Size = UDim2.new(0, 50, 1, 0),
     })
     Util.label(control.Root, "▾", {
         Position = UDim2.new(1, -16, 0, 0),
         Size = UDim2.new(0, 12, 1, 0),
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
     })
 
     control.Render = function(value)
@@ -716,7 +721,7 @@ function Keybind.attach(group, row, id, info, inline)
         Size = UDim2.fromOffset(KEY_WIDTH, 20),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
@@ -769,7 +774,7 @@ local Label = {}
 function Label.add(group, text, small)
     local label = Util.label(group.Container, text, {
         TextSize = small and Theme.SmallSize or Theme.TextSize,
-        TextColor3 = small and Theme.Muted or Theme.Text,
+        TextColor3 = small and Theme.Color.Muted or Theme.Color.Text,
     })
     local result = { Root = label }
 
@@ -829,7 +834,7 @@ function Preview.add(group, info)
 
     preview.Root = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, info.Height or 148),
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
         BorderSizePixel = 1,
         ClipsDescendants = true,
     })
@@ -846,11 +851,11 @@ function Preview.add(group, info)
     local count = Label.add(group, "0 / 0")
     local track = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, 3),
-        BackgroundColor3 = Theme.Hover,
+        BackgroundColor3 = Theme.Color.Hover,
     })
     local fill = Util.frame(track, {
         Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
 
     local dots, columns, rows = {}, -1, -1
@@ -874,7 +879,7 @@ function Preview.add(group, info)
                     dots[key] = Util.frame(grid, {
                         Position = UDim2.fromOffset(x, y),
                         Size = UDim2.fromOffset(1, 1),
-                        BackgroundColor3 = Theme.Outline,
+                        BackgroundColor3 = Theme.Color.Outline,
                         BackgroundTransparency = 0.35,
                     })
                 end
@@ -914,7 +919,7 @@ function Preview.add(group, info)
             self.Parts[index] = nil
         end
         for index = #self.Parts + 1, #points do
-            self.Parts[index] = Util.frame(drawing, { BackgroundColor3 = Theme.Accent })
+            self.Parts[index] = Util.frame(drawing, { BackgroundColor3 = Theme.Color.Accent })
             Util.new("UICorner", { CornerRadius = UDim.new(0, 1) }, self.Parts[index])
         end
         self.Points = table.clone(points)
@@ -986,12 +991,12 @@ function Slider.add(group, id, info)
     control.Root = track
     local fill = Util.frame(track, {
         Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
     local thumb = Util.frame(track, {
         AnchorPoint = Vector2.new(0.5, 0),
         Size = UDim2.new(0, 4, 1, 0),
-        BackgroundColor3 = Theme.Text,
+        BackgroundColor3 = Theme.Color.Text,
     })
 
     local suffix = info.Suffix and " " .. info.Suffix or ""
@@ -1123,26 +1128,16 @@ function Toggle.add(group, id, info)
         BorderSizePixel = 1,
         BorderColor3 = Theme.Outline,
     })
-    local check = Util.label(box, "✓", {
-        Size = UDim2.fromScale(1, 1),
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextTransparency = 1,
-    })
-    local scale = Util.new("UIScale", { Scale = 0.35 }, check)
     local name = Util.label(hit, info.Text or id, {
         Position = UDim2.fromOffset(20, 0),
         Size = UDim2.new(1, -20, 1, 0),
     })
 
     control.Render = function(value)
-        local reduced = window.ReducedMotion
         window.Scope:Tween(box, 0.16, {
             BackgroundColor3 = value and Theme.Accent or Theme.Panel,
             BorderColor3 = value and Theme.Accent or Theme.Outline,
-        }, reduced)
-        window.Scope:Tween(check, 0.13, { TextTransparency = value and 0 or 1 }, reduced)
-        window.Scope:Tween(scale, 0.18, { Scale = value and 1 or 0.35 }, reduced)
+        }, window.ReducedMotion)
         name.TextTransparency = control.Enabled and 0 or Theme.DisabledTransparency
     end
 
@@ -1261,6 +1256,8 @@ local FOOTER_HEIGHT = 22
 local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
+local SETTINGS_BUTTON_SIZE = 20
+local GEAR_TEETH = 8
 
 local Chrome = {}
 
@@ -1276,8 +1273,8 @@ local function buildRoot(window, options)
             position.Y.Offset - window.Size.Y / 2
         ),
         Size = UDim2.fromOffset(window.Size.X, window.Size.Y),
-        BackgroundColor3 = Theme.Background,
-        BorderColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Background,
+        BorderColor3 = Theme.Color.Outline,
         BorderSizePixel = 1,
         ClipsDescendants = true,
     }, window.Screen)
@@ -1287,26 +1284,68 @@ end
 local function buildHeader(window, options)
     window.Header = Util.frame(window.Root, {
         Size = UDim2.new(1, 0, 0, HEADER_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         Active = true,
     })
     Util.label(window.Header, options.Name or "Kinoue", {
         Position = UDim2.fromOffset(8, 0),
-        Size = UDim2.new(0.45, -8, 1, 0),
+        Size = UDim2.new(1, -(SETTINGS_BUTTON_SIZE + 16), 1, 0),
         TextSize = Theme.TextSize + 1,
-    })
-    Util.label(window.Header, "PlaceId: " .. tostring(options.PlaceId or game.PlaceId), {
-        Position = UDim2.new(0.45, 0, 0, 0),
-        Size = UDim2.new(0.55, -8, 1, 0),
-        TextColor3 = Theme.Muted,
-        TextSize = Theme.SmallSize,
-        TextXAlignment = Enum.TextXAlignment.Right,
     })
     Util.frame(window.Header, {
         Position = UDim2.new(0, 0, 1, -1),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Outline,
     })
+end
+
+local function buildSettingsButton(window)
+    local button = Util.button(window.Header, "", {
+        Name = "SettingsButton",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -6, 0.5, 0),
+        Size = UDim2.fromOffset(SETTINGS_BUTTON_SIZE, SETTINGS_BUTTON_SIZE),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    })
+    local parts = {}
+    local center = UDim2.fromScale(0.5, 0.5)
+    local disc = Util.frame(button, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = center,
+        Size = UDim2.fromOffset(12, 12),
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, disc)
+    table.insert(parts, disc)
+    for index = 0, GEAR_TEETH - 1 do
+        local angle = index * (360 / GEAR_TEETH)
+        local radians = math.rad(angle)
+        local tooth = Util.frame(button, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, math.sin(radians) * 6.5, 0.5, -math.cos(radians) * 6.5),
+            Size = UDim2.fromOffset(3, 4),
+            Rotation = angle,
+        })
+        table.insert(parts, tooth)
+    end
+    local hole = Util.frame(button, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = center,
+        Size = UDim2.fromOffset(5, 5),
+        BackgroundColor3 = Theme.Color.Panel,
+        ZIndex = 2,
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, hole)
+
+    window.SettingsButton = button
+    window.SettingsIcon = parts
+end
+
+function Chrome.paintSettingsButton(window)
+    local color = window.SettingsOpen and Theme.Accent or Theme.Muted
+    for _, part in ipairs(window.SettingsIcon) do
+        part.BackgroundColor3 = color
+    end
 end
 
 local function buildAccent(window)
@@ -1328,6 +1367,10 @@ local function buildAccent(window)
 
     local keypoints, lastFrame = {}, -1
     local function animate()
+        if not window.RainbowAccent then
+            gradient.Color = ColorSequence.new(Theme.Accent)
+            return
+        end
         local frame = window.ReducedMotion and 0 or math.floor(os.clock() * ACCENT_FRAME_RATE)
         if frame == lastFrame then
             return
@@ -1349,8 +1392,9 @@ local function buildAccent(window)
         if not window.Open then
             return
         end
+        lastFrame = -1
         animate()
-        if not window.ReducedMotion then
+        if window.RainbowAccent and not window.ReducedMotion then
             window.AccentScope = Util.scope()
             window.AccentScope:Connect(RunService.RenderStepped, animate)
         end
@@ -1363,7 +1407,7 @@ local function buildBody(window)
         Position = UDim2.fromOffset(0, HEADER_HEIGHT),
         Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
         BorderSizePixel = 0,
-        BackgroundColor3 = Theme.Background,
+        BackgroundColor3 = Theme.Color.Background,
         ScrollBarThickness = 0,
         AutomaticCanvasSize = Enum.AutomaticSize.X,
         CanvasSize = UDim2.new(),
@@ -1382,11 +1426,11 @@ local function buildFooter(window, options)
     window.Footer = Util.frame(window.Root, {
         Position = UDim2.new(0, 0, 1, -FOOTER_HEIGHT),
         Size = UDim2.new(1, 0, 0, FOOTER_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
     })
     Util.frame(window.Footer, {
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Outline,
     })
     window.Status = Util.label(window.Footer, "Ready", {
         Position = UDim2.fromOffset(7, 0),
@@ -1397,7 +1441,7 @@ local function buildFooter(window, options)
         Position = UDim2.new(0.7, 0, 0, 0),
         Size = UDim2.new(0.3, -7, 1, 0),
         TextSize = Theme.SmallSize,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
 end
@@ -1418,6 +1462,8 @@ end
 function Chrome.build(window, options)
     buildRoot(window, options)
     buildHeader(window, options)
+    buildSettingsButton(window)
+    Chrome.paintSettingsButton(window)
     buildAccent(window)
     buildBody(window)
     buildFooter(window, options)
@@ -1723,20 +1769,8 @@ Page.__index = Page
 local Subpage = {}
 Subpage.__index = Subpage
 
-function Page.new(window, name)
+local function build(window, name)
     local self = setmetatable({ Window = window, Name = name, Groups = {}, Subpages = {} }, Page)
-
-    self.Button = Util.button(window.Tabs, name, {
-        Size = UDim2.fromOffset(Util.textWidth(name) + 18, 24),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextColor3 = Theme.Muted,
-    })
-    self.Line = Util.frame(self.Button, {
-        Size = UDim2.new(1, 0, 0, 2),
-        BackgroundColor3 = Theme.Accent,
-        Visible = false,
-    })
     self.Frame = Util.frame(window.Body, {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -1749,7 +1783,7 @@ function Page.new(window, name)
     self.Mode = Util.label(self.Frame, "", {
         Position = UDim2.new(0.65, 0, 0, 1),
         Size = UDim2.new(0.35, -8, 0, 23),
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
@@ -1759,7 +1793,7 @@ function Page.new(window, name)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = Theme.Outline,
+        ScrollBarImageColor3 = Theme.Color.Outline,
         CanvasSize = UDim2.new(),
         ScrollingDirection = Enum.ScrollingDirection.Y,
     }, self.Frame)
@@ -1771,12 +1805,32 @@ function Page.new(window, name)
     local function relayout()
         self:Relayout()
     end
-    window.Scope:Connect(self.Button.Activated, function()
-        window:SelectTab(self)
-    end)
     window.Scope:Connect(self.LeftList:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
     window.Scope:Connect(self.RightList:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
     window.Scope:Connect(self.Scroll:GetPropertyChangedSignal("AbsoluteSize"), relayout)
+    return self
+end
+
+function Page.hidden(window, name)
+    return build(window, name)
+end
+
+function Page.new(window, name)
+    local self = build(window, name)
+    self.Button = Util.button(window.Tabs, name, {
+        Size = UDim2.fromOffset(Util.textWidth(name) + 18, 24),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        TextColor3 = Theme.Color.Muted,
+    })
+    self.Line = Util.frame(self.Button, {
+        Size = UDim2.new(1, 0, 0, 2),
+        BackgroundColor3 = Theme.Color.Accent,
+        Visible = false,
+    })
+    window.Scope:Connect(self.Button.Activated, function()
+        window:SelectTab(self)
+    end)
 
     table.insert(window.Pages, self)
     if #window.Pages == 1 then
@@ -1826,15 +1880,15 @@ function Page:AddGroupbox(title, side)
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
     })
     local header = Util.frame(frame, {
         Size = UDim2.new(1, 0, 0, 24),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
     })
     Util.frame(header, {
         Size = UDim2.new(1, 0, 0, 2),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
     Util.label(header, title, {
         Position = UDim2.fromOffset(6, 2),
@@ -1880,8 +1934,17 @@ function Subpage.new(page, title)
     end)
     if #page.Subpages == 1 then
         self:Select()
+        table.insert(page.Window.ThemeHooks, function()
+            page:StyleSubtabs()
+        end)
     end
     return self
+end
+
+function Page:StyleSubtabs()
+    for _, item in ipairs(self.Subpages) do
+        item.Button.BorderColor3 = item == self.ActiveSubpage and Theme.Accent or Theme.Outline
+    end
 end
 
 function Subpage:Select()
@@ -1889,12 +1952,11 @@ function Subpage:Select()
     page.Window:ClosePopup()
     page.ActiveSubpage = self
     for _, item in ipairs(page.Subpages) do
-        local active = item == self
-        item.Button.BorderColor3 = active and Theme.Accent or Theme.Outline
         for _, group in ipairs(item.Groups) do
-            group.Frame.Visible = active
+            group.Frame.Visible = item == self
         end
     end
+    page:StyleSubtabs()
     page:Relayout()
 end
 
@@ -1911,6 +1973,133 @@ Util.protect(Subpage, { "Select", "AddGroupbox" })
 return Page
 end
 
+__factories["Window/Settings"] = function()
+local Page = __require("Window/Page")
+local Theme = __require("internal/Theme")
+
+local CUSTOM = "Custom"
+
+local EDITABLE_COLORS = {
+    { Key = "Accent", Text = "Accent" },
+    { Key = "Background", Text = "Background" },
+    { Key = "Panel", Text = "Panels" },
+    { Key = "Outline", Text = "Outlines" },
+    { Key = "Text", Text = "Text" },
+    { Key = "Muted", Text = "Muted text" },
+}
+
+local COLOR_TOLERANCE = 0.5 / 255
+
+local Settings = {}
+
+local function sameColor(a, b)
+    return math.abs(a.R - b.R) &lt;= COLOR_TOLERANCE
+        and math.abs(a.G - b.G) &lt;= COLOR_TOLERANCE
+        and math.abs(a.B - b.B) &lt;= COLOR_TOLERANCE
+end
+
+local function presetOptions()
+    local options = table.clone(Theme.PresetNames)
+    table.insert(options, CUSTOM)
+    return options
+end
+
+local function buildTheme(window, page)
+    local group = page:AddGroupbox("Theme", "Left")
+    local controls = {}
+
+    controls.Preset = group:AddDropdown("UI.Theme", {
+        Text = "Preset",
+        Options = presetOptions(),
+        Value = Theme.Preset,
+        Callback = function(value)
+            if value ~= CUSTOM then
+                Theme.apply(value)
+            end
+        end,
+    })
+
+    controls.Colors = {}
+    for _, entry in ipairs(EDITABLE_COLORS) do
+        controls.Colors[entry.Key] = group:AddColorPicker("UI.Color." .. entry.Key, {
+            Text = entry.Text,
+            Value = Theme[entry.Key],
+            Callback = function(value)
+                if not sameColor(value, Theme[entry.Key]) then
+                    Theme.apply({ [entry.Key] = value })
+                end
+            end,
+        })
+    end
+
+    group:AddButton({
+        Text = "Reset theme",
+        Callback = function()
+            Theme.apply("Dark")
+        end,
+    })
+
+    return controls
+end
+
+local function buildWindow(window, page, options)
+    local group = page:AddGroupbox("Window", "Right")
+    local defaultSnap = math.max(1, options.SnapDistance or 8)
+
+    group:AddToggle("UI.LockToScreen", {
+        Text = "Lock to screen",
+        Value = not window.AllowOffscreen,
+        Callback = function(value)
+            window:SetLockToScreen(value)
+        end,
+    })
+    group:AddToggle("UI.SnapToEdges", {
+        Text = "Snap to edges",
+        Value = window.SnapDistance &gt; 0,
+        Callback = function(value)
+            window.SnapDistance = value and defaultSnap or 0
+        end,
+    })
+    group:AddLabel("Unlock to drag past screen edges.", true)
+
+    local look = page:AddGroupbox("Appearance", "Right")
+    look:AddToggle("UI.Animations", {
+        Text = "Animations",
+        Value = not window.ReducedMotion,
+        Callback = function(value)
+            window:SetReducedMotion(not value)
+        end,
+    })
+    look:AddToggle("UI.RainbowAccent", {
+        Text = "Rainbow accent line",
+        Value = window.RainbowAccent,
+        Callback = function(value)
+            window:SetRainbowAccent(value)
+        end,
+    })
+end
+
+function Settings.build(window, options)
+    local page = Page.hidden(window, "Settings")
+    page:SetTitle("UI settings")
+    page:SetMode("Theme applies to every window")
+    local controls = buildTheme(window, page)
+    buildWindow(window, page, options)
+
+    function controls.sync()
+        controls.Preset:SetSilent(Theme.Preset)
+        for key, picker in pairs(controls.Colors) do
+            picker:SetSilent(Theme[key])
+        end
+    end
+
+    page.Controls = controls
+    return page
+end
+
+return Settings
+end
+
 __factories["Window"] = function()
 local Cursor = __require("internal/Cursor")
 local Fade = __require("internal/Fade")
@@ -1921,6 +2110,7 @@ local Chrome = __require("Window/Chrome")
 local Config = __require("Window/Config")
 local Input = __require("Window/Input")
 local Page = __require("Window/Page")
+local Settings = __require("Window/Settings")
 
 local EDGE_MARGIN = 12
 local FIT_MARGIN = 24
@@ -1941,7 +2131,10 @@ function Window.new(options)
     self.Pages = {}
     self.Keybinds = {}
     self.Cleanup = {}
+    self.ThemeHooks = {}
     self.ReducedMotion = options.ReducedMotion == true
+    self.RainbowAccent = options.RainbowAccent ~= false
+    self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
     self.Size = options.Size or Vector2.new(704, 470)
     self.MinSize = options.MinSize or Vector2.new(480, 360)
@@ -1968,6 +2161,15 @@ function Window.new(options)
 
     Input.bindKeys(self)
     Input.bindPointer(self)
+
+    self.SettingsPage = Settings.build(self, options)
+    self.SettingsButton.Visible = options.ShowSettings ~= false
+    self.Scope:Connect(self.SettingsButton.Activated, function()
+        self:ToggleSettings()
+    end)
+    self.ThemeListener = Theme.onChanged(function()
+        self:RefreshTheme()
+    end)
 
     local function fit()
         self:Fit()
@@ -2150,23 +2352,118 @@ function Window:Relayout()
     for _, page in ipairs(self.Pages) do
         page:Relayout()
     end
+    if self.SettingsPage then
+        self.SettingsPage:Relayout()
+    end
 end
 
 function Window:AddTab(name)
     return Page.new(self, name)
 end
 
-function Window:SelectTab(page)
-    self:ClosePopup()
+function Window:StyleTabs()
     for _, item in ipairs(self.Pages) do
-        local active = item == page
-        item.Frame.Visible = active
+        local active = item == self.ActivePage
         item.Line.Visible = active
         item.Button.BackgroundTransparency = active and 0 or 1
         item.Button.TextColor3 = active and Theme.Text or Theme.Muted
     end
+end
+
+function Window:SelectTab(page)
+    self:ClosePopup()
+    local settings = self.SettingsPage
+    self.SettingsOpen = settings ~= nil and page == settings
+    if not self.SettingsOpen then
+        self.LastPage = page
+    end
+    if settings then
+        settings.Frame.Visible = self.SettingsOpen
+    end
+    for _, item in ipairs(self.Pages) do
+        item.Frame.Visible = item == page
+    end
     self.ActivePage = page
+    self:StyleTabs()
+    Chrome.paintSettingsButton(self)
     page:Relayout()
+end
+
+function Window:OpenSettings()
+    if not self.SettingsOpen then
+        self:SelectTab(self.SettingsPage)
+    end
+    return self
+end
+
+function Window:CloseSettings()
+    if not self.SettingsOpen then
+        return self
+    end
+    local page = self.LastPage or self.Pages[1]
+    if page then
+        self:SelectTab(page)
+    else
+        self:ClosePopup()
+        self.SettingsOpen = false
+        self.SettingsPage.Frame.Visible = false
+        self.ActivePage = nil
+        Chrome.paintSettingsButton(self)
+    end
+    return self
+end
+
+function Window:ToggleSettings()
+    if self.SettingsOpen then
+        return self:CloseSettings()
+    end
+    return self:OpenSettings()
+end
+
+local function syncSetting(window, id, value)
+    local control = window.Controls[id]
+    if control then
+        control:SetSilent(value)
+    end
+end
+
+function Window:SetLockToScreen(locked)
+    self.AllowOffscreen = locked ~= true
+    syncSetting(self, "UI.LockToScreen", not self.AllowOffscreen)
+    self:Fit()
+    return self
+end
+
+function Window:SetReducedMotion(reduced)
+    self.ReducedMotion = reduced == true
+    syncSetting(self, "UI.Animations", not self.ReducedMotion)
+    self.UpdateAccent()
+    return self
+end
+
+function Window:SetRainbowAccent(enabled)
+    self.RainbowAccent = enabled == true
+    syncSetting(self, "UI.RainbowAccent", self.RainbowAccent)
+    self.UpdateAccent()
+    return self
+end
+
+function Window:RefreshTheme()
+    if self.Dead then
+        return
+    end
+    for _, control in pairs(self.Controls) do
+        if control.Render and control ~= self.Capturing then
+            control.Render(control:Get())
+        end
+    end
+    self.SettingsPage.Controls.sync()
+    for _, hook in ipairs(self.ThemeHooks) do
+        hook()
+    end
+    self:StyleTabs()
+    Chrome.paintSettingsButton(self)
+    self.UpdateAccent()
 end
 
 function Window:OnDestroy(callback)
@@ -2212,6 +2509,12 @@ function Window:Destroy()
     cleanupStep("Cursor", function()
         Cursor.set(self, false)
     end)
+    cleanupStep("Theme", function()
+        if self.ThemeListener then
+            self.ThemeListener()
+            self.ThemeListener = nil
+        end
+    end)
     cleanupStep("Accent", function()
         if self.AccentScope then
             self.AccentScope:Destroy()
@@ -2252,15 +2555,25 @@ end
 
 __factories["init"] = function()
 local Theme = __require("internal/Theme")
+local Util = __require("internal/Util")
 local Window = __require("Window")
 
 local Library = {
-    Version = "0.2.0",
+    Version = "0.3.0",
     Theme = Theme,
+    Themes = Theme.PresetNames,
 }
 
 function Library:CreateWindow(options)
     return Window.new(options or {})
+end
+
+function Library:SetTheme(theme)
+    Util.withContext(Theme.apply, theme)
+end
+
+function Library:GetTheme()
+    return Theme.Preset
 end
 
 function Library.FileStorage(path)
@@ -2665,16 +2978,9 @@ return Mount
 end
 
 __factories["internal/Theme"] = function()
-return {
-    Background = Color3.fromRGB(20, 20, 20),
-    Panel = Color3.fromRGB(28, 28, 28),
-    Input = Color3.fromRGB(28, 28, 28),
-    Hover = Color3.fromRGB(38, 38, 38),
-    Outline = Color3.fromRGB(50, 50, 50),
-    Text = Color3.fromRGB(232, 232, 232),
-    Muted = Color3.fromRGB(171, 171, 171),
-    Accent = Color3.fromRGB(57, 128, 233),
-    Selected = Color3.fromRGB(35, 50, 74),
+local COLOR_KEYS = { "Background", "Panel", "Input", "Hover", "Outline", "Text", "Muted", "Accent", "Selected" }
+
+local Theme = {
     Font = Enum.Font.Code,
     TextSize = 14,
     SmallSize = 12,
@@ -2683,7 +2989,162 @@ return {
     ControlGap = 2,
     Padding = 6,
     DisabledTransparency = 0.55,
+    Preset = "Dark",
+    ColorKeys = COLOR_KEYS,
 }
+
+Theme.Presets = {
+    Dark = {
+        Background = Color3.fromRGB(20, 20, 20),
+        Panel = Color3.fromRGB(28, 28, 28),
+        Input = Color3.fromRGB(28, 28, 28),
+        Hover = Color3.fromRGB(38, 38, 38),
+        Outline = Color3.fromRGB(50, 50, 50),
+        Text = Color3.fromRGB(232, 232, 232),
+        Muted = Color3.fromRGB(171, 171, 171),
+        Accent = Color3.fromRGB(57, 128, 233),
+        Selected = Color3.fromRGB(35, 50, 74),
+    },
+    Midnight = {
+        Background = Color3.fromRGB(14, 16, 24),
+        Panel = Color3.fromRGB(20, 23, 34),
+        Input = Color3.fromRGB(20, 23, 34),
+        Hover = Color3.fromRGB(30, 34, 48),
+        Outline = Color3.fromRGB(42, 47, 66),
+        Text = Color3.fromRGB(226, 230, 240),
+        Muted = Color3.fromRGB(150, 158, 180),
+        Accent = Color3.fromRGB(124, 92, 255),
+        Selected = Color3.fromRGB(40, 34, 72),
+    },
+    Ocean = {
+        Background = Color3.fromRGB(12, 22, 28),
+        Panel = Color3.fromRGB(17, 30, 38),
+        Input = Color3.fromRGB(17, 30, 38),
+        Hover = Color3.fromRGB(26, 42, 52),
+        Outline = Color3.fromRGB(36, 56, 68),
+        Text = Color3.fromRGB(225, 238, 242),
+        Muted = Color3.fromRGB(150, 175, 185),
+        Accent = Color3.fromRGB(38, 190, 190),
+        Selected = Color3.fromRGB(20, 60, 64),
+    },
+    Rose = {
+        Background = Color3.fromRGB(24, 18, 22),
+        Panel = Color3.fromRGB(33, 25, 30),
+        Input = Color3.fromRGB(33, 25, 30),
+        Hover = Color3.fromRGB(46, 35, 42),
+        Outline = Color3.fromRGB(64, 48, 58),
+        Text = Color3.fromRGB(242, 230, 236),
+        Muted = Color3.fromRGB(185, 160, 172),
+        Accent = Color3.fromRGB(233, 84, 128),
+        Selected = Color3.fromRGB(70, 32, 46),
+    },
+    Forest = {
+        Background = Color3.fromRGB(16, 22, 18),
+        Panel = Color3.fromRGB(23, 31, 25),
+        Input = Color3.fromRGB(23, 31, 25),
+        Hover = Color3.fromRGB(33, 44, 36),
+        Outline = Color3.fromRGB(46, 61, 50),
+        Text = Color3.fromRGB(228, 240, 230),
+        Muted = Color3.fromRGB(160, 180, 164),
+        Accent = Color3.fromRGB(88, 190, 110),
+        Selected = Color3.fromRGB(32, 62, 40),
+    },
+    Light = {
+        Background = Color3.fromRGB(240, 240, 242),
+        Panel = Color3.fromRGB(250, 250, 252),
+        Input = Color3.fromRGB(255, 255, 255),
+        Hover = Color3.fromRGB(228, 228, 232),
+        Outline = Color3.fromRGB(205, 205, 210),
+        Text = Color3.fromRGB(30, 30, 34),
+        Muted = Color3.fromRGB(110, 110, 118),
+        Accent = Color3.fromRGB(40, 110, 220),
+        Selected = Color3.fromRGB(215, 228, 250),
+    },
+}
+
+Theme.PresetNames = { "Dark", "Midnight", "Ocean", "Rose", "Forest", "Light" }
+
+for _, key in ipairs(COLOR_KEYS) do
+    Theme[key] = Theme.Presets.Dark[key]
+end
+
+local Token = {}
+Token.__index = Token
+
+Theme.Color = setmetatable({}, {
+    __index = function(cache, key)
+        assert(table.find(COLOR_KEYS, key), "Unknown theme color: " .. tostring(key))
+        local token = setmetatable({ Key = key }, Token)
+        rawset(cache, key, token)
+        return token
+    end,
+})
+
+local bindings = setmetatable({}, { __mode = "k" })
+local listeners = {}
+
+function Theme.isToken(value)
+    return type(value) == "table" and getmetatable(value) == Token
+end
+
+function Theme.bind(object, property, key)
+    local properties = bindings[object]
+    if not properties then
+        properties = {}
+        bindings[object] = properties
+    end
+    properties[property] = key
+end
+
+function Theme.onChanged(listener)
+    table.insert(listeners, listener)
+    return function()
+        local index = table.find(listeners, listener)
+        if index then
+            table.remove(listeners, index)
+        end
+    end
+end
+
+local function resolve(values)
+    if type(values) == "string" then
+        return assert(Theme.Presets[values], "Unknown theme preset: " .. values), values
+    end
+    assert(type(values) == "table", "SetTheme requires a preset name or a table of colors")
+    return values, "Custom"
+end
+
+function Theme.apply(values)
+    local colors, preset = resolve(values)
+    local previous = {}
+    for _, key in ipairs(COLOR_KEYS) do
+        previous[key] = Theme[key]
+        local color = colors[key]
+        if color ~= nil then
+            assert(typeof(color) == "Color3", "Theme color " .. key .. " requires Color3")
+            Theme[key] = color
+        end
+    end
+    Theme.Preset = preset
+
+    for object, properties in pairs(bindings) do
+        if object.Parent == nil then
+            bindings[object] = nil
+        else
+            for property, key in pairs(properties) do
+                if object[property] == previous[key] then
+                    object[property] = Theme[key]
+                end
+            end
+        end
+    end
+
+    for _, listener in ipairs(table.clone(listeners)) do
+        listener()
+    end
+end
+
+return Theme
 end
 
 __factories["internal/Util"] = function()
@@ -2796,6 +3257,10 @@ end
 function Util.new(className, props, parent)
     local object = Instance.new(className)
     for key, value in pairs(props or {}) do
+        if Theme.isToken(value) then
+            Theme.bind(object, key, value.Key)
+            value = Theme[value.Key]
+        end
         object[key] = value
     end
     object.Parent = parent
@@ -2807,7 +3272,7 @@ function Util.frame(parent, props)
         "Frame",
         merge({
             BorderSizePixel = 0,
-            BackgroundColor3 = Theme.Background,
+            BackgroundColor3 = Theme.Color.Background,
         }, props),
         parent
     )
@@ -2822,7 +3287,7 @@ function Util.label(parent, text, props)
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             Text = text,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
@@ -2836,13 +3301,13 @@ function Util.button(parent, text, props)
     return Util.new(
         "TextButton",
         merge({
-            BackgroundColor3 = Theme.Panel,
-            BorderColor3 = Theme.Outline,
+            BackgroundColor3 = Theme.Color.Panel,
+            BorderColor3 = Theme.Color.Outline,
             BorderSizePixel = 1,
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             Text = text,
             AutoButtonColor = false,
             Size = UDim2.new(1, 0, 0, Theme.RowHeight),
@@ -2855,13 +3320,13 @@ function Util.textbox(parent, props)
     return Util.new(
         "TextBox",
         merge({
-            BackgroundColor3 = Theme.Input,
+            BackgroundColor3 = Theme.Color.Input,
             BorderSizePixel = 1,
-            BorderColor3 = Theme.Outline,
+            BorderColor3 = Theme.Color.Outline,
             Font = Theme.Font,
             TextSize = Theme.TextSize,
             TextScaled = false,
-            TextColor3 = Theme.Text,
+            TextColor3 = Theme.Color.Text,
             ClearTextOnFocus = false,
         }, props),
         parent
@@ -3336,8 +3801,8 @@ local session = pages.Settings:AddGroupbox("Session", "Right")
 session:AddButton({
     Text = "Reset toggles",
     Callback = function()
-        for _, control in pairs(window.Controls) do
-            if type(control:Get()) == "boolean" then
+        for id, control in pairs(window.Controls) do
+            if not id:find("^UI%.") and type(control:Get()) == "boolean" then
                 control:Set(false)
             end
         end

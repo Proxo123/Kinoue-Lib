@@ -27,26 +27,16 @@ function Toggle.add(group, id, info)
         BorderSizePixel = 1,
         BorderColor3 = Theme.Outline,
     })
-    local check = Util.label(box, "✓", {
-        Size = UDim2.fromScale(1, 1),
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextTransparency = 1,
-    })
-    local scale = Util.new("UIScale", { Scale = 0.35 }, check)
     local name = Util.label(hit, info.Text or id, {
         Position = UDim2.fromOffset(20, 0),
         Size = UDim2.new(1, -20, 1, 0),
     })
 
     control.Render = function(value)
-        local reduced = window.ReducedMotion
         window.Scope:Tween(box, 0.16, {
             BackgroundColor3 = value and Theme.Accent or Theme.Panel,
             BorderColor3 = value and Theme.Accent or Theme.Outline,
-        }, reduced)
-        window.Scope:Tween(check, 0.13, { TextTransparency = value and 0 or 1 }, reduced)
-        window.Scope:Tween(scale, 0.18, { Scale = value and 1 or 0.35 }, reduced)
+        }, window.ReducedMotion)
         name.TextTransparency = control.Enabled and 0 or Theme.DisabledTransparency
     end
 

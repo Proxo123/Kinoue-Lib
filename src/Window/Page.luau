@@ -10,20 +10,8 @@ Page.__index = Page
 local Subpage = {}
 Subpage.__index = Subpage
 
-function Page.new(window, name)
+local function build(window, name)
     local self = setmetatable({ Window = window, Name = name, Groups = {}, Subpages = {} }, Page)
-
-    self.Button = Util.button(window.Tabs, name, {
-        Size = UDim2.fromOffset(Util.textWidth(name) + 18, 24),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextColor3 = Theme.Muted,
-    })
-    self.Line = Util.frame(self.Button, {
-        Size = UDim2.new(1, 0, 0, 2),
-        BackgroundColor3 = Theme.Accent,
-        Visible = false,
-    })
     self.Frame = Util.frame(window.Body, {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -36,7 +24,7 @@ function Page.new(window, name)
     self.Mode = Util.label(self.Frame, "", {
         Position = UDim2.new(0.65, 0, 0, 1),
         Size = UDim2.new(0.35, -8, 0, 23),
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
@@ -46,7 +34,7 @@ function Page.new(window, name)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = Theme.Outline,
+        ScrollBarImageColor3 = Theme.Color.Outline,
         CanvasSize = UDim2.new(),
         ScrollingDirection = Enum.ScrollingDirection.Y,
     }, self.Frame)
@@ -58,12 +46,32 @@ function Page.new(window, name)
     local function relayout()
         self:Relayout()
     end
-    window.Scope:Connect(self.Button.Activated, function()
-        window:SelectTab(self)
-    end)
     window.Scope:Connect(self.LeftList:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
     window.Scope:Connect(self.RightList:GetPropertyChangedSignal("AbsoluteContentSize"), relayout)
     window.Scope:Connect(self.Scroll:GetPropertyChangedSignal("AbsoluteSize"), relayout)
+    return self
+end
+
+function Page.hidden(window, name)
+    return build(window, name)
+end
+
+function Page.new(window, name)
+    local self = build(window, name)
+    self.Button = Util.button(window.Tabs, name, {
+        Size = UDim2.fromOffset(Util.textWidth(name) + 18, 24),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        TextColor3 = Theme.Color.Muted,
+    })
+    self.Line = Util.frame(self.Button, {
+        Size = UDim2.new(1, 0, 0, 2),
+        BackgroundColor3 = Theme.Color.Accent,
+        Visible = false,
+    })
+    window.Scope:Connect(self.Button.Activated, function()
+        window:SelectTab(self)
+    end)
 
     table.insert(window.Pages, self)
     if #window.Pages == 1 then
@@ -113,15 +121,15 @@ function Page:AddGroupbox(title, side)
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
+        BorderColor3 = Theme.Color.Outline,
     })
     local header = Util.frame(frame, {
         Size = UDim2.new(1, 0, 0, 24),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
     })
     Util.frame(header, {
         Size = UDim2.new(1, 0, 0, 2),
-        BackgroundColor3 = Theme.Accent,
+        BackgroundColor3 = Theme.Color.Accent,
     })
     Util.label(header, title, {
         Position = UDim2.fromOffset(6, 2),
@@ -167,8 +175,17 @@ function Subpage.new(page, title)
     end)
     if #page.Subpages == 1 then
         self:Select()
+        table.insert(page.Window.ThemeHooks, function()
+            page:StyleSubtabs()
+        end)
     end
     return self
+end
+
+function Page:StyleSubtabs()
+    for _, item in ipairs(self.Subpages) do
+        item.Button.BorderColor3 = item == self.ActiveSubpage and Theme.Accent or Theme.Outline
+    end
 end
 
 function Subpage:Select()
@@ -176,12 +193,11 @@ function Subpage:Select()
     page.Window:ClosePopup()
     page.ActiveSubpage = self
     for _, item in ipairs(page.Subpages) do
-        local active = item == self
-        item.Button.BorderColor3 = active and Theme.Accent or Theme.Outline
         for _, group in ipairs(item.Groups) do
-            group.Frame.Visible = active
+            group.Frame.Visible = item == self
         end
     end
+    page:StyleSubtabs()
     page:Relayout()
 end
 

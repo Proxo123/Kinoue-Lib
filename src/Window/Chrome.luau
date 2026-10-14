@@ -9,6 +9,8 @@ local FOOTER_HEIGHT = 22
 local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
+local SETTINGS_BUTTON_SIZE = 20
+local GEAR_TEETH = 8
 
 local Chrome = {}
 
@@ -24,8 +26,8 @@ local function buildRoot(window, options)
             position.Y.Offset - window.Size.Y / 2
         ),
         Size = UDim2.fromOffset(window.Size.X, window.Size.Y),
-        BackgroundColor3 = Theme.Background,
-        BorderColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Background,
+        BorderColor3 = Theme.Color.Outline,
         BorderSizePixel = 1,
         ClipsDescendants = true,
     }, window.Screen)
@@ -35,26 +37,68 @@ end
 local function buildHeader(window, options)
     window.Header = Util.frame(window.Root, {
         Size = UDim2.new(1, 0, 0, HEADER_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
         Active = true,
     })
     Util.label(window.Header, options.Name or "Kinoue", {
         Position = UDim2.fromOffset(8, 0),
-        Size = UDim2.new(0.45, -8, 1, 0),
+        Size = UDim2.new(1, -(SETTINGS_BUTTON_SIZE + 16), 1, 0),
         TextSize = Theme.TextSize + 1,
-    })
-    Util.label(window.Header, "PlaceId: " .. tostring(options.PlaceId or game.PlaceId), {
-        Position = UDim2.new(0.45, 0, 0, 0),
-        Size = UDim2.new(0.55, -8, 1, 0),
-        TextColor3 = Theme.Muted,
-        TextSize = Theme.SmallSize,
-        TextXAlignment = Enum.TextXAlignment.Right,
     })
     Util.frame(window.Header, {
         Position = UDim2.new(0, 0, 1, -1),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Outline,
     })
+end
+
+local function buildSettingsButton(window)
+    local button = Util.button(window.Header, "", {
+        Name = "SettingsButton",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -6, 0.5, 0),
+        Size = UDim2.fromOffset(SETTINGS_BUTTON_SIZE, SETTINGS_BUTTON_SIZE),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    })
+    local parts = {}
+    local center = UDim2.fromScale(0.5, 0.5)
+    local disc = Util.frame(button, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = center,
+        Size = UDim2.fromOffset(12, 12),
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, disc)
+    table.insert(parts, disc)
+    for index = 0, GEAR_TEETH - 1 do
+        local angle = index * (360 / GEAR_TEETH)
+        local radians = math.rad(angle)
+        local tooth = Util.frame(button, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, math.sin(radians) * 6.5, 0.5, -math.cos(radians) * 6.5),
+            Size = UDim2.fromOffset(3, 4),
+            Rotation = angle,
+        })
+        table.insert(parts, tooth)
+    end
+    local hole = Util.frame(button, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = center,
+        Size = UDim2.fromOffset(5, 5),
+        BackgroundColor3 = Theme.Color.Panel,
+        ZIndex = 2,
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, hole)
+
+    window.SettingsButton = button
+    window.SettingsIcon = parts
+end
+
+function Chrome.paintSettingsButton(window)
+    local color = window.SettingsOpen and Theme.Accent or Theme.Muted
+    for _, part in ipairs(window.SettingsIcon) do
+        part.BackgroundColor3 = color
+    end
 end
 
 local function buildAccent(window)
@@ -76,6 +120,10 @@ local function buildAccent(window)
 
     local keypoints, lastFrame = {}, -1
     local function animate()
+        if not window.RainbowAccent then
+            gradient.Color = ColorSequence.new(Theme.Accent)
+            return
+        end
         local frame = window.ReducedMotion and 0 or math.floor(os.clock() * ACCENT_FRAME_RATE)
         if frame == lastFrame then
             return
@@ -97,8 +145,9 @@ local function buildAccent(window)
         if not window.Open then
             return
         end
+        lastFrame = -1
         animate()
-        if not window.ReducedMotion then
+        if window.RainbowAccent and not window.ReducedMotion then
             window.AccentScope = Util.scope()
             window.AccentScope:Connect(RunService.RenderStepped, animate)
         end
@@ -111,7 +160,7 @@ local function buildBody(window)
         Position = UDim2.fromOffset(0, HEADER_HEIGHT),
         Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
         BorderSizePixel = 0,
-        BackgroundColor3 = Theme.Background,
+        BackgroundColor3 = Theme.Color.Background,
         ScrollBarThickness = 0,
         AutomaticCanvasSize = Enum.AutomaticSize.X,
         CanvasSize = UDim2.new(),
@@ -130,11 +179,11 @@ local function buildFooter(window, options)
     window.Footer = Util.frame(window.Root, {
         Position = UDim2.new(0, 0, 1, -FOOTER_HEIGHT),
         Size = UDim2.new(1, 0, 0, FOOTER_HEIGHT),
-        BackgroundColor3 = Theme.Panel,
+        BackgroundColor3 = Theme.Color.Panel,
     })
     Util.frame(window.Footer, {
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Theme.Outline,
+        BackgroundColor3 = Theme.Color.Outline,
     })
     window.Status = Util.label(window.Footer, "Ready", {
         Position = UDim2.fromOffset(7, 0),
@@ -145,7 +194,7 @@ local function buildFooter(window, options)
         Position = UDim2.new(0.7, 0, 0, 0),
         Size = UDim2.new(0.3, -7, 1, 0),
         TextSize = Theme.SmallSize,
-        TextColor3 = Theme.Muted,
+        TextColor3 = Theme.Color.Muted,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
 end
@@ -166,6 +215,8 @@ end
 function Chrome.build(window, options)
     buildRoot(window, options)
     buildHeader(window, options)
+    buildSettingsButton(window)
+    Chrome.paintSettingsButton(window)
     buildAccent(window)
     buildBody(window)
     buildFooter(window, options)
