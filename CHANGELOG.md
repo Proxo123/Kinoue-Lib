@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Keybinds now fire while the menu is hidden. Keys the game already handled, such as chat, and typing in a textbox are still ignored.
+
 ## 0.5.0
 
 - Add sub-toggles: `SubToggle = true` puts a cog on the right of a toggle that opens an animated settings panel (`toggle.Settings`).

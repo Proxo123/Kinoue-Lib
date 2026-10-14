@@ -97,6 +97,34 @@ local plain = bindable.Pages[1].Groups[1]:AddToggle("Plain", { Keybind = false }
 assert(plain.Keybind == nil)
 bindable:Destroy()
 
+local hiddenPresses, hiddenReleases = 0, 0
+local hiddenToggle = group:AddToggle("HiddenToggle", { Text = "Hidden", Keybind = { Value = KeyCode.Z } })
+group:AddKeybind("HiddenHold", {
+    Value = KeyCode.Y,
+    Pressed = function()
+        hiddenPresses += 1
+    end,
+    Released = function()
+        hiddenReleases += 1
+    end,
+})
+window:SetVisible(false)
+Mock:Advance(1)
+assert(not window.Open and not window.Root.Visible)
+Mock:Key("Z")
+assert(hiddenToggle:Get() == true, "Keybinds work while the menu is hidden")
+local hold = Mock:Key("Y")
+Mock.Input.InputEnded:Fire(hold)
+assert(hiddenPresses == 1 and hiddenReleases == 1, "Pressed and Released fire while hidden")
+Mock:Key("Z", true)
+assert(hiddenToggle:Get() == true, "Keys the game already handled are ignored")
+Mock.Input.Focused = {}
+Mock:Key("Z")
+Mock.Input.Focused = nil
+assert(hiddenToggle:Get() == true, "Typing in a textbox does not fire keybinds")
+assert(not window.Open, "Keybinds do not reopen the menu")
+window:SetVisible(true)
+
 window:SetToggleKey(KeyCode.Unknown)
 Mock.Input.InputBegan:Fire({ KeyCode = KeyCode.Unknown, UserInputType = Mock.Enum.UserInputType.MouseButton1 }, false)
 assert(window.Open, "An unbound menu key must not toggle on mouse clicks")
