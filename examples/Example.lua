@@ -1,32 +1,30 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/v0.1.12/dist/BoogaUI.lua"))()
-
--- In Roblox Studio, replace the loader above with:
--- local UI = require(game.ReplicatedStorage:WaitForChild("BoogaUI"))
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/main/dist/Kinoue.lua"))()
 
 local environment = type(getgenv) == "function" and getgenv() or shared
-if environment and environment.BoogaUIExample then
-    environment.BoogaUIExample:Destroy()
+if environment and environment.KinoueExample then
+    environment.KinoueExample:Destroy()
 end
 
 local window = UI:CreateWindow({
-    Name = "BOOGA",
-    Id = "BoogaUIExample",
+    Name = "Kinoue",
+    Id = "KinoueExample",
     Footer = "Example",
     ToggleKey = Enum.KeyCode.RightShift,
 })
-if environment then environment.BoogaUIExample = window end
+if environment then
+    environment.KinoueExample = window
+end
 
 local main = window:AddTab("Main")
 local settings = window:AddTab("Settings")
 local controls = main:AddGroupbox("Controls", "Left")
 local actions = main:AddGroupbox("Actions", "Right")
 
-local shooting = controls:AddToggle("Shooting", {
-    Text = "Shooting",
+local enabled = controls:AddToggle("Enabled", {
+    Text = "Enabled",
     Value = false,
-    Callback = function(enabled)
-        window:SetStatus(enabled and "Shooting on" or "Shooting off")
-        -- Put your feature logic here.
+    Callback = function(value)
+        window:SetStatus(value and "Enabled" or "Disabled")
     end,
 })
 
@@ -44,11 +42,11 @@ local distance = controls:AddSlider("Distance", {
 
 local material = controls:AddDropdown("Material", {
     Text = "Material",
-    Value = "Bluefruit",
+    Value = "Stone",
     Options = {
-        { Value = "Bluefruit", Label = "Bluefruit", Meta = 320 },
+        { Value = "Stone", Label = "Stone", Meta = 320 },
         { Value = "Wood", Label = "Wood", Meta = 180 },
-        { Value = "Leaves", Label = "Leaves", Meta = 240 },
+        { Value = "Metal", Label = "Metal", Meta = 90 },
     },
     Callback = function(value)
         window:SetStatus("Material: " .. value)
@@ -57,7 +55,7 @@ local material = controls:AddDropdown("Material", {
 
 local text = controls:AddTextbox("Text", {
     Text = "Text",
-    Value = "BOOGA",
+    Value = "Kinoue",
     MaxLength = 32,
     Callback = function(value)
         window:SetStatus(value)
@@ -69,7 +67,7 @@ actions:AddButton({
     Primary = true,
     Keybind = { Id = "PrintKey", Value = Enum.KeyCode.P },
     Callback = function()
-        print("Shooting:", shooting:Get())
+        print("Enabled:", enabled:Get())
         print("Distance:", distance:Get())
         print("Material:", material:Get())
         print("Text:", text:Get())
@@ -78,8 +76,18 @@ actions:AddButton({
 })
 
 actions:AddButtons({
-    { Text = "On", Callback = function() shooting:Set(true) end },
-    { Text = "Off", Callback = function() shooting:Set(false) end },
+    {
+        Text = "On",
+        Callback = function()
+            enabled:Set(true)
+        end,
+    },
+    {
+        Text = "Off",
+        Callback = function()
+            enabled:Set(false)
+        end,
+    },
 })
 
 local advanced = actions:AddDisclosure("Advanced")
@@ -104,13 +112,14 @@ settings:AddGroupbox("Session", "Right"):AddButton({
     Text = "Unload UI",
     Callback = function()
         window:Destroy()
-        if environment then environment.BoogaUIExample = nil end
+        if environment then
+            environment.KinoueExample = nil
+        end
     end,
 })
 
--- Optional saving in environments with file APIs.
 if type(readfile) == "function" and type(writefile) == "function" then
-    window:EnablePersistence(UI.FileStorage("BoogaUI/example.json"))
+    window:EnablePersistence(UI.FileStorage("Kinoue/example.json"))
 end
 
 main:Select()

@@ -1,6 +1,6 @@
 assert(#window.Pages == 2 and window.ActivePage.Name == "Main")
-window.Controls.Shooting:Set(true)
-assert(window.Controls.Shooting:Get())
+window.Controls.Enabled:Set(true)
+assert(window.Controls.Enabled:Get())
 window.Controls.Distance:Set(99)
 assert(window.Controls.Distance:Get() == 20)
 window.Controls.Material:Set("Wood")
