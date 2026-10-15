@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2
+
+- Replace the full key window with a compact dialog containing a key input, Redeem, and Close. Remove tabs, search, settings, group headers, the footer, and the Remember toggle from authentication.
+- Keep remembered sessions automatic by default, with `Remember = false` to disable caching. Show verification progress and errors only when needed.
+- Keep Close available during verification, cancel pending work when closed, and reopen the compact dialog after logout.
+
 ## 0.9.1
 
 - Fix the sub-toggle cog: clicks went to the toggle row underneath, flipping the toggle instead of opening its settings. Keycaps and the clear button also sit above the row now.

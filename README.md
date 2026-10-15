@@ -121,6 +121,8 @@ GIFs loop continuously using their frame delays (zero/one-centisecond delays use
 
 Kinoue includes a reusable key UI and client with `UI:CreateKeySystem`. Keys are redeemed by the [backend key service](backend/README.md), bound to the executor-provided HWID, and exchanged for a remembered session. Only an authorized session can download and run the configured script. Executors without a working HWID function report an unsupported-executor error and cannot continue.
 
+The compact dialog contains only a key input, **Redeem**, and **Close**. Enter submits the key; Escape or Close cancels pending verification and removes the dialog. Progress and errors appear only when needed. Sessions are remembered automatically when file functions are available; set `Remember = false` to disable saving and restoring them.
+
 ```lua
 return UI:CreateKeySystem({
     Name = "My script",
@@ -132,7 +134,7 @@ return UI:CreateKeySystem({
 
 See [KeySystem.lua](examples/KeySystem.lua) and [backend setup, deployment, and limits](backend/README.md). The library does not contain a master key or a protected script's source.
 
-Return the protected Kinoue window, or a script controller with `Window` and `Destroy()`, to get **Logout** in its built-in settings. Logout cleans up the script, clears the remembered login, revokes the current server session, and returns to the Key page. UI settings stay saved. Custom integrations can use `gate:AttachWindow(window)` and `OnUnload(result)`.
+Return the protected Kinoue window, or a script controller with `Window` and `Destroy()`, to get **Logout** in its built-in settings. Logout cleans up the script, clears the remembered login, revokes the current server session, and returns to the key dialog. UI settings stay saved. Custom integrations can use `gate:AttachWindow(window)` and `OnUnload(result)`.
 
 The backend includes a Vercel-ready admin site with Postgres storage. Create and manage keys, view encrypted HWID records after signing in, reset or replace a device binding, revoke/delete access, and upload script payloads from `/admin/`.
 

@@ -1,4 +1,5 @@
 local HttpService = game:GetService("HttpService")
+local KeyDialog = require(script.Parent.internal.KeyDialog)
 local Util = require(script.Parent.internal.Util)
 
 local KeySystem = {}
@@ -60,7 +61,6 @@ function KeySystem:_busy(value)
     if not self.Window.Dead then
         self.Key:SetEnabled(not value and self.Supported)
         self.RedeemButton:SetEnabled(not value and self.Supported)
-        self.Remember:SetEnabled(not value and self.CanRemember)
     end
 end
 
@@ -85,7 +85,7 @@ function KeySystem:_clearCache()
 end
 
 function KeySystem:_save(response)
-    if not self.Remember:Get() or not self.CanRemember then
+    if not self.RememberEnabled then
         return
     end
     local saved = pcall(function()
@@ -365,38 +365,18 @@ end
 function KeySystem:_buildWindow()
     local options = self.Options
     self.Completing = false
-    self.Window = self.Library:CreateWindow({
+    self.Window = KeyDialog.new({
         Name = options.Name or "Kinoue",
         Id = options.Id or "Kinoue_Key_" .. self.Application,
-        Size = Vector2.new(420, 320),
-        MinSize = Vector2.new(320, 280),
-        Resizable = false,
-        ShowSettings = false,
-        ReplaceExisting = true,
-        Background = options.Background,
     })
-    local page = self.Window:AddTab("Key")
-    page:SetTitle("")
-    local group = page:AddGroupbox("Access", "Left")
-    self.Key = group:AddTextbox("KeySystem.Key", { Text = "Key", MaxLength = 256 })
-    self.Key.Persist = false
-    self.Remember = group:AddToggle("KeySystem.Remember", {
-        Text = "Remember",
-        Keybind = false,
-        Value = self.CanRemember and options.Remember ~= false,
-        Callback = function(value)
-            if not value then
-                self:_clearCache()
-            end
-        end,
-    })
-    self.Remember:SetEnabled(self.CanRemember)
-    self.RedeemButton = group:AddButton({
-        Text = "Redeem",
-        Callback = function()
+    self.Key = self.Window.Key
+    self.RedeemButton = self.Window.RedeemButton
+    self.CloseButton = self.Window.CloseButton
+    self.Window.Scope:Connect(self.RedeemButton.Root.Activated, function()
+        if self.RedeemButton.Enabled then
             self:Redeem(self.Key.Root.Text)
-        end,
-    })
+        end
+    end)
     self.Window.Scope:Connect(self.Key.Root.FocusLost, function(enter)
         if enter then
             self:Redeem(self.Key.Root.Text)
@@ -434,6 +414,7 @@ function KeySystem.new(library, options)
         "CachePath must be an executor workspace path"
     )
     self.CanRemember = type(readfile) == "function" and type(writefile) == "function" and type(makefolder) == "function"
+    self.RememberEnabled = self.CanRemember and options.Remember ~= false
     self.Hwid = fingerprint()
     self.Request = request or http_request or (type(syn) == "table" and syn.request)
     self.Supported = self.Hwid ~= nil and type(self.Request) == "function" and type(loadstring) == "function"
@@ -447,7 +428,7 @@ function KeySystem.new(library, options)
         return self
     end
     self:_status("Enter key.")
-    if self.Remember:Get() then
+    if self.RememberEnabled then
         local ok, cache = pcall(function()
             return HttpService:JSONDecode(readfile(self.CachePath))
         end)
