@@ -19,6 +19,9 @@ local SEARCH_WIDTH = 160
 local VERSION_TEXT_SIZE = 11
 local STATUS_DOT = 6
 local TAB_STRIP_PADDING = 3
+local TAB_STRIP_HEIGHT = 24 + 2 * TAB_STRIP_PADDING
+local TITLE_GAP = 8
+local TABS_GAP = 16
 
 local Background = require(script.Parent.Background)
 
@@ -67,15 +70,18 @@ local function buildHeader(window, options)
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
     local subtitle = options.Subtitle or options.Footer or ""
+    local subtitleWidth = subtitle ~= "" and Util.textWidth(subtitle, Theme.SmallSize - 1, Theme.FontMedium) or 0
     window.SubtitleLabel = Util.label(window.Header, subtitle, {
         Name = "Subtitle",
-        Position = UDim2.fromOffset(EDGE + titleWidth + 8, 1),
-        Size = UDim2.new(1, -(EDGE + titleWidth + 8 + reserved), 1, 0),
+        Position = UDim2.fromOffset(EDGE + titleWidth + TITLE_GAP, 1),
+        Size = UDim2.fromOffset(subtitleWidth, HEADER_HEIGHT),
         Font = Theme.FontMedium,
         TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    window.TabsLeft = EDGE + titleWidth + (subtitleWidth > 0 and TITLE_GAP + subtitleWidth or 0) + TABS_GAP
+    window.TabsReserved = reserved
     Util.frame(window.Header, {
         Name = "Divider",
         Position = UDim2.new(0, 0, 1, -1),
@@ -164,7 +170,7 @@ local function buildTabs(window)
     window.Tabs = Util.new("ScrollingFrame", {
         Name = "Tabs",
         Position = UDim2.fromOffset(0, HEADER_HEIGHT),
-        Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
+        Size = UDim2.new(1, 0, 0, TAB_STRIP_HEIGHT),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         ScrollBarThickness = 0,
@@ -172,14 +178,9 @@ local function buildTabs(window)
         CanvasSize = UDim2.new(),
         ScrollingDirection = Enum.ScrollingDirection.X,
     }, window.Root)
-    Util.new("UIPadding", {
-        PaddingLeft = UDim.new(0, EDGE),
-        PaddingRight = UDim.new(0, EDGE),
-        PaddingTop = UDim.new(0, 6),
-    }, window.Tabs)
     window.TabStrip = Util.frame(window.Tabs, {
         Name = "TabStrip",
-        Size = UDim2.fromOffset(0, 24 + 2 * TAB_STRIP_PADDING),
+        Size = UDim2.fromOffset(0, TAB_STRIP_HEIGHT),
         AutomaticSize = Enum.AutomaticSize.X,
         BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
@@ -189,6 +190,30 @@ local function buildTabs(window)
     Util.corner(window.TabStrip, Theme.Radius + 1)
     Util.padding(window.TabStrip, TAB_STRIP_PADDING)
     Util.list(window.TabStrip, true, 2)
+    window.Scope:Connect(window.TabStrip:GetPropertyChangedSignal("AbsoluteSize"), function()
+        Chrome.layoutTabs(window)
+    end)
+end
+
+function Chrome.layoutTabs(window)
+    local available = window.Root.AbsoluteSize.X - window.TabsLeft - window.TabsReserved
+    local stripWidth = window.TabStrip.Visible and window.TabStrip.AbsoluteSize.X or 0
+    local inHeader = stripWidth <= available
+    local bodyTop
+    if inHeader then
+        window.Tabs.Position = UDim2.fromOffset(window.TabsLeft, (HEADER_HEIGHT - TAB_STRIP_HEIGHT) / 2)
+        window.Tabs.Size = UDim2.fromOffset(math.max(0, available), TAB_STRIP_HEIGHT)
+        bodyTop = HEADER_HEIGHT
+    else
+        window.Tabs.Position = UDim2.fromOffset(EDGE, HEADER_HEIGHT + (TAB_BAR_HEIGHT - TAB_STRIP_HEIGHT) / 2)
+        window.Tabs.Size = UDim2.new(1, -2 * EDGE, 0, TAB_STRIP_HEIGHT)
+        bodyTop = HEADER_HEIGHT + TAB_BAR_HEIGHT
+    end
+    window.TabsInHeader = inHeader
+    if window.Body then
+        window.Body.Position = UDim2.fromOffset(0, bodyTop)
+        window.Body.Size = UDim2.new(1, 0, 1, -(bodyTop + FOOTER_HEIGHT))
+    end
 end
 
 local function buildBody(window)
@@ -268,6 +293,7 @@ function Chrome.build(window, options)
     buildFooter(window)
     Background.surface(window, window.TabStrip)
     buildResizeHandle(window)
+    Chrome.layoutTabs(window)
 end
 
 function Chrome.layoutAccent(window)

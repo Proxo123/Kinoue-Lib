@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1
+
+- Fix the sub-toggle cog: clicks went to the toggle row underneath, flipping the toggle instead of opening its settings. Keycaps and the clear button also sit above the row now.
+- Put the tabs in the header row next to the title, as in the Refined design. When they do not fit, they move to their own row under the header.
+- Switch labels to Builder Sans, which renders sharper in Roblox, and raise text sizes by one step.
+
 ## 0.9.0
 
 New look, based on the "Refined" design:

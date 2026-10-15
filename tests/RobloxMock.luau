@@ -179,6 +179,7 @@ local function create(className)
             ScrollBarImageTransparency = 0,
             BorderSizePixel = 0,
             Rotation = 0,
+            ZIndex = 1,
             CanvasPosition = vec(0, 0),
         }
     local object

@@ -75,6 +75,7 @@ local function attachSettings(group, control, window, row, newGroup)
         Position = UDim2.new(1, -(ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP), 0.5, 0),
         Size = UDim2.fromOffset(COG_SIZE, COG_SIZE),
         BackgroundTransparency = 1,
+        ZIndex = 2,
         BorderSizePixel = 0,
     })
     local icon = Icons.gear(cog, COG_ICON_SIZE)
@@ -138,9 +139,10 @@ function Toggle.add(group, id, info, newGroup)
     local holder, row = buildRow(group, info.SubToggle == true)
     control.Row = holder
 
+    local subToggle = info.SubToggle == true
     local rightInset = ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP
-    if info.SubToggle == true then
-        rightInset += attachSettings(group, control, window, row, newGroup)
+    if subToggle then
+        rightInset += COG_SIZE + COG_GAP
     end
 
     local hit = Util.button(row, "", {
@@ -150,6 +152,9 @@ function Toggle.add(group, id, info, newGroup)
         BorderSizePixel = 0,
     })
     control.Root = hit
+    if subToggle then
+        attachSettings(group, control, window, row, newGroup)
+    end
     local name = Util.label(hit, info.Text or id, {
         Name = "Label",
         Position = UDim2.fromOffset(ROW_PADDING, 0),

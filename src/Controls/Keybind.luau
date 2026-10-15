@@ -60,6 +60,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     control.Conflicts = {}
     control.Root = Util.button(row, "", {
         Name = "Key",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
@@ -73,6 +74,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     Util.corner(control.Root, Theme.SmallRadius)
     control.Clear = Util.button(row, "×", {
         Name = "Unbind",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
         Size = UDim2.fromOffset(CLEAR_SIZE, CLEAR_SIZE),
         BackgroundTransparency = 1,
@@ -82,6 +84,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     })
     control.Warning = Icons.warning(row, WARNING_SIZE, {
         Name = "Conflict",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
     })
     control.Warning.Root.Visible = false

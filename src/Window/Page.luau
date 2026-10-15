@@ -6,7 +6,7 @@ local NARROW_WIDTH = 520
 local EDGE = 14
 local TITLE_HEIGHT = 28
 local TAB_HEIGHT = 24
-local TAB_TEXT_SIZE = 12
+local TAB_TEXT_SIZE = 13
 local SUBBAR_HEIGHT = 26
 local GROUP_HEADER_HEIGHT = 30
 
@@ -91,6 +91,7 @@ function Page.new(window, name)
     })
     Util.corner(self.Line, 1)
     window.TabStrip.Visible = true
+    window:Relayout()
     window.Scope:Connect(self.Button.Activated, function()
         window:SelectTab(self)
     end)
