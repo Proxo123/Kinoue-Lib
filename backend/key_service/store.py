@@ -180,7 +180,7 @@ class Store:
             db.execute("DELETE FROM sessions WHERE token_hash=?", (session["token_hash"],))
         db.execute("INSERT INTO sessions(token_hash,license_id,expires_at,created_at) VALUES(?,?,?,?)",
                    (self.digest("session", token), row["id"], expires, now))
-        return {"token": token, "expires_at": expires, "license_expires_at": row["expires_at"]}
+        return {"token": token, "expires_at": expires, "license_expires_at": row["expires_at"], "server_time": now}
 
     def redeem(self, application, key, hwid):
         now = int(self.now())
@@ -210,7 +210,31 @@ class Store:
                 if db.execute("DELETE FROM sessions WHERE token_hash=?", (hashed,)).rowcount != 1:
                     raise Denied()
                 return self.new_session(db, row, now)
-        return {"expires_at": row["session_expires"]}
+        return {"expires_at": row["session_expires"], "license_expires_at": row["expires_at"], "server_time": now}
+
+    def record_execution(self, application, token, hwid, execution_id, user_id, username, display_name, place_id, library_version):
+        now = int(self.now())
+        with self.connect(write=True) as db:
+            row = db.execute(self.locked("SELECT l.*,a.enabled,s.expires_at AS session_expires FROM sessions s JOIN licenses l ON l.id=s.license_id JOIN applications a ON a.id=l.application WHERE s.token_hash=? AND l.application=?"),
+                             (self.digest("session", token), application)).fetchone()
+            self.check_license(row, now)
+            if row["session_expires"] <= now:
+                raise Denied("session_expired")
+            if not row["hwid_hash"] or not hmac.compare_digest(row["hwid_hash"], self.digest("hwid:" + application, hwid)):
+                raise Denied("hwid_mismatch", 403)
+            identifier = self.digest("execution", token + ":" + execution_id)
+            db.execute("INSERT INTO executions(id,license_id,user_id,username,display_name,place_id,library_version,executed_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+                       (identifier, row["id"], user_id, username, display_name, place_id, library_version, now))
+        return {"ok": True}
+
+    def executions(self, identifier, page=1):
+        with self.connect() as db:
+            if not db.execute("SELECT id FROM licenses WHERE id=?", (identifier,)).fetchone():
+                raise Denied("not_found", 404)
+            total = db.execute("SELECT COUNT(*) AS total FROM executions WHERE license_id=?", (identifier,)).fetchone()["total"]
+            rows = db.execute("SELECT user_id,username,display_name,place_id,library_version,executed_at FROM executions WHERE license_id=? ORDER BY executed_at DESC,id DESC LIMIT 25 OFFSET ?",
+                              (identifier, (page - 1) * 25)).fetchall()
+        return {"items": [dict(row) for row in rows], "total": total, "page": page, "page_size": 25}
 
     def script(self, application, token, hwid):
         self.application_id(application)
@@ -285,6 +309,7 @@ class Store:
             value["hwid"] = self.decrypt_hwid(row["application"], row["hwid_ciphertext"])
             value["hwid_fingerprint"] = row["hwid_hash"]
             value["activity"] = [dict(item) for item in db.execute("SELECT action,created_at FROM audit WHERE target=? ORDER BY created_at DESC,id DESC LIMIT 20", (identifier,)).fetchall()]
+        value["executions"] = self.executions(identifier)
         return value
 
     def change_license(self, identifier, action, value=None):
@@ -341,6 +366,8 @@ class Store:
 
 LICENSE_COLUMNS = {"label": "TEXT NOT NULL DEFAULT ''", "key_hint": "TEXT NOT NULL DEFAULT ''", "hwid_ciphertext": "TEXT", "last_seen": "BIGINT"}
 ADMIN_SCHEMA = [
+    "CREATE TABLE IF NOT EXISTS executions(id TEXT PRIMARY KEY,license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,user_id BIGINT NOT NULL,username TEXT NOT NULL,display_name TEXT NOT NULL,place_id BIGINT NOT NULL,library_version TEXT NOT NULL,executed_at BIGINT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS executions_license_time ON executions(license_id,executed_at)",
     "CREATE TABLE IF NOT EXISTS admin_sessions(token_hash TEXT PRIMARY KEY,expires_at BIGINT NOT NULL,created_at BIGINT NOT NULL,password_version TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS audit(id TEXT PRIMARY KEY,action TEXT NOT NULL,target TEXT NOT NULL,created_at BIGINT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS audit_target ON audit(target,created_at)",

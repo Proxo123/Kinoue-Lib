@@ -1,7 +1,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const state = { csrf: "", applications: [], page: 1, total: 0, detail: null, generation: 0 };
+const state = { csrf: "", applications: [], page: 1, total: 0, detail: null, generation: 0, detailGeneration: 0, executionPage: 1 };
 const messages = {
   invalid_admin_password: "Incorrect password.",
   admin_login_required: "Sign in again.",
@@ -30,6 +30,8 @@ function showLogin() {
   state.csrf = "";
   state.detail = null;
   state.generation += 1;
+  state.detailGeneration += 1;
+  $("execution-list").replaceChildren();
   $("dashboard").hidden = true;
   $("login-view").hidden = false;
   $("key-rows").replaceChildren();
@@ -73,7 +75,7 @@ function element(tag, text, className) {
 }
 
 function date(value, time = false) {
-  return value ? new Date(value * 1000).toLocaleString(undefined, time ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" }) : "—";
+  return value ? new Date(value * 1000).toLocaleString(undefined, time ? { dateStyle: "medium", timeStyle: "medium" } : { dateStyle: "medium" }) : "—";
 }
 
 function scriptName(id) {
@@ -171,8 +173,9 @@ async function dashboard() {
 }
 
 async function openDetail(id) {
+  const generation = ++state.detailGeneration;
   const detail = await api("/licenses/" + encodeURIComponent(id));
-  if (!state.csrf) return;
+  if (!state.csrf || generation !== state.detailGeneration) return;
   state.detail = detail;
   $("detail-title").textContent = detail.label || detail.key_hint || "Key";
   $("detail-script").textContent = scriptName(detail.application) + " / " + detail.id.slice(0, 12);
@@ -190,7 +193,44 @@ async function openDetail(id) {
     row.append(element("span", actions[event.action] || event.action), element("time", date(event.created_at, true), "muted"));
     $("activity-list").append(row);
   }
+  renderExecutions(detail.executions);
   if (!$("detail-dialog").open) $("detail-dialog").showModal();
+}
+
+function renderExecutions(data) {
+  state.executionPage = data.page;
+  $("execution-list").replaceChildren();
+  for (const execution of data.items) {
+    const row = element("li", undefined, "execution-row");
+    const player = element("div", undefined, "execution-player");
+    const profile = element("a", execution.display_name);
+    profile.href = "https://www.roblox.com/users/" + execution.user_id + "/profile";
+    profile.target = "_blank";
+    profile.rel = "noopener noreferrer";
+    player.append(profile, element("p", "@" + execution.username + " · ID " + execution.user_id, "muted"));
+    const metadata = element("div", undefined, "execution-metadata");
+    const time = element("time", date(execution.executed_at, true));
+    time.dateTime = new Date(execution.executed_at * 1000).toISOString();
+    metadata.append(time, element("p", "Place " + execution.place_id + " · Kinoue " + execution.library_version, "muted"));
+    row.append(player, metadata);
+    $("execution-list").append(row);
+  }
+  $("execution-empty").hidden = data.total > 0;
+  $("execution-count").textContent = data.total ? `${(data.page - 1) * data.page_size + 1}–${Math.min(data.page * data.page_size, data.total)} of ${data.total} executions` : "0 executions";
+  $("previous-executions").disabled = data.page <= 1;
+  $("next-executions").disabled = data.page * data.page_size >= data.total;
+}
+
+async function loadExecutions(page) {
+  if (!state.detail) return;
+  const id = state.detail.id;
+  const generation = ++state.detailGeneration;
+  const data = await api("/licenses/" + encodeURIComponent(id) + "/executions?page=" + page);
+  if (state.csrf && generation === state.detailGeneration && state.detail?.id === id) renderExecutions(data);
+}
+
+for (const [id, page] of [["previous-executions", () => state.executionPage - 1], ["next-executions", () => state.executionPage + 1], ["refresh-executions", () => 1]]) {
+  $(id).addEventListener("click", () => busy($(id), () => loadExecutions(page())));
 }
 
 async function change(action, value, message) {

@@ -138,6 +138,10 @@ Return the protected Kinoue window, or a script controller with `Window` and `De
 
 The backend includes a Vercel-ready admin site with Postgres storage. Create and manage keys, view encrypted HWID records after signing in, reset or replace a device binding, revoke/delete access, and upload script payloads from `/admin/`.
 
+Authenticated windows also get a **Session → License** section showing the key's remaining time. It uses the license deadline, rather than the remembered session token's lifetime, and accounts for the server clock. Existing Session tabs are reused. Custom integrations can call `window:SetSessionInfo({ ExpiresAt = unixTimestamp, ServerTime = serverTimestamp })`; omit `ExpiresAt` for a key without expiry, or pass `Known = false` when expiry is unavailable.
+
+After a protected script starts successfully, the client reports its Roblox player ID, username, display name, place, and Kinoue version to the key service. The signed-in admin can view these starts under **Manage key → Executions**. Failed script loads are not reported as successful executions; recording failure does not interrupt an already loaded script.
+
 ## Search
 
 The search field next to the gear filters every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside clears and closes the search.

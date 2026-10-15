@@ -1,5 +1,13 @@
 local env, http = Mock.Environment, Mock.Environment.game:GetService("HttpService")
 local encoded, sequence = {}, 0
+local guidSequence = 0
+function http:GenerateGUID()
+    guidSequence += 1
+    return string.format("%08x-0000-4000-8000-%012x", guidSequence, guidSequence)
+end
+local player = env.game:GetService("Players").LocalPlayer
+player.UserId, player.Name, player.DisplayName = 1234567, "Test_Player", "Test Player"
+env.game.PlaceId = 987654
 function http:JSONEncode(value)
     sequence += 1
     local key = "json:" .. sequence
@@ -37,10 +45,21 @@ local token = string.rep("s", 43)
 local key = "KING-" .. string.rep("a", 32)
 local endpoint = "https://keys.example.test"
 local function success(options)
+    if options.Url:match("/executions$") then
+        return { StatusCode = 200, Body = http:JSONEncode({ ok = true }) }
+    end
     if options.Url:match("/script$") then
         return { StatusCode = 200, Body = 'return "protected-payload"' }
     end
-    return { StatusCode = 200, Body = http:JSONEncode({ token = token, expires_at = os.time() + 600 }) }
+    return {
+        StatusCode = 200,
+        Body = http:JSONEncode({
+            token = token,
+            expires_at = os.time() + 600,
+            license_expires_at = os.time() + 172800,
+            server_time = os.time(),
+        }),
+    }
 end
 response = success
 local function create(extra)
@@ -79,8 +98,14 @@ gate.Key.Root.FocusLost:Fire(true)
 assert(gate.Busy and not gate:Redeem(key), "Enter submits and concurrent redemption is suppressed")
 assert(not gate.Key.Enabled and not gate.RedeemButton.Enabled and gate.CloseButton.Enabled)
 Mock:Advance(0)
+Mock:Advance(0)
 assert(gate.Loaded and gate.Result == "protected-payload" and gate.Window.Dead)
-assert(#requests == 2)
+assert(#requests == 3 and gate.ExecutionReported)
+local execution = http:JSONDecode(requests[3].Body)
+assert(
+    requests[3].Url:match("/executions$") and execution.user_id == player.UserId and execution.username == player.Name
+)
+assert(execution.display_name == player.DisplayName and execution.place_id == env.game.PlaceId and execution.key == nil)
 local body = http:JSONDecode(requests[1].Body)
 assert(body.application == "king" and body.hwid == "test-device" and body.key == key)
 local cache = http:JSONDecode(files[gate.CachePath])
@@ -89,7 +114,7 @@ assert(gate.Remembered)
 local old = gate
 gate = create()
 Mock:Advance(0)
-assert(gate.Loaded and requests[3].Url:match("/session$"), "Saved sessions must be revalidated before loading")
+assert(gate.Loaded and requests[4].Url:match("/session$"), "Saved sessions must be revalidated before loading")
 old:Destroy()
 gate:Destroy()
 files = {}
@@ -214,6 +239,8 @@ assert(gate:Redeem(key))
 Mock:Advance(0)
 assert(gate.Loaded and gate.SessionWindow == gate.Result.Window)
 local loadedWindow = gate.Result.Window
+assert(loadedWindow.SessionPage.Name == "Session" and loadedWindow.SessionTime.Root.Text:find("Time left:", 1, true))
+assert(loadedWindow.SessionInfo.ExpiresAt == gate.LicenseExpiresAt and gate.LicenseExpiresAt > os.time() + 86400)
 local logout = loadedWindow.SettingsPage.Controls.Logout
 assert(logout and logout.Root.Text == "Logout")
 loadedWindow:OpenSettings()
