@@ -24,6 +24,7 @@ Use a separate database and secrets for previews, or disable preview deployment.
 - View the bound HWID, replace it with another HWID, or reset the lock so the next redemption establishes a new binding.
 - Revoke, restore, renew, or permanently delete a key. Reset/replacement/revocation/renewal invalidate its existing remembered sessions.
 - Upload or replace a script's private payload. Existing keys continue to work against the replacement.
+- Open a key's **Executions** history to see player display names, usernames, Roblox user IDs/profile links, place IDs, Kinoue versions, and server-recorded start timestamps. History is paginated and can be refreshed.
 
 New key values appear once. Only an HMAC and a short hint are stored; the full key cannot be retrieved later. HWIDs are authenticated-encrypted with AES-GCM for viewing by the signed-in administrator, with a separate HMAC for binding checks. Existing local installations with hash-only bindings show the fingerprint until a successful redemption/session refresh supplies the HWID again. Audit records contain operation names and license IDs, never raw keys or HWIDs.
 
@@ -68,7 +69,7 @@ The executor must provide a working `gethwid`, `get_hwid`, or `syn.get_hwid`, an
 
 Only the device-bound session token and its expiry, application, and endpoint are cached. Raw keys and HWIDs are not written to the client cache. The server revalidates and rotates a cached session before downloading a script. An invalid/revoked/expired login never falls back to running a previously downloaded payload. A network failure preserves the cache so it can be tried again later.
 
-`CreateKeySystem` returns a controller with `Window`, `State`, `Error`, `Supported`, `Loaded`, `Result`, `Remembered`, and the methods `Redeem(key)`, `Forget()`, `Logout()`, `AttachWindow(window)`, and `Destroy()`. The key page shows Key, Remember, and Redeem. Optional `OnLoaded(result)` and `OnError(code, message)` callbacks report outcomes. Protected scripts should return after setting up their own event handlers. There is no frame-based authentication loop.
+`CreateKeySystem` returns a controller with `Window`, `State`, `Error`, `Supported`, `Loaded`, `Result`, `Remembered`, and the methods `Redeem(key)`, `Forget()`, `Logout()`, `AttachWindow(window)`, and `Destroy()`. The compact key dialog shows only a key input, Redeem, and Close, with progress and errors when needed. Remembered sessions are automatic when file functions are available; `Remember = false` disables saving and restoring them. Optional `OnLoaded(result)` and `OnError(code, message)` callbacks report outcomes. Protected scripts should return after setting up their own event handlers. There is no frame-based authentication loop.
 
 Return the Kinoue window, or a controller with `Window` and `Destroy()` fields, from the protected payload. Kinoue then adds **Logout** to that window's built-in settings. Logout runs the returned controller's cleanup, clears the saved login, requests revocation of the current server session, and opens a fresh Key page without reusing the cached token. UI configuration is preserved. The server binding stays attached to the license. Local logout works if the server is unavailable; server token revocation requires connectivity.
 
@@ -84,6 +85,12 @@ python -m key_service reset-device LICENSE_ID
 Revocation blocks future redemption, session refreshes, and script downloads. A device reset clears the binding and invalidates all remembered sessions; the next successful key redemption establishes the new binding. Neither operation can erase code already downloaded to a user-controlled executor or stop a script that is already running. Executor HWIDs are client-provided identifiers, not hardware attestation, and can be spoofed by a modified client. This is a licensing gate, not copy protection.
 
 The executor API exposes `/health`, `/v1/redeem`, `/v1/session`, `/v1/logout`, and `/v1/script`. Each POST includes `application` and `hwid`; redeem adds `key`, and session/script/logout add `token`. Logout invalidates only that authenticated session and preserves the license's device binding. Responses are marked `no-store`. Inputs are bounded, validation errors redact submitted credentials, and device binding uses a transaction with row locking on Postgres. Keys/device binding IDs/session tokens use domain-separated HMACs; only the admin-readable HWID additionally has encrypted storage. The server limits requests per source IP. If using a proxy, configure Uvicorn to trust only that proxy and configure HTTPS, body limits, and connection timeouts there as well.
+
+## Execution history
+
+Successful script starts are acknowledged through `POST /v1/executions` using the existing application, HWID, and session token plus a unique `execution_id`, `user_id`, `username`, `display_name`, `place_id`, and `library_version`. The server validates the device-bound session and records its own timestamp; retrying the same execution ID with the same token does not duplicate history. Downloading a script does not create an execution entry. Player identities and successful starts are client-reported, not Roblox-attested. Reports are best effort and do not block an already loaded script. Existing clients do not report history until updated.
+
+Only the authenticated admin can read history, through a key's details or `GET /admin/api/licenses/{id}/executions?page=1`. Pages contain 25 entries. Resetting/revoking a key preserves history; deleting a key removes its history. Schema initialization adds the history table without changing existing licenses, bindings, or payloads. Redemption and session refresh also return `license_expires_at` and `server_time` for the client's Session countdown.
 
 ## Container
 

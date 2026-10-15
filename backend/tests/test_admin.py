@@ -29,7 +29,7 @@ def admin(setup, admin_hash):
 def test_all_management_requires_authentication(setup, admin_hash):
     store, license, _, _ = setup
     client = TestClient(create_app(store, admin_hash=admin_hash))
-    for path in ["/me", "/applications", "/licenses", "/licenses/" + license["id"]]:
+    for path in ["/me", "/applications", "/licenses", "/licenses/" + license["id"], "/licenses/" + license["id"] + "/executions"]:
         assert client.get("/admin/api" + path).status_code == 401
     for path, body in [("/licenses", {"application": "king"}), ("/licenses/" + license["id"], {"action": "delete"}), ("/applications", {"id": "test", "name": "Test", "source": "return true"})]:
         assert client.post("/admin/api" + path, json=body).status_code == 401

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1
+
+- Integrate the 0.10.0 quieter look with the compact key dialog, Session license countdown, and authenticated execution reporting from 0.9.2/0.9.3.
+- Preserve remembered sessions, logout/re-login, and per-key admin execution history during migration.
+
 ## 0.10.0
 
 New look, based on the quieter Elevated design:
@@ -11,6 +16,18 @@ New look, based on the quieter Elevated design:
 - Pages no longer show a title row unless `SetTitle` or `SetMode` is used.
 - The rainbow line under the header is now off by default; turn it on with `RainbowAccent = true` or in settings.
 - The footer is plain text: status on the left, version on the right.
+
+## 0.9.3
+
+- Add a License section to authenticated scripts' Session tab with the key's remaining time. Use license expiry and the server clock, handle keys without expiry, and release the countdown on unload.
+- Report successful script starts with the Roblox player ID, username, display name, place, and library version. Authenticate reports against the key's device-bound session and make retries idempotent.
+- Add private, paginated execution history to each key in the admin dashboard, with player profile links and server-recorded timestamps. Preserve history through key resets and revocation; deleting the key removes its history.
+
+## 0.9.2
+
+- Replace the full key window with a compact dialog containing a key input, Redeem, and Close. Remove tabs, search, settings, group headers, the footer, and the Remember toggle from authentication.
+- Keep remembered sessions automatic by default, with `Remember = false` to disable caching. Show verification progress and errors only when needed.
+- Keep Close available during verification, cancel pending work when closed, and reopen the compact dialog after logout.
 
 ## 0.9.1
 
