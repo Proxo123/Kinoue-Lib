@@ -20,6 +20,8 @@ local VERSION_TEXT_SIZE = 11
 local STATUS_DOT = 6
 local TAB_STRIP_PADDING = 3
 
+local Background = require(script.Parent.Background)
+
 local Chrome = {}
 Chrome.HEADER_HEIGHT = HEADER_HEIGHT
 Chrome.SEARCH_OFFSET = HEADER_BUTTON_MARGIN + SETTINGS_BUTTON_SIZE + HEADER_BUTTON_GAP
@@ -264,6 +266,7 @@ function Chrome.build(window, options)
     buildTabs(window)
     buildBody(window)
     buildFooter(window)
+    Background.surface(window, window.TabStrip)
     buildResizeHandle(window)
 end
 

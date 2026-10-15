@@ -2,6 +2,22 @@ local V = Mock.Environment.Vector2.new
 local Theme = UI.Theme
 local window = UI:CreateWindow({ ReducedMotion = true })
 Mock:Advance(1)
+assert(window.SettingsPage.Controls.Logout == nil)
+local logoutCount = 0
+window:SetLogoutHandler(function()
+    logoutCount += 1
+end)
+local logoutButton = window.SettingsPage.Controls.Logout
+assert(logoutButton.Root.Text == "Logout" and logoutButton.Row.Visible)
+logoutButton.Root.Activated:Fire()
+assert(logoutCount == 1)
+window:SetLogoutHandler(nil)
+logoutButton.Root.Activated:Fire()
+assert(not logoutButton.Row.Visible and logoutCount == 1)
+window:SetLogoutHandler(function()
+    logoutCount += 1
+end)
+assert(window.SettingsPage.Controls.Logout == logoutButton and logoutButton.Row.Visible)
 
 for _, child in ipairs(window.Header:GetChildren()) do
     assert(not (child.Text and child.Text:find("PlaceId")), "Header must not show the PlaceId watermark")

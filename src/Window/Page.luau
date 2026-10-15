@@ -10,6 +10,8 @@ local TAB_TEXT_SIZE = 12
 local SUBBAR_HEIGHT = 26
 local GROUP_HEADER_HEIGHT = 30
 
+local Background = require(script.Parent.Background)
+
 local Page = {}
 Page.__index = Page
 
@@ -160,6 +162,7 @@ function Page:AddGroupbox(title, side)
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    Background.surface(self.Window, frame)
     local container = Util.frame(frame, {
         Position = UDim2.fromOffset(Theme.Padding, GROUP_HEADER_HEIGHT),
         Size = UDim2.new(1, -2 * Theme.Padding, 0, 0),

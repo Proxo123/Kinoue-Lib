@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0
+## 0.9.0
 
 New look, based on the "Refined" design:
 
@@ -16,6 +16,25 @@ New look, based on the "Refined" design:
 - Notifications are rounded cards with a status badge, a bold message, a grey source line and a slim timer.
 - The footer shows a status dot, and `Subtitle` (or `Footer`) appears next to the window name.
 - Theme presets now include a `Success` color and were retuned for the new surfaces.
+## 0.8.1
+
+- Remove the Forget button from the key page and add Logout to authenticated windows' built-in settings.
+- Unload the protected script, clear its remembered login, revoke the current server session, and reopen the key page on logout. Preserve UI settings and allow signing in again without rerunning the loader.
+- Add `KeySystem:Logout`, `KeySystem:AttachWindow`, `Window:SetLogoutHandler`, and optional `OnUnload(result)` cleanup for reusable integrations.
+
+## 0.8.0
+
+- Add `CreateKeySystem`: a reusable key UI, HWID capability checks, remembered sessions, and authenticated script loading. Unsupported executors fail closed without substituting another identifier.
+- Add a self-hosted backend with per-application keys, atomic first-device binding, expiring/rotating sessions, authenticated payload downloads, revocation/device reset commands, and API tests.
+- Cache session tokens instead of raw keys or HWIDs; revalidate on every launch and require HTTPS for public services.
+- Add a Vercel-ready admin dashboard, durable Postgres payload/license storage, scrypt admin login with CSRF protection, and key creation, renewal, revocation, deletion, and encrypted HWID view/reset/replacement. Invalidate remembered sessions when access changes and run backend tests against both database engines.
+
+## 0.7.0
+
+- Add local PNG, JPEG, and animated GIF window backgrounds through executor file and asset functions.
+- Add Background settings with file loading, image and panel opacity, fit, playback speed, and config persistence.
+- Decode GIF transparency, palettes, interlacing, timing, and disposal into cached PNG sprite sheets. Bound decoding work and memory, yield during preparation, and pause playback while hidden or animations are disabled.
+- Add `SetBackground`, `ClearBackground`, and `GetBackgroundStatus`; retain the current background when a replacement fails.
 
 ## 0.6.0
 
