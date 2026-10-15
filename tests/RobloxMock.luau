@@ -410,6 +410,17 @@ end
 Mock.Players = players
 Mock.CoreGui = create("CoreGui")
 local services = {
+    ContentProvider = {
+        PreloadAsync = function(_, images, callback)
+            Mock.MediaPreloads = (Mock.MediaPreloads or 0) + 1
+            if Mock.OnPreload then
+                Mock.OnPreload()
+            end
+            for _, image in ipairs(images) do
+                callback(image, Mock.MediaFailure and enum.AssetFetchStatus.Failure or enum.AssetFetchStatus.Success)
+            end
+        end,
+    },
     UserInputService = input,
     RunService = run,
     CoreGui = Mock.CoreGui,
@@ -444,6 +455,7 @@ local services = {
 }
 Mock.Input = input
 Mock.Run = run
+function run.Heartbeat:Wait() end
 Mock.Enum = enum
 Mock.Camera = create("Camera")
 Mock.Camera.CameraType = enum.CameraType.Custom

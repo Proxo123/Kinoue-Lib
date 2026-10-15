@@ -16,6 +16,8 @@ local HEADER_BUTTON_MARGIN = 6
 local HEADER_BUTTON_GAP = 4
 local VERSION_TEXT_SIZE = 11
 
+local Background = require(script.Parent.Background)
+
 local Chrome = {}
 Chrome.HEADER_HEIGHT = HEADER_HEIGHT
 Chrome.SEARCH_OFFSET = HEADER_BUTTON_MARGIN + SETTINGS_BUTTON_SIZE + HEADER_BUTTON_GAP
@@ -146,6 +148,7 @@ local function buildBody(window)
     window.Body = Util.frame(window.Root, {
         Position = UDim2.fromOffset(0, HEADER_HEIGHT + TAB_BAR_HEIGHT),
         Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + TAB_BAR_HEIGHT + FOOTER_HEIGHT)),
+        BackgroundTransparency = 1,
     })
 end
 
@@ -210,6 +213,9 @@ function Chrome.build(window, options)
     buildAccent(window)
     buildBody(window)
     buildFooter(window, options)
+    Background.surface(window, window.Header)
+    Background.surface(window, window.Tabs)
+    Background.surface(window, window.Footer)
     buildResizeHandle(window)
 end
 

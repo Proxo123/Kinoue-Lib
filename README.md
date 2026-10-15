@@ -93,6 +93,30 @@ Pass `ShowSettings = false` to `CreateWindow` to hide the gear button.
 
 The footer shows the library version in small grey text on the right.
 
+## Local backgrounds
+
+Open the settings gear and use **Background** to enter an executor-accessible file path, then press **Load**. PNG, JPEG, and animated GIF files are supported. Controls include image opacity, panel opacity, Cover/Contain/Stretch, and playback speed. **Clear** removes the background. These settings persist under `UI.Background.*` with the existing config system.
+
+`readfile` and `getcustomasset` (or `getsynasset`) are required. GIFs also require `writefile` and `makefolder`. Paths follow the executor's filesystem rules: a file anywhere on your PC only works if that executor permits reading it. Otherwise, copy it into the executor workspace and use a relative path. Files stay on your computer.
+
+```lua
+local window = UI:CreateWindow({
+    Name = "Kinoue",
+    Background = { Enabled = true, File = "backgrounds/rain.gif", Opacity = 0.6 },
+})
+
+window:SetBackground("backgrounds/wallpaper.png")
+window:SetBackground({ PanelOpacity = 0.8, Fit = "Cover", Speed = 1 })
+print(window:GetBackgroundStatus().Loading)
+window:ClearBackground()
+```
+
+`SetBackground(path)` enables and loads a file asynchronously. The options table accepts `Enabled`, `File`, `Opacity` (0–1), `PanelOpacity` (0–1), `Fit` (Cover, Contain, Stretch), and `Speed` (0.1–4). Defaults are disabled, an empty path, 0.6 image opacity, 0.8 panel opacity, Cover, and normal speed. Pass `true` as a second argument to force a reload. Options can also be supplied through `CreateWindow.Background`.
+
+`GetBackgroundStatus()` returns `Loading`, `Error`, the successfully loaded `File`, `Kind`, `Frames`, `Width`, `Height`, and `Cached`. A failed replacement keeps the previous background; errors appear as native notifications. Destroying the window cancels pending work and disconnects playback.
+
+GIFs loop continuously using their frame delays (zero/one-centisecond delays use 100 ms). Playback follows rendered frames, skips overdue frames, and pauses while the window is hidden, image opacity is zero, or Animations is off. Static images have no playback connection. Files are limited to 32 MB; static images are limited to 4096 pixels per side. GIFs are limited to 300 frames, a 4-million-pixel source canvas/frame, and 200 million decoded source pixels. They are downscaled to at most 512 pixels per side and 8 million total output pixels, packed into 1024-pixel PNG pages with edge padding, and cached under `Kinoue/backgrounds`. Preparation yields between work chunks; later loads reuse cached pages. The cache can be deleted when the library is unloaded.
+
 ## Search
 
 The magnifier next to the gear opens a search box. Type to filter every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside closes the search.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Add local PNG, JPEG, and animated GIF window backgrounds through executor file and asset functions.
+- Add Background settings with file loading, image and panel opacity, fit, playback speed, and config persistence.
+- Decode GIF transparency, palettes, interlacing, timing, and disposal into cached PNG sprite sheets. Bound decoding work and memory, yield during preparation, and pause playback while hidden or animations are disabled.
+- Add `SetBackground`, `ClearBackground`, and `GetBackgroundStatus`; retain the current background when a replacement fails.
+
 ## 0.6.0
 
 - Add notifications: `window:Notify(text or options)` and a `Notify` option on every control and button. Cards slide in at the bottom right with a close button and a timer bar, stay visible while the menu is hidden, and can be turned off in settings.

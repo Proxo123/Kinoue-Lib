@@ -1678,6 +1678,229 @@ Util.protect(Group, {
 return Group
 end
 
+__factories["Window/Background"] = function()
+local RunService = game:GetService("RunService")
+local Media = __require("internal/LocalMedia")
+local Util = __require("internal/Util")
+
+local Background = {}
+local DEFAULTS = { Enabled = false, File = "", Opacity = 0.6, PanelOpacity = 0.8, Fit = "Cover", Speed = 1 }
+local FIT = { Cover = Enum.ScaleType.Crop, Contain = Enum.ScaleType.Fit, Stretch = Enum.ScaleType.Stretch }
+
+local function active(state)
+    return state.Options.Enabled and state.Media ~= nil and state.Options.Opacity > 0
+end
+
+local function paint(state, index)
+    if index == state.Index then
+        return
+    end
+    local frame = state.Media.Frames[index]
+    state.Image.Image = frame.Image
+    state.Image.ImageRectOffset = frame.Offset
+    state.Image.ImageRectSize = frame.Size
+    state.Index = index
+end
+
+function Background.init(window, options)
+    window.BackgroundState = { Options = table.clone(DEFAULTS), Surfaces = {}, Generation = 0, Time = 0 }
+    if options then
+        Background.set(window, options)
+    end
+end
+
+function Background.surface(window, object)
+    local state = window.BackgroundState
+    local entry = window.Fade and window.Fade.Entries[object]
+    state.Surfaces[object] = entry and entry.Base.BackgroundTransparency or object.BackgroundTransparency
+    if active(state) then
+        object.BackgroundTransparency = 1 - state.Options.PanelOpacity
+    end
+    window.Scope:Connect(object.Destroying, function()
+        state.Surfaces[object] = nil
+    end)
+end
+
+function Background.mount(window)
+    local state = window.BackgroundState
+    state.Image = Util.new("ImageLabel", {
+        Name = "BackgroundMedia",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 0,
+        Visible = false,
+        Image = "",
+        ImageTransparency = 1,
+        ScaleType = FIT[state.Options.Fit],
+    }, window.Root)
+    Background.sync(window)
+    Background.load(window)
+end
+
+function Background.sync(window)
+    local state = window.BackgroundState
+    if not state or not state.Image then
+        return
+    end
+    local enabled = active(state)
+    state.Image.Visible = enabled
+    state.Image.ImageTransparency = 1 - state.Options.Opacity
+    state.Image.ScaleType = FIT[state.Options.Fit]
+    for object, original in pairs(state.Surfaces) do
+        object.BackgroundTransparency = enabled and (1 - state.Options.PanelOpacity) or original
+    end
+    local playing = enabled and window.Open and not window.ReducedMotion and #state.Media.Frames > 1
+    if not playing and state.Connection then
+        window.Scope:Release(state.Connection)
+        state.Connection = nil
+    elseif playing and not state.Connection then
+        state.Connection = window.Scope:Connect(RunService.RenderStepped, function(delta)
+            state.Time = (state.Time + (delta or 1 / 60) * state.Options.Speed) % state.Media.Duration
+            local low, high = 1, #state.Media.Frames
+            while low < high do
+                local mid = math.floor((low + high) / 2)
+                if state.Time < state.Media.Frames[mid].End then
+                    high = mid
+                else
+                    low = mid + 1
+                end
+            end
+            paint(state, low)
+        end)
+    end
+end
+
+local function cancel(state)
+    state.Generation += 1
+    if state.Job and task.cancel then
+        pcall(task.cancel, state.Job)
+    end
+    state.Job = nil
+    state.Loading = false
+end
+
+function Background.load(window)
+    local state = window.BackgroundState
+    cancel(state)
+    if not state.Image or not state.Options.Enabled or state.Options.File == "" then
+        return
+    end
+    local path, generation = state.Options.File, state.Generation
+    state.Loading, state.Error = true, nil
+    state.Job = task.defer(function()
+        local budget = os.clock()
+        local function checkpoint()
+            assert(not window.Dead and generation == state.Generation, "Background load cancelled")
+            if os.clock() - budget >= 0.003 then
+                RunService.Heartbeat:Wait()
+                budget = os.clock()
+                assert(not window.Dead and generation == state.Generation, "Background load cancelled")
+            end
+        end
+        local ok, result = pcall(function()
+            checkpoint()
+            local media = Media.load(path, checkpoint)
+            checkpoint()
+            local failed = false
+            game:GetService("ContentProvider"):PreloadAsync(media.Pages, function(_, status)
+                if status ~= Enum.AssetFetchStatus.Success then
+                    failed = true
+                end
+            end)
+            checkpoint()
+            assert(not failed, "Roblox could not load the background image")
+            for _, frame in ipairs(media.Frames) do
+                frame.Offset, frame.Size = Vector2.new(frame.X, frame.Y), Vector2.new(frame.Width, frame.Height)
+            end
+            return media
+        end)
+        if window.Dead or generation ~= state.Generation then
+            return
+        end
+        state.Job, state.Loading = nil, false
+        Util.withContext(function()
+            if ok then
+                state.Media, state.LoadedFile = result, path
+                state.Time, state.Index = 0, nil
+                paint(state, 1)
+                Background.sync(window)
+            else
+                state.Error = tostring(result):gsub("^.-:%d+: ", "")
+                window:Notify({ Title = "Background", Text = state.Error })
+            end
+        end)
+    end)
+end
+
+function Background.set(window, options, reload)
+    local state = window.BackgroundState
+    if window.Dead then
+        return
+    end
+    if type(options) == "string" then
+        options = { File = options, Enabled = true }
+    end
+    assert(type(options) == "table", "SetBackground requires a file path or options table")
+    local nextOptions = table.clone(state.Options)
+    for key, value in pairs(options) do
+        assert(DEFAULTS[key] ~= nil, "Unknown background option: " .. tostring(key))
+        if key == "Enabled" then
+            assert(type(value) == "boolean", "Background Enabled requires a boolean")
+        elseif key == "File" then
+            assert(type(value) == "string" and #value <= 1024 and not value:find("%z"), "Invalid background file path")
+        elseif key == "Fit" then
+            assert(FIT[value], "Background Fit must be Cover, Contain, or Stretch")
+        else
+            assert(
+                type(value) == "number" and value == value and math.abs(value) < math.huge,
+                "Invalid background " .. key
+            )
+            value = math.clamp(value, key == "Speed" and 0.1 or 0, key == "Speed" and 4 or 1)
+        end
+        nextOptions[key] = value
+    end
+    local changedFile = nextOptions.File ~= state.Options.File
+    local changedEnabled = nextOptions.Enabled ~= state.Options.Enabled
+    state.Options = nextOptions
+    for key, value in pairs(nextOptions) do
+        local control = window.Controls["UI.Background." .. key]
+        if control then
+            control:SetSilent(value)
+        end
+    end
+    if changedFile or changedEnabled or reload then
+        cancel(state)
+        if nextOptions.File == "" then
+            state.Media, state.LoadedFile, state.Index, state.Error = nil, nil, nil, nil
+            if state.Image then
+                state.Image.Image = ""
+            end
+        end
+        if nextOptions.Enabled and nextOptions.File ~= "" and (reload or state.LoadedFile ~= nextOptions.File) then
+            Background.load(window)
+        end
+    end
+    Background.sync(window)
+    if window.ConfigChanged then
+        window:ConfigChanged()
+    end
+end
+
+function Background.destroy(window)
+    local state = window.BackgroundState
+    cancel(state)
+    if state.Connection then
+        window.Scope:Release(state.Connection)
+        state.Connection = nil
+    end
+    state.Media = nil
+    table.clear(state.Surfaces)
+end
+
+return Background
+end
+
 __factories["Window/Chrome"] = function()
 local RunService = game:GetService("RunService")
 
@@ -1696,6 +1919,8 @@ local SETTINGS_ICON_SIZE = 16
 local HEADER_BUTTON_MARGIN = 6
 local HEADER_BUTTON_GAP = 4
 local VERSION_TEXT_SIZE = 11
+
+local Background = __require("Window/Background")
 
 local Chrome = {}
 Chrome.HEADER_HEIGHT = HEADER_HEIGHT
@@ -1827,6 +2052,7 @@ local function buildBody(window)
     window.Body = Util.frame(window.Root, {
         Position = UDim2.fromOffset(0, HEADER_HEIGHT + TAB_BAR_HEIGHT),
         Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + TAB_BAR_HEIGHT + FOOTER_HEIGHT)),
+        BackgroundTransparency = 1,
     })
 end
 
@@ -1891,6 +2117,9 @@ function Chrome.build(window, options)
     buildAccent(window)
     buildBody(window)
     buildFooter(window, options)
+    Background.surface(window, window.Header)
+    Background.surface(window, window.Tabs)
+    Background.surface(window, window.Footer)
     buildResizeHandle(window)
 end
 
@@ -2420,6 +2649,8 @@ local Util = __require("internal/Util")
 
 local NARROW_WIDTH = 520
 
+local Background = __require("Window/Background")
+
 local Page = {}
 Page.__index = Page
 
@@ -2554,6 +2785,8 @@ function Page:AddGroupbox(title, side)
         Position = UDim2.fromOffset(6, 2),
         Size = UDim2.new(1, -12, 1, -2),
     })
+    Background.surface(self.Window, frame)
+    Background.surface(self.Window, header)
     local container = Util.frame(frame, {
         Position = UDim2.fromOffset(Theme.Padding, 27),
         Size = UDim2.new(1, -2 * Theme.Padding, 0, 0),
@@ -3165,12 +3398,74 @@ local function buildWindow(window, page, options)
     })
 end
 
+local function buildBackground(window, page)
+    local group = page:AddGroupbox("Background", "Left")
+    local defaults = window.BackgroundState.Options
+    group:AddToggle("UI.Background.Enabled", {
+        Text = "Enabled",
+        Value = defaults.Enabled,
+        Keybind = false,
+        Callback = function(value)
+            window:SetBackground({ Enabled = value })
+        end,
+    })
+    group:AddTextbox("UI.Background.File", {
+        Text = "File",
+        Value = defaults.File,
+        MaxLength = 1024,
+        Callback = function(value)
+            window:SetBackground({ File = value })
+        end,
+    })
+    group:AddButtons({
+        {
+            Text = "Load",
+            Callback = function()
+                local file = window.Controls["UI.Background.File"]
+                file:Set(file.Root.Text)
+                window:SetBackground({ Enabled = true }, true)
+            end,
+        },
+        {
+            Text = "Clear",
+            Callback = function()
+                window:ClearBackground()
+            end,
+        },
+    })
+    for _, entry in ipairs({
+        { Key = "Opacity", Text = "Image opacity", Min = 0, Max = 1 },
+        { Key = "PanelOpacity", Text = "Panel opacity", Min = 0, Max = 1 },
+        { Key = "Speed", Text = "Playback speed", Min = 0.1, Max = 4 },
+    }) do
+        group:AddSlider("UI.Background." .. entry.Key, {
+            Text = entry.Text,
+            Value = defaults[entry.Key],
+            Min = entry.Min,
+            Max = entry.Max,
+            Step = 0.05,
+            Callback = function(value)
+                window:SetBackground({ [entry.Key] = value })
+            end,
+        })
+    end
+    group:AddDropdown("UI.Background.Fit", {
+        Text = "Fit",
+        Options = { "Cover", "Contain", "Stretch" },
+        Value = defaults.Fit,
+        Callback = function(value)
+            window:SetBackground({ Fit = value })
+        end,
+    })
+end
+
 function Settings.build(window, options)
     local page = Page.hidden(window, "UI settings")
     page:SetTitle("UI settings")
     page:SetMode("Theme applies to every window")
     local controls = buildTheme(window, page)
     buildWindow(window, page, options)
+    buildBackground(window, page)
 
     function controls.sync()
         controls.Preset:SetSilent(Theme.Preset)
@@ -3193,6 +3488,7 @@ local Mount = __require("internal/Mount")
 local Theme = __require("internal/Theme")
 local Tooltip = __require("internal/Tooltip")
 local Util = __require("internal/Util")
+local Background = __require("Window/Background")
 local Chrome = __require("Window/Chrome")
 local Config = __require("Window/Config")
 local Input = __require("Window/Input")
@@ -3250,7 +3546,9 @@ function Window.new(options, version)
     self.Scope:Connect(self.Screen.Destroying, function()
         self:Destroy()
     end)
+    Background.init(self, options.Background)
     Chrome.build(self, options)
+    Background.mount(self)
     Search.build(self, Chrome.HEADER_HEIGHT, Chrome.SEARCH_OFFSET)
 
     self.Fade = Fade.new(self.Screen)
@@ -3345,6 +3643,30 @@ function Window:CloseSearch()
     return self
 end
 
+function Window:SetBackground(options, reload)
+    Background.set(self, options, reload)
+    return self
+end
+
+function Window:ClearBackground()
+    return self:SetBackground({ Enabled = false, File = "" })
+end
+
+function Window:GetBackgroundStatus()
+    local state = self.BackgroundState
+    local media = state.Media
+    return {
+        Loading = state.Loading == true,
+        Error = state.Error,
+        File = state.LoadedFile,
+        Kind = media and media.Kind,
+        Frames = media and #media.Frames or 0,
+        Width = media and media.Width,
+        Height = media and media.Height,
+        Cached = media and media.Cached == true,
+    }
+end
+
 function Window:Notify(options)
     return Notifications.show(self, options)
 end
@@ -3410,6 +3732,7 @@ function Window:SetVisible(value, initial)
         return
     end
     self.Open = value
+    Background.sync(self)
     self.VisibilityVersion += 1
     self.UpdateAccent()
 
@@ -3603,6 +3926,7 @@ end
 
 function Window:SetReducedMotion(reduced)
     self.ReducedMotion = reduced == true
+    Background.sync(self)
     syncSetting(self, "UI.Animations", not self.ReducedMotion)
     self.UpdateAccent()
     return self
@@ -3694,6 +4018,9 @@ function Window:Destroy()
             self.AccentScope = nil
         end
     end)
+    cleanupStep("Background", function()
+        Background.destroy(self)
+    end)
     cleanupStep("Signals", function()
         self.Scope:Destroy()
     end)
@@ -3732,7 +4059,7 @@ local Util = __require("internal/Util")
 local Window = __require("Window")
 
 local Library = {
-    Version = "0.6.0",
+    Version = "0.7.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -4008,6 +4335,282 @@ end
 return Fade
 end
 
+__factories["internal/Gif"] = function()
+local Gif = {}
+local band, shift, left, bor = bit32.band, bit32.rshift, bit32.lshift, bit32.bor
+
+function Gif.parse(data, checkpoint)
+    assert(
+        type(data) == "string" and #data >= 13 and (data:sub(1, 6) == "GIF89a" or data:sub(1, 6) == "GIF87a"),
+        "Invalid GIF header"
+    )
+    assert(#data <= 32 * 1024 * 1024, "GIF exceeds the 32 MB file limit")
+    local at = 7
+    local function byte()
+        assert(at <= #data, "Truncated GIF")
+        local value = string.byte(data, at)
+        at += 1
+        return value
+    end
+    local function word()
+        local low = byte()
+        return low + byte() * 256
+    end
+    local function palette(size)
+        local colors = table.create(size)
+        for index = 1, size do
+            local r, g, b = byte(), byte(), byte()
+            colors[index] = r + g * 256 + b * 65536 + 0xFF000000
+        end
+        return colors
+    end
+    local function blocks()
+        local values = {}
+        while true do
+            local size = byte()
+            if size == 0 then
+                break
+            end
+            assert(at + size - 1 <= #data, "Truncated GIF block")
+            values[#values + 1] = data:sub(at, at + size - 1)
+            at += size
+        end
+        if checkpoint then
+            checkpoint()
+        end
+        return table.concat(values)
+    end
+    local width, height = word(), word()
+    assert(width > 0 and height > 0 and width * height <= 4194304, "GIF canvas exceeds 4 million pixels")
+    local packed, background = byte(), byte()
+    byte()
+    local global = band(packed, 128) ~= 0 and palette(2 ^ (band(packed, 7) + 1)) or nil
+    local result = {
+        Width = width,
+        Height = height,
+        Frames = {},
+        Background = global and global[background + 1] or 0,
+        Duration = 0,
+    }
+    local control = {}
+    local work = 0
+    while at <= #data do
+        local marker = byte()
+        if marker == 0x3B then
+            break
+        end
+        if marker == 0x21 then
+            local label = byte()
+            if label == 0xF9 then
+                assert(byte() == 4, "Invalid GIF control block")
+                local flags, delay = byte(), word()
+                local transparent = byte()
+                assert(byte() == 0, "Invalid GIF control terminator")
+                control = {
+                    Disposal = band(shift(flags, 2), 7),
+                    Transparent = band(flags, 1) ~= 0 and transparent or nil,
+                    Delay = delay <= 1 and 0.1 or delay / 100,
+                }
+            else
+                blocks()
+                if label == 0x01 then
+                    control = {}
+                end
+            end
+        elseif marker == 0x2C then
+            local frame = {
+                Left = word(),
+                Top = word(),
+                Width = word(),
+                Height = word(),
+                Disposal = control.Disposal or 0,
+                Transparent = control.Transparent,
+                Delay = control.Delay or 0.1,
+            }
+            assert(
+                frame.Width > 0 and frame.Height > 0 and frame.Width * frame.Height <= 4194304,
+                "Invalid GIF frame dimensions"
+            )
+            work += frame.Width * frame.Height
+            assert(work <= 200000000, "GIF exceeds the decoding work limit")
+            local flags = byte()
+            frame.Interlaced = band(flags, 64) ~= 0
+            frame.Palette = band(flags, 128) ~= 0 and palette(2 ^ (band(flags, 7) + 1)) or global
+            assert(frame.Palette, "GIF has no color table")
+            frame.CodeSize = byte()
+            assert(frame.CodeSize >= 1 and frame.CodeSize <= 8, "Invalid GIF LZW code size")
+            frame.Data = blocks()
+            result.Duration += frame.Delay
+            frame.End = result.Duration
+            result.Frames[#result.Frames + 1] = frame
+            assert(#result.Frames <= 300, "GIF exceeds the 300 frame limit")
+            control = {}
+        else
+            error("Invalid GIF block")
+        end
+    end
+    assert(#result.Frames > 0, "GIF contains no frames")
+    return result
+end
+
+local function decompress(frame, checkpoint)
+    local data, at, bits, value = frame.Data, 1, 0, 0
+    local size = frame.CodeSize + 1
+    local clear = 2 ^ frame.CodeSize
+    local ending, available = clear + 1, clear + 2
+    local prefix, suffix = table.create(4096), table.create(4096)
+    local stack, output = buffer.create(4097), buffer.create(frame.Width * frame.Height)
+    local used, previous, first = 0, nil, nil
+    local count = frame.Width * frame.Height
+    local operations, lastYield = 0, 0
+    local function code()
+        while bits < size do
+            if at > #data then
+                return nil
+            end
+            value = bor(value, left(string.byte(data, at), bits))
+            bits += 8
+            at += 1
+        end
+        local result = band(value, 2 ^ size - 1)
+        value = shift(value, size)
+        bits -= size
+        return result
+    end
+    while true do
+        local current = code()
+        if current == nil then
+            assert(used == count, "Truncated GIF pixels")
+            break
+        end
+        if current == ending then
+            break
+        end
+        if current == clear then
+            size, available, previous = frame.CodeSize + 1, clear + 2, nil
+        elseif previous == nil then
+            assert(current < clear and used < count, "Invalid GIF LZW stream")
+            buffer.writeu8(output, used, current)
+            used += 1
+            previous, first = current, current
+        else
+            local original, length = current, 0
+            if current == available then
+                buffer.writeu8(stack, length, first)
+                length += 1
+                current = previous
+            else
+                assert(current < available, "Invalid GIF LZW code")
+            end
+            while current >= clear do
+                assert(prefix[current] ~= nil and length < 4096, "Invalid GIF LZW dictionary")
+                buffer.writeu8(stack, length, suffix[current])
+                length += 1
+                current = prefix[current]
+            end
+            first = current
+            buffer.writeu8(stack, length, current)
+            length += 1
+            assert(used + length <= count, "GIF pixels exceed frame bounds")
+            for index = length - 1, 0, -1 do
+                buffer.writeu8(output, used, buffer.readu8(stack, index))
+                used += 1
+            end
+            if available < 4096 then
+                prefix[available], suffix[available] = previous, first
+                available += 1
+                if available == 2 ^ size and size < 12 then
+                    size += 1
+                end
+            end
+            previous = original
+        end
+        operations += 1
+        if checkpoint and (operations % 2048 == 0 or used - lastYield >= 8192) then
+            checkpoint()
+            lastYield = used
+        end
+    end
+    assert(used == count, "GIF frame has incomplete pixels")
+    return output
+end
+
+function Gif.render(gif, width, height, emit, checkpoint)
+    assert(width > 0 and height > 0 and width <= gif.Width and height <= gif.Height, "Invalid GIF output dimensions")
+    local canvas = buffer.create(width * height * 4)
+    local background = gif.Frames[1].Transparent ~= nil and 0 or gif.Background
+    if background ~= 0 then
+        for index = 0, width * height - 1 do
+            buffer.writeu32(canvas, index * 4, background)
+        end
+    end
+    local saved, previous
+    local function bounds(frame)
+        return math.max(0, math.ceil(frame.Left * width / gif.Width)),
+            math.max(0, math.ceil(frame.Top * height / gif.Height)),
+            math.min(width - 1, math.ceil((frame.Left + frame.Width) * width / gif.Width) - 1),
+            math.min(height - 1, math.ceil((frame.Top + frame.Height) * height / gif.Height) - 1)
+    end
+    for index, frame in ipairs(gif.Frames) do
+        if previous and previous.Disposal == 2 then
+            local x0, y0, x1, y1 = bounds(previous)
+            local color = previous.Transparent ~= nil and 0 or gif.Background
+            for y = y0, y1 do
+                for x = x0, x1 do
+                    buffer.writeu32(canvas, (y * width + x) * 4, color)
+                end
+                if y % 16 == 0 and checkpoint then
+                    checkpoint()
+                end
+            end
+        elseif previous and previous.Disposal == 3 then
+            buffer.copy(canvas, 0, saved)
+        end
+        if frame.Disposal == 3 then
+            saved = saved or buffer.create(buffer.len(canvas))
+            buffer.copy(saved, 0, canvas)
+        end
+        local pixels = decompress(frame, checkpoint)
+        local rows = {}
+        if frame.Interlaced then
+            local row = 0
+            for _, pass in ipairs({ { 0, 8 }, { 4, 8 }, { 2, 4 }, { 1, 2 } }) do
+                for y = pass[1], frame.Height - 1, pass[2] do
+                    rows[y] = row
+                    row += 1
+                end
+            end
+        end
+        local x0, y0, x1, y1 = bounds(frame)
+        for y = y0, y1 do
+            local sourceY = math.floor(y * gif.Height / height) - frame.Top
+            local row = frame.Interlaced and rows[sourceY] or sourceY
+            for x = x0, x1 do
+                local sourceX = math.floor(x * gif.Width / width) - frame.Left
+                local color = buffer.readu8(pixels, row * frame.Width + sourceX)
+                if color ~= frame.Transparent then
+                    buffer.writeu32(
+                        canvas,
+                        (y * width + x) * 4,
+                        assert(frame.Palette[color + 1], "Invalid GIF palette index")
+                    )
+                end
+            end
+            if y % 16 == 0 and checkpoint then
+                checkpoint()
+            end
+        end
+        emit(canvas, index)
+        previous = frame
+        if checkpoint then
+            checkpoint()
+        end
+    end
+end
+
+return Gif
+end
+
 __factories["internal/Icons"] = function()
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
@@ -4201,6 +4804,289 @@ end
 return Icons
 end
 
+__factories["internal/LocalMedia"] = function()
+local HttpService = game:GetService("HttpService")
+local Gif = __require("internal/Gif")
+local Png = __require("internal/Png")
+
+local Media = {}
+local ROOT = "Kinoue/backgrounds"
+local VERSION = 1
+local PIXELS = 8388608
+
+local function dimensions(data, png)
+    local function word(at)
+        assert(at + 1 <= #data, "Truncated image header")
+        return string.byte(data, at) * 256 + string.byte(data, at + 1)
+    end
+    local width, height
+    if png then
+        assert(#data >= 33 and data:sub(13, 16) == "IHDR", "Invalid PNG header")
+        width, height = word(17) * 65536 + word(19), word(21) * 65536 + word(23)
+    else
+        local at = 3
+        while at <= #data do
+            assert(string.byte(data, at) == 255, "Invalid JPEG header")
+            while string.byte(data, at) == 255 do
+                at += 1
+            end
+            local marker = string.byte(data, at)
+            at += 1
+            assert(marker and marker ~= 0xDA and marker ~= 0xD9, "JPEG has no dimensions")
+            if marker ~= 0x01 and (marker < 0xD0 or marker > 0xD7) then
+                local size = word(at)
+                assert(size >= 2 and at + size - 1 <= #data, "Truncated JPEG segment")
+                if marker >= 0xC0 and marker <= 0xCF and marker ~= 0xC4 and marker ~= 0xC8 and marker ~= 0xCC then
+                    assert(size >= 8, "Invalid JPEG frame")
+                    height, width = word(at + 3), word(at + 5)
+                    break
+                end
+                at += size
+            end
+        end
+    end
+    assert(
+        width and height and width > 0 and height > 0 and width <= 4096 and height <= 4096,
+        "Background images must be at most 4096 pixels per side"
+    )
+    return width, height
+end
+
+local function folder(path)
+    if type(isfolder) == "function" and isfolder(path) then
+        return
+    end
+    local ok, message = pcall(makefolder, path)
+    if not ok and type(isfolder) == "function" and not isfolder(path) then
+        error(message)
+    end
+end
+
+local function valid(meta)
+    if
+        type(meta) ~= "table"
+        or meta.Version ~= VERSION
+        or type(meta.Frames) ~= "table"
+        or type(meta.Pages) ~= "table"
+    then
+        return false
+    end
+    if
+        type(meta.Width) ~= "number"
+        or meta.Width < 1
+        or meta.Width > 512
+        or meta.Width % 1 ~= 0
+        or type(meta.Height) ~= "number"
+        or meta.Height < 1
+        or meta.Height > 512
+        or meta.Height % 1 ~= 0
+    then
+        return false
+    end
+    if
+        #meta.Frames < 1
+        or #meta.Frames > 300
+        or #meta.Pages < 1
+        or #meta.Pages > 32
+        or meta.Width * meta.Height * #meta.Frames > PIXELS
+    then
+        return false
+    end
+    local previous = 0
+    for _, page in ipairs(meta.Pages) do
+        if
+            type(page) ~= "table"
+            or type(page.Width) ~= "number"
+            or page.Width < 1
+            or page.Width > 1024
+            or page.Width % 1 ~= 0
+            or type(page.Height) ~= "number"
+            or page.Height < 1
+            or page.Height > 1024
+            or page.Height % 1 ~= 0
+        then
+            return false
+        end
+    end
+    for _, frame in ipairs(meta.Frames) do
+        if
+            type(frame) ~= "table"
+            or type(frame.Page) ~= "number"
+            or frame.Page % 1 ~= 0
+            or not meta.Pages[frame.Page]
+            or type(frame.X) ~= "number"
+            or type(frame.Y) ~= "number"
+            or frame.X < 0
+            or frame.Y < 0
+            or frame.X % 1 ~= 0
+            or frame.Y % 1 ~= 0
+            or frame.X + meta.Width > meta.Pages[frame.Page].Width
+            or frame.Y + meta.Height > meta.Pages[frame.Page].Height
+            or type(frame.End) ~= "number"
+            or frame.End ~= frame.End
+            or frame.End <= previous
+            or frame.End > 200000
+        then
+            return false
+        end
+        previous = frame.End
+    end
+    return true
+end
+
+local function register(meta, directory, asset, checkpoint)
+    local images = {}
+    for index in ipairs(meta.Pages) do
+        if checkpoint then
+            checkpoint()
+        end
+        local path = directory .. "/" .. index .. ".png"
+        assert(type(isfile) ~= "function" or isfile(path), "Cached GIF page missing")
+        images[index] = asset(path)
+        assert(type(images[index]) == "string" and images[index] ~= "", "Executor did not register the GIF page")
+    end
+    local frames = {}
+    for _, frame in ipairs(meta.Frames) do
+        frames[#frames + 1] = {
+            Image = images[frame.Page],
+            X = frame.X,
+            Y = frame.Y,
+            Width = meta.Width,
+            Height = meta.Height,
+            End = frame.End,
+        }
+    end
+    return {
+        Kind = "GIF",
+        Width = meta.Width,
+        Height = meta.Height,
+        Frames = frames,
+        Pages = images,
+        Duration = frames[#frames].End,
+    }
+end
+
+function Media.load(path, checkpoint)
+    local asset = type(getcustomasset) == "function" and getcustomasset or getsynasset
+    assert(
+        type(readfile) == "function" and type(asset) == "function",
+        "Local backgrounds require executor readfile and getcustomasset functions"
+    )
+    assert(type(path) == "string" and path ~= "" and not path:find("%z"), "Enter a local image or GIF path")
+    local read, data = pcall(readfile, path)
+    assert(
+        read and type(data) == "string",
+        "Executor could not read this file. Use a path accessible to its workspace."
+    )
+    assert(#data > 0 and #data <= 33554432, "Background file must be between 1 byte and 32 MB")
+    if checkpoint then
+        checkpoint()
+    end
+    local gif = data:sub(1, 6) == "GIF89a" or data:sub(1, 6) == "GIF87a"
+    local png = data:sub(1, 8) == "\137PNG\13\10\26\10"
+    local jpeg = data:sub(1, 3) == "\255\216\255"
+    assert(gif or png or jpeg, "Choose a PNG, JPEG, or GIF file")
+    if not gif then
+        local width, height = dimensions(data, png)
+        local image
+        if type(writefile) == "function" and type(makefolder) == "function" then
+            folder("Kinoue")
+            folder(ROOT)
+            local cached = ROOT .. "/image-" .. Png.hash(data, checkpoint) .. (png and ".png" or ".jpg")
+            if type(isfile) ~= "function" or not isfile(cached) then
+                writefile(cached, data)
+            end
+            image = asset(cached)
+        else
+            image = asset(path)
+        end
+        assert(type(image) == "string" and image ~= "", "Executor did not register the image")
+        return {
+            Kind = "Image",
+            Width = width,
+            Height = height,
+            Pages = { image },
+            Frames = { { Image = image, X = 0, Y = 0, Width = 0, Height = 0, End = 0 } },
+            Duration = 0,
+        }
+    end
+    assert(
+        type(writefile) == "function" and type(makefolder) == "function",
+        "GIF backgrounds require executor writefile and makefolder functions"
+    )
+    folder("Kinoue")
+    folder(ROOT)
+    local directory = ROOT .. "/gif" .. VERSION .. "-" .. Png.hash(data, checkpoint)
+    folder(directory)
+    local manifest = directory .. "/frames.json"
+    local cached, meta = pcall(function()
+        local value = HttpService:JSONDecode(readfile(manifest))
+        assert(valid(value), "Invalid GIF cache")
+        return value
+    end)
+    if cached then
+        local loaded, result = pcall(register, meta, directory, asset, checkpoint)
+        if loaded then
+            result.Cached = true
+            return result
+        end
+        if checkpoint then
+            checkpoint()
+        end
+    end
+    local source = Gif.parse(data, checkpoint)
+    local scale = math.min(
+        1,
+        512 / source.Width,
+        512 / source.Height,
+        math.sqrt(PIXELS / (#source.Frames * source.Width * source.Height))
+    )
+    local width, height = math.max(1, math.floor(source.Width * scale)), math.max(1, math.floor(source.Height * scale))
+    local cellWidth, cellHeight = width + 2, height + 2
+    local columns, rows = math.floor(1024 / cellWidth), math.floor(1024 / cellHeight)
+    local perPage = columns * rows
+    meta = { Version = VERSION, Width = width, Height = height, Pages = {}, Frames = {} }
+    local raw, pageWidth, pageHeight, stride, page
+    Gif.render(source, width, height, function(canvas, index)
+        local slot = (index - 1) % perPage
+        if slot == 0 then
+            page = #meta.Pages + 1
+            local remaining = math.min(perPage, #source.Frames - index + 1)
+            pageWidth = math.min(columns, remaining) * cellWidth
+            pageHeight = math.ceil(remaining / columns) * cellHeight
+            stride = pageWidth * 4 + 1
+            raw = buffer.create(stride * pageHeight)
+            meta.Pages[page] = { Width = pageWidth, Height = pageHeight }
+        end
+        local x, y = slot % columns * cellWidth, math.floor(slot / columns) * cellHeight
+        for row = 0, height - 1 do
+            local destination = (y + row + 1) * stride + (x + 1) * 4 + 1
+            buffer.copy(raw, destination, canvas, row * width * 4, width * 4)
+            buffer.copy(raw, destination - 4, canvas, row * width * 4, 4)
+            buffer.copy(raw, destination + width * 4, canvas, (row * width + width - 1) * 4, 4)
+        end
+        buffer.copy(raw, y * stride + x * 4 + 1, raw, (y + 1) * stride + x * 4 + 1, cellWidth * 4)
+        buffer.copy(raw, (y + height + 1) * stride + x * 4 + 1, raw, (y + height) * stride + x * 4 + 1, cellWidth * 4)
+        meta.Frames[index] = { Page = page, X = x + 1, Y = y + 1, End = source.Frames[index].End }
+        if slot == perPage - 1 or index == #source.Frames then
+            local encoded = Png.encode(pageWidth, pageHeight, raw, checkpoint)
+            if checkpoint then
+                checkpoint()
+            end
+            writefile(directory .. "/" .. page .. ".png", encoded)
+            raw = nil
+        end
+    end, checkpoint)
+    if checkpoint then
+        checkpoint()
+    end
+    writefile(manifest, HttpService:JSONEncode(meta))
+    return register(meta, directory, asset, checkpoint)
+end
+
+return Media
+end
+
 __factories["internal/Model"] = function()
 local Model = {}
 
@@ -4341,6 +5227,99 @@ function Mount.core(screen, replaceExisting)
 end
 
 return Mount
+end
+
+__factories["internal/Png"] = function()
+local Png = {}
+local xor, shift, band = bit32.bxor, bit32.rshift, bit32.band
+local crcTable = table.create(256)
+for index = 0, 255 do
+    local value = index
+    for _ = 1, 8 do
+        value = band(value, 1) == 1 and xor(shift(value, 1), 0xEDB88320) or shift(value, 1)
+    end
+    crcTable[index + 1] = value
+end
+
+local function big(value)
+    return string.char(
+        band(shift(value, 24), 255),
+        band(shift(value, 16), 255),
+        band(shift(value, 8), 255),
+        band(value, 255)
+    )
+end
+
+local function crc(data, value, checkpoint)
+    value = value or 0xFFFFFFFF
+    for first = 1, #data, 16384 do
+        for index = first, math.min(#data, first + 16383) do
+            value = xor(shift(value, 8), crcTable[xor(band(value, 255), string.byte(data, index)) + 1])
+        end
+        if checkpoint then
+            checkpoint()
+        end
+    end
+    return value
+end
+
+function Png.hash(data, checkpoint)
+    local second = 2166136261
+    for first = 1, #data, 16384 do
+        for index = first, math.min(#data, first + 16383) do
+            second = xor(second, string.byte(data, index))
+            second = (second * 403 + bit32.lshift(second, 24)) % 4294967296
+        end
+        if checkpoint then
+            checkpoint()
+        end
+    end
+    return string.format("%08x%08x-%x", bit32.bnot(crc(data, nil, checkpoint)), second, #data)
+end
+
+local function chunk(kind, data, checkpoint)
+    local checksum = bit32.bnot(crc(data, crc(kind), checkpoint))
+    return big(#data) .. kind .. data .. big(checksum)
+end
+
+function Png.encode(width, height, raw, checkpoint)
+    assert(width > 0 and height > 0 and buffer.len(raw) == (width * 4 + 1) * height, "Invalid PNG dimensions")
+    local data = buffer.tostring(raw)
+    local blocks = { string.char(0x78, 0x01) }
+    local a, b = 1, 0
+    for first = 1, #data, 5552 do
+        for index = first, math.min(#data, first + 5551) do
+            a += string.byte(data, index)
+            b += a
+        end
+        a, b = a % 65521, b % 65521
+        if checkpoint then
+            checkpoint()
+        end
+    end
+    for first = 1, #data, 65535 do
+        local length = math.min(65535, #data - first + 1)
+        local inverse = 65535 - length
+        blocks[#blocks + 1] = string.char(
+            first + length > #data and 1 or 0,
+            length % 256,
+            math.floor(length / 256),
+            inverse % 256,
+            math.floor(inverse / 256)
+        ) .. string.sub(data, first, first + length - 1)
+        if checkpoint then
+            checkpoint()
+        end
+    end
+    blocks[#blocks + 1] = big(b * 65536 + a)
+    local header = big(width) .. big(height) .. string.char(8, 6, 0, 0, 0)
+    return "\137PNG\13\10\26\10"
+        .. chunk("IHDR", header)
+        .. chunk("IDAT", table.concat(blocks), checkpoint)
+        .. chunk("IEND", "")
+end
+
+return Png
 end
 
 __factories["internal/Theme"] = function()

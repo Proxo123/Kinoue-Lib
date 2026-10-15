@@ -4,6 +4,8 @@ local Util = require(script.Parent.Parent.internal.Util)
 
 local NARROW_WIDTH = 520
 
+local Background = require(script.Parent.Background)
+
 local Page = {}
 Page.__index = Page
 
@@ -138,6 +140,8 @@ function Page:AddGroupbox(title, side)
         Position = UDim2.fromOffset(6, 2),
         Size = UDim2.new(1, -12, 1, -2),
     })
+    Background.surface(self.Window, frame)
+    Background.surface(self.Window, header)
     local container = Util.frame(frame, {
         Position = UDim2.fromOffset(Theme.Padding, 27),
         Size = UDim2.new(1, -2 * Theme.Padding, 0, 0),
