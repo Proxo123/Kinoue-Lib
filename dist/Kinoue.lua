@@ -2051,6 +2051,7 @@ local function buildBody(window)
     window.Body = Util.frame(window.Root, {
         Position = UDim2.fromOffset(0, HEADER_HEIGHT + TAB_BAR_HEIGHT),
         Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + TAB_BAR_HEIGHT + FOOTER_HEIGHT)),
+        BackgroundTransparency = 1,
     })
 end
 

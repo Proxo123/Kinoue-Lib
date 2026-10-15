@@ -40,6 +40,28 @@ assert(status.Kind == "GIF" and status.Frames == 5 and status.Width == 20 and st
 assert(state.Connection and state.Image.ImageRectSize.X == 20 and state.Image.ImageRectOffset.X == 1)
 assert(math.abs(window.Header.BackgroundTransparency - 0.2) < 0.001)
 assert(window.Controls["UI.Background.File"]:Get() == "rain.gif")
+window:SetBackground({ PanelOpacity = 0 })
+for _, container in ipairs({ group.Container, window.SettingsPage.Left, window.SettingsPage.Right }) do
+    local layer = container
+    while layer ~= window.Root do
+        assert(layer.BackgroundTransparency == 1, "Tab content must let the background show through every layer")
+        layer = layer.Parent
+    end
+end
+local second = window:AddTab("Second")
+local subpage = second:AddSubTab("Subpage")
+local nested = subpage:AddGroupbox("Nested", "Right")
+local layer = nested.Container
+while layer ~= window.Root do
+    assert(layer.BackgroundTransparency == 1, "New tabs and sub-tabs must keep the background visible")
+    layer = layer.Parent
+end
+second:Select()
+window:OpenSettings()
+assert(window.Body.BackgroundTransparency == 1 and window.SettingsPage.Frame.Visible)
+window:CloseSettings()
+assert(window.Body.BackgroundTransparency == 1 and second.Frame.Visible)
+window:SetBackground({ PanelOpacity = 0.8 })
 local index = state.Index
 for _ = 1, 7 do
     Mock:Render()
