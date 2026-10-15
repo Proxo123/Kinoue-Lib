@@ -1077,6 +1077,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     control.Conflicts = {}
     control.Root = Util.button(row, "", {
         Name = "Key",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
@@ -1090,6 +1091,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     Util.corner(control.Root, Theme.SmallRadius)
     control.Clear = Util.button(row, "×", {
         Name = "Unbind",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
         Size = UDim2.fromOffset(CLEAR_SIZE, CLEAR_SIZE),
         BackgroundTransparency = 1,
@@ -1099,6 +1101,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     })
     control.Warning = Icons.warning(row, WARNING_SIZE, {
         Name = "Conflict",
+        ZIndex = 2,
         AnchorPoint = Vector2.new(1, 0.5),
     })
     control.Warning.Root.Visible = false
@@ -1702,6 +1705,7 @@ local function attachSettings(group, control, window, row, newGroup)
         Position = UDim2.new(1, -(ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP), 0.5, 0),
         Size = UDim2.fromOffset(COG_SIZE, COG_SIZE),
         BackgroundTransparency = 1,
+        ZIndex = 2,
         BorderSizePixel = 0,
     })
     local icon = Icons.gear(cog, COG_ICON_SIZE)
@@ -1765,9 +1769,10 @@ function Toggle.add(group, id, info, newGroup)
     local holder, row = buildRow(group, info.SubToggle == true)
     control.Row = holder
 
+    local subToggle = info.SubToggle == true
     local rightInset = ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP
-    if info.SubToggle == true then
-        rightInset += attachSettings(group, control, window, row, newGroup)
+    if subToggle then
+        rightInset += COG_SIZE + COG_GAP
     end
 
     local hit = Util.button(row, "", {
@@ -1777,6 +1782,9 @@ function Toggle.add(group, id, info, newGroup)
         BorderSizePixel = 0,
     })
     control.Root = hit
+    if subToggle then
+        attachSettings(group, control, window, row, newGroup)
+    end
     local name = Util.label(hit, info.Text or id, {
         Name = "Label",
         Position = UDim2.fromOffset(ROW_PADDING, 0),
@@ -2636,6 +2644,9 @@ local SEARCH_WIDTH = 160
 local VERSION_TEXT_SIZE = 11
 local STATUS_DOT = 6
 local TAB_STRIP_PADDING = 3
+local TAB_STRIP_HEIGHT = 24 + 2 * TAB_STRIP_PADDING
+local TITLE_GAP = 8
+local TABS_GAP = 16
 
 local Background = __require("Window/Background")
 
@@ -2684,15 +2695,18 @@ local function buildHeader(window, options)
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
     local subtitle = options.Subtitle or options.Footer or ""
+    local subtitleWidth = subtitle ~= "" and Util.textWidth(subtitle, Theme.SmallSize - 1, Theme.FontMedium) or 0
     window.SubtitleLabel = Util.label(window.Header, subtitle, {
         Name = "Subtitle",
-        Position = UDim2.fromOffset(EDGE + titleWidth + 8, 1),
-        Size = UDim2.new(1, -(EDGE + titleWidth + 8 + reserved), 1, 0),
+        Position = UDim2.fromOffset(EDGE + titleWidth + TITLE_GAP, 1),
+        Size = UDim2.fromOffset(subtitleWidth, HEADER_HEIGHT),
         Font = Theme.FontMedium,
         TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    window.TabsLeft = EDGE + titleWidth + (subtitleWidth > 0 and TITLE_GAP + subtitleWidth or 0) + TABS_GAP
+    window.TabsReserved = reserved
     Util.frame(window.Header, {
         Name = "Divider",
         Position = UDim2.new(0, 0, 1, -1),
@@ -2781,7 +2795,7 @@ local function buildTabs(window)
     window.Tabs = Util.new("ScrollingFrame", {
         Name = "Tabs",
         Position = UDim2.fromOffset(0, HEADER_HEIGHT),
-        Size = UDim2.new(1, 0, 0, TAB_BAR_HEIGHT),
+        Size = UDim2.new(1, 0, 0, TAB_STRIP_HEIGHT),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         ScrollBarThickness = 0,
@@ -2789,14 +2803,9 @@ local function buildTabs(window)
         CanvasSize = UDim2.new(),
         ScrollingDirection = Enum.ScrollingDirection.X,
     }, window.Root)
-    Util.new("UIPadding", {
-        PaddingLeft = UDim.new(0, EDGE),
-        PaddingRight = UDim.new(0, EDGE),
-        PaddingTop = UDim.new(0, 6),
-    }, window.Tabs)
     window.TabStrip = Util.frame(window.Tabs, {
         Name = "TabStrip",
-        Size = UDim2.fromOffset(0, 24 + 2 * TAB_STRIP_PADDING),
+        Size = UDim2.fromOffset(0, TAB_STRIP_HEIGHT),
         AutomaticSize = Enum.AutomaticSize.X,
         BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
@@ -2806,6 +2815,30 @@ local function buildTabs(window)
     Util.corner(window.TabStrip, Theme.Radius + 1)
     Util.padding(window.TabStrip, TAB_STRIP_PADDING)
     Util.list(window.TabStrip, true, 2)
+    window.Scope:Connect(window.TabStrip:GetPropertyChangedSignal("AbsoluteSize"), function()
+        Chrome.layoutTabs(window)
+    end)
+end
+
+function Chrome.layoutTabs(window)
+    local available = window.Root.AbsoluteSize.X - window.TabsLeft - window.TabsReserved
+    local stripWidth = window.TabStrip.Visible and window.TabStrip.AbsoluteSize.X or 0
+    local inHeader = stripWidth <= available
+    local bodyTop
+    if inHeader then
+        window.Tabs.Position = UDim2.fromOffset(window.TabsLeft, (HEADER_HEIGHT - TAB_STRIP_HEIGHT) / 2)
+        window.Tabs.Size = UDim2.fromOffset(math.max(0, available), TAB_STRIP_HEIGHT)
+        bodyTop = HEADER_HEIGHT
+    else
+        window.Tabs.Position = UDim2.fromOffset(EDGE, HEADER_HEIGHT + (TAB_BAR_HEIGHT - TAB_STRIP_HEIGHT) / 2)
+        window.Tabs.Size = UDim2.new(1, -2 * EDGE, 0, TAB_STRIP_HEIGHT)
+        bodyTop = HEADER_HEIGHT + TAB_BAR_HEIGHT
+    end
+    window.TabsInHeader = inHeader
+    if window.Body then
+        window.Body.Position = UDim2.fromOffset(0, bodyTop)
+        window.Body.Size = UDim2.new(1, 0, 1, -(bodyTop + FOOTER_HEIGHT))
+    end
 end
 
 local function buildBody(window)
@@ -2885,6 +2918,7 @@ function Chrome.build(window, options)
     buildFooter(window)
     Background.surface(window, window.TabStrip)
     buildResizeHandle(window)
+    Chrome.layoutTabs(window)
 end
 
 function Chrome.layoutAccent(window)
@@ -3438,7 +3472,7 @@ local NARROW_WIDTH = 520
 local EDGE = 14
 local TITLE_HEIGHT = 28
 local TAB_HEIGHT = 24
-local TAB_TEXT_SIZE = 12
+local TAB_TEXT_SIZE = 13
 local SUBBAR_HEIGHT = 26
 local GROUP_HEADER_HEIGHT = 30
 
@@ -3523,6 +3557,7 @@ function Page.new(window, name)
     })
     Util.corner(self.Line, 1)
     window.TabStrip.Visible = true
+    window:Relayout()
     window.Scope:Connect(self.Button.Activated, function()
         window:SelectTab(self)
     end)
@@ -4681,6 +4716,7 @@ end
 
 function Window:Relayout()
     Chrome.layoutAccent(self)
+    Chrome.layoutTabs(self)
     for _, page in ipairs(self.Pages) do
         page:Relayout()
     end
@@ -4909,7 +4945,7 @@ local Window = __require("Window")
 local KeySystem = __require("KeySystem")
 
 local Library = {
-    Version = "0.9.0",
+    Version = "0.9.1",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -6214,15 +6250,22 @@ local COLOR_KEYS = {
     "Success",
 }
 
+local function font(name, fallback)
+    local ok, value = pcall(function()
+        return Enum.Font[name]
+    end)
+    return ok and value or fallback
+end
+
 local Theme = {
-    Font = Enum.Font.Gotham,
-    FontMedium = Enum.Font.GothamMedium,
-    FontBold = Enum.Font.GothamBold,
+    Font = font("BuilderSans", Enum.Font.Gotham),
+    FontMedium = font("BuilderSansMedium", Enum.Font.GothamMedium),
+    FontBold = font("BuilderSansBold", Enum.Font.GothamBold),
     MonoFont = Enum.Font.Code,
-    TextSize = 13,
-    SmallSize = 12,
-    TinySize = 10,
-    TitleSize = 14,
+    TextSize = 14,
+    SmallSize = 13,
+    TinySize = 11,
+    TitleSize = 15,
     RowHeight = 28,
     Gap = 10,
     ControlGap = 2,

@@ -12,15 +12,22 @@ local COLOR_KEYS = {
     "Success",
 }
 
+local function font(name, fallback)
+    local ok, value = pcall(function()
+        return Enum.Font[name]
+    end)
+    return ok and value or fallback
+end
+
 local Theme = {
-    Font = Enum.Font.Gotham,
-    FontMedium = Enum.Font.GothamMedium,
-    FontBold = Enum.Font.GothamBold,
+    Font = font("BuilderSans", Enum.Font.Gotham),
+    FontMedium = font("BuilderSansMedium", Enum.Font.GothamMedium),
+    FontBold = font("BuilderSansBold", Enum.Font.GothamBold),
     MonoFont = Enum.Font.Code,
-    TextSize = 13,
-    SmallSize = 12,
-    TinySize = 10,
-    TitleSize = 14,
+    TextSize = 14,
+    SmallSize = 13,
+    TinySize = 11,
+    TitleSize = 15,
     RowHeight = 28,
     Gap = 10,
     ControlGap = 2,

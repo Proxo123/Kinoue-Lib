@@ -356,6 +356,7 @@ end
 
 function Window:Relayout()
     Chrome.layoutAccent(self)
+    Chrome.layoutTabs(self)
     for _, page in ipairs(self.Pages) do
         page:Relayout()
     end
