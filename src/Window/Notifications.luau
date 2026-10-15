@@ -1,14 +1,18 @@
+local Icons = require(script.Parent.Parent.internal.Icons)
 local Mount = require(script.Parent.Parent.internal.Mount)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
-local WIDTH = 260
-local PADDING = 10
-local TITLE_HEIGHT = 18
+local WIDTH = 280
+local PADDING = 12
+local ICON_SIZE = 26
+local TEXT_LEFT = PADDING + ICON_SIZE + 10
+local CLOSE_SIZE = 22
+local SUBTITLE_HEIGHT = 16
 local TIMER_HEIGHT = 2
-local CLOSE_SIZE = 16
+local TIMER_SPACE = 8
 local SCREEN_MARGIN = 14
-local GAP = 6
+local GAP = 8
 local MAX_VISIBLE = 5
 local DEFAULT_DURATION = 4
 local MIN_DURATION = 0.5
@@ -93,12 +97,13 @@ local function dismiss(window, toast)
 end
 
 local function build(window, holder, message)
-    local textWidth = WIDTH - 2 * PADDING
-    local textHeight = 0
-    if message.Text ~= "" then
-        textHeight = math.ceil(Util.textSize(message.Text, Theme.SmallSize, textWidth).Y)
-    end
-    local height = PADDING + TITLE_HEIGHT + (textHeight > 0 and textHeight + 2 or 0) + PADDING + TIMER_HEIGHT
+    local hasText = message.Text ~= ""
+    local headline = hasText and message.Text or message.Title
+    local textWidth = WIDTH - TEXT_LEFT - CLOSE_SIZE - PADDING
+    local headlineHeight =
+        math.max(16, math.ceil(Util.textSize(headline, Theme.TextSize, textWidth, Theme.FontMedium).Y))
+    local blockHeight = headlineHeight + (hasText and SUBTITLE_HEIGHT + 2 or 0)
+    local height = PADDING + math.max(ICON_SIZE, blockHeight) + PADDING + TIMER_SPACE
 
     local slot = Util.frame(holder, {
         Name = "Slot",
@@ -113,55 +118,69 @@ local function build(window, holder, message)
         BorderSizePixel = 1,
         BorderColor3 = Theme.Color.Outline,
     })
-    Util.frame(card, {
-        Name = "Accent",
-        Size = UDim2.new(0, 2, 1, 0),
+    Util.corner(card, Theme.WindowRadius)
+
+    local badge = Util.frame(card, {
+        Name = "Badge",
+        Position = UDim2.fromOffset(PADDING, PADDING),
+        Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
         BackgroundColor3 = Theme.Color.Accent,
+        BackgroundTransparency = 0.75,
+    })
+    Util.corner(badge, ICON_SIZE / 2)
+    local icon = Icons.check(badge, 13)
+
+    local body = Util.label(card, headline, {
+        Name = "Message",
+        Position = UDim2.fromOffset(TEXT_LEFT, PADDING),
+        Size = UDim2.new(0, textWidth, 0, headlineHeight),
+        Font = Theme.FontMedium,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
     })
     local title = Util.label(card, message.Title, {
         Name = "Title",
-        Position = UDim2.fromOffset(PADDING, PADDING - 2),
-        Size = UDim2.new(1, -(2 * PADDING + CLOSE_SIZE), 0, TITLE_HEIGHT),
-        TextTruncate = Enum.TextTruncate.AtEnd,
-    })
-    local body = Util.label(card, message.Text, {
-        Name = "Message",
-        Position = UDim2.fromOffset(PADDING, PADDING + TITLE_HEIGHT),
-        Size = UDim2.new(1, -2 * PADDING, 0, textHeight),
+        Position = UDim2.fromOffset(TEXT_LEFT, PADDING + headlineHeight + 2),
+        Size = UDim2.new(0, textWidth, 0, SUBTITLE_HEIGHT),
         TextSize = Theme.SmallSize,
         TextColor3 = Theme.Color.Muted,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         TextYAlignment = Enum.TextYAlignment.Top,
-        Visible = textHeight > 0,
+        Visible = hasText,
     })
     local close = Util.button(card, "×", {
         Name = "Close",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -4, 0, 4),
+        Position = UDim2.new(1, -8, 0, 8),
         Size = UDim2.fromOffset(CLOSE_SIZE, CLOSE_SIZE),
+        BackgroundColor3 = Theme.Color.Input,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         TextColor3 = Theme.Color.Muted,
-        TextSize = Theme.TextSize,
+        TextSize = Theme.TitleSize + 2,
     })
+    Util.corner(close, Theme.Radius - 1)
     local track = Util.frame(card, {
         Name = "Timer",
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, TIMER_HEIGHT),
+        Position = UDim2.new(0, PADDING, 1, -6),
+        Size = UDim2.new(1, -2 * PADDING, 0, TIMER_HEIGHT),
         BackgroundColor3 = Theme.Color.Hover,
     })
+    Util.corner(track, 1)
     local timer = Util.frame(track, {
         Name = "Fill",
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = Theme.Color.Accent,
     })
+    Util.corner(timer, 1)
 
-    return {
+    local toast = {
         Slot = slot,
         Card = card,
         Title = title,
         Message = body,
+        Icon = icon,
         CloseButton = close,
         Timer = timer,
         Height = height,
@@ -169,6 +188,10 @@ local function build(window, holder, message)
         Closed = false,
         Scope = Util.scope(),
     }
+    Util.hover(toast.Scope, close, function(hovered)
+        close.BackgroundTransparency = hovered and 0 or 1
+    end)
+    return toast
 end
 
 function Notifications.show(window, options)

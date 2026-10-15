@@ -4,16 +4,13 @@ local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
-local BUTTON_SIZE = 20
-local ICON_SIZE = 14
-local BOX_WIDTH = 200
-local BOX_HEIGHT = 22
-local BOX_GAP = 4
+local FIELD_HEIGHT = 28
+local ICON_SIZE = 13
 local RESULTS_WIDTH = 280
-local RESULT_HEIGHT = 34
+local RESULT_HEIGHT = 36
+local RESULTS_PADDING = 4
 local MAX_RESULTS = 25
 local MAX_VISIBLE = 7
-local OPEN_DURATION = 0.16
 local FLASH_DURATION = 0.9
 local SCROLL_MARGIN = 8
 local SEPARATOR = " > "
@@ -174,22 +171,26 @@ local function addRow(window, state, entry)
         Name = "Result",
         Size = UDim2.new(1, 0, 0, RESULT_HEIGHT),
         BorderSizePixel = 0,
-        BackgroundColor3 = Theme.Color.Panel,
+        BackgroundColor3 = Theme.Color.Selected,
+        BackgroundTransparency = 1,
         ZIndex = 61,
     })
+    Util.corner(row, Theme.Radius - 2)
     Util.label(row, nameOf(entry), {
         Name = "Title",
-        Position = UDim2.fromOffset(8, 3),
-        Size = UDim2.new(1, -72, 0, 16),
-        TextSize = Theme.TextSize - 1,
+        Position = UDim2.fromOffset(10, 4),
+        Size = UDim2.new(1, -80, 0, 16),
+        Font = Theme.FontMedium,
+        TextSize = Theme.SmallSize + 1,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         ZIndex = 62,
     })
     Util.label(row, entry.Kind, {
         Name = "Kind",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -8, 0, 3),
-        Size = UDim2.fromOffset(60, 16),
-        TextSize = Theme.SmallSize - 1,
+        Position = UDim2.new(1, -10, 0, 4),
+        Size = UDim2.fromOffset(64, 16),
+        TextSize = Theme.TinySize,
         TextColor3 = Theme.Color.Muted,
         TextXAlignment = Enum.TextXAlignment.Right,
         ZIndex = 62,
@@ -197,13 +198,16 @@ local function addRow(window, state, entry)
     local path = Search.path(entry)
     Util.label(row, path ~= "" and path or "Tab", {
         Name = "Path",
-        Position = UDim2.fromOffset(8, 18),
-        Size = UDim2.new(1, -16, 0, 13),
+        Position = UDim2.fromOffset(10, 20),
+        Size = UDim2.new(1, -20, 0, 13),
         TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
         ZIndex = 62,
     })
+    Util.hover(state.RowScope, row, function(hovered)
+        row.BackgroundTransparency = hovered and 0 or 1
+    end)
     state.RowScope:Connect(row.Activated, function()
         Search.go(window, entry)
     end)
@@ -239,14 +243,16 @@ function Search.refresh(window)
     end
 
     local count = math.max(1, #state.Matches)
-    state.Results.CanvasSize = UDim2.fromOffset(0, count * RESULT_HEIGHT)
-    state.Results.Size = UDim2.fromOffset(RESULTS_WIDTH, math.min(count, MAX_VISIBLE) * RESULT_HEIGHT)
+    state.Results.CanvasSize = UDim2.fromOffset(0, count * RESULT_HEIGHT + 2 * RESULTS_PADDING)
+    state.Results.Size =
+        UDim2.fromOffset(RESULTS_WIDTH, math.min(count, MAX_VISIBLE) * RESULT_HEIGHT + 2 * RESULTS_PADDING)
     state.Results.Visible = true
 end
 
 local function paint(window)
     local state = window.Search
     state.Icon:SetColor(state.Open and Theme.Accent or Theme.Muted)
+    state.Field.BorderColor3 = state.Open and Theme.Accent or Theme.Outline
 end
 
 function Search.open(window)
@@ -255,18 +261,12 @@ function Search.open(window)
         return
     end
     state.Open = true
-    state.Box.Text = ""
-    state.Box.Visible = true
-    window.Scope:Tween(
-        state.Box,
-        OPEN_DURATION,
-        { Size = UDim2.fromOffset(BOX_WIDTH, BOX_HEIGHT) },
-        window.ReducedMotion
-    )
     paint(window)
-    pcall(function()
-        state.Box:CaptureFocus()
-    end)
+    if UserInputService:GetFocusedTextBox() ~= state.Box then
+        pcall(function()
+            state.Box:CaptureFocus()
+        end)
+    end
 
     state.Scope = Util.scope()
     state.Scope:Connect(UserInputService.InputBegan, function(input)
@@ -278,9 +278,8 @@ function Search.open(window)
             return
         end
         local point = input.Position
-        local inside = Util.contains(state.Box, point)
+        local inside = Util.contains(state.Field, point)
             or (state.Results.Visible and Util.contains(state.Results, point))
-            or Util.contains(state.Button, point)
         if not inside then
             Search.close(window)
         end
@@ -302,8 +301,7 @@ function Search.close(window)
     pcall(function()
         state.Box:ReleaseFocus()
     end)
-    window.Scope:Tween(state.Box, 0, { Size = UDim2.fromOffset(0, BOX_HEIGHT) }, true)
-    state.Box.Visible = false
+    state.Box.Text = ""
     state.Results.Visible = false
     state.Matches = {}
     paint(window)
@@ -314,33 +312,38 @@ function Search.go(window, entry)
     return Search.reveal(window, entry)
 end
 
-function Search.build(window, headerHeight, rightOffset)
-    local button = Util.button(window.Header, "", {
-        Name = "SearchButton",
+function Search.build(window, headerHeight, rightOffset, width)
+    local field = Util.frame(window.Header, {
+        Name = "SearchField",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -rightOffset, 0.5, 0),
-        Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE),
+        Size = UDim2.fromOffset(width, FIELD_HEIGHT),
+        BackgroundColor3 = Theme.Color.Panel,
+        BorderSizePixel = 1,
+        BorderColor3 = Theme.Color.Outline,
+    })
+    Util.corner(field, Theme.Radius)
+    local icon = Icons.search(field, ICON_SIZE, {
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 9, 0.5, 0),
+    })
+    local box = Util.textbox(field, {
+        Name = "SearchBox",
+        Position = UDim2.fromOffset(28, 0),
+        Size = UDim2.new(1, -36, 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-    })
-    local box = Util.textbox(window.Header, {
-        Name = "SearchBox",
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -(rightOffset + BUTTON_SIZE + BOX_GAP), 0.5, 0),
-        Size = UDim2.fromOffset(0, BOX_HEIGHT),
         Text = "",
-        PlaceholderText = "Search settings",
+        PlaceholderText = "Search",
         PlaceholderColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Left,
         ClipsDescendants = true,
-        Visible = false,
     })
-    Util.new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, box)
     local results = Util.new("ScrollingFrame", {
         Name = "SearchResults",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -6, 0, headerHeight + 2),
+        Position = UDim2.new(1, -rightOffset, 0, headerHeight + 4),
         Size = UDim2.fromOffset(RESULTS_WIDTH, 0),
         BackgroundColor3 = Theme.Color.Panel,
         BorderSizePixel = 1,
@@ -351,11 +354,14 @@ function Search.build(window, headerHeight, rightOffset)
         ZIndex = 60,
         Visible = false,
     }, window.Root)
+    Util.corner(results, Theme.Radius + 1)
+    Util.padding(results, RESULTS_PADDING)
     Util.list(results, false, 0)
 
     window.Search = {
-        Button = button,
-        Icon = Icons.search(button, ICON_SIZE),
+        Field = field,
+        Button = field,
+        Icon = icon,
         Box = box,
         Results = results,
         Open = false,
@@ -363,12 +369,8 @@ function Search.build(window, headerHeight, rightOffset)
         Matches = {},
     }
 
-    window.Scope:Connect(button.Activated, function()
-        if window.Search.Open then
-            Search.close(window)
-        else
-            Search.open(window)
-        end
+    window.Scope:Connect(box.Focused, function()
+        Search.open(window)
     end)
     window.Scope:Connect(box:GetPropertyChangedSignal("Text"), function()
         if window.Search.Open then
@@ -384,7 +386,7 @@ function Search.build(window, headerHeight, rightOffset)
     table.insert(window.ThemeHooks, function()
         paint(window)
     end)
-    return BUTTON_SIZE
+    paint(window)
 end
 
 return Search

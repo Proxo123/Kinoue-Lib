@@ -21,7 +21,7 @@ assert(#warnings == 1 and warnings[1]:find("Duplicate control ID", 1, true))
 
 local fly = group:AddToggle("Fly", { Text = "Fly", Keybind = { Value = KeyCode.F } })
 local fill = group:AddKeybind("Fill", { Text = "Fill", Value = KeyCode.Q })
-assert(#fly.Keybind.Conflicts == 0 and fly.Keybind.Root.TextColor3 == Theme.Muted)
+assert(#fly.Keybind.Conflicts == 0 and fly.Keybind.Root.TextColor3 == Theme.Text)
 assert(not fly.Keybind.Warning.Root.Visible)
 
 fill:Set(KeyCode.F)
@@ -56,7 +56,7 @@ assert(presses == 2, "Conflicting binds still all fire")
 third:SetEnabled(false)
 fill:Unbind()
 assert(
-    #fly.Keybind.Conflicts == 0 and fly.Keybind.Root.TextColor3 == Theme.Muted,
+    #fly.Keybind.Conflicts == 0 and fly.Keybind.Root.TextColor3 == Theme.Text,
     "Clearing the clash restores the color"
 )
 assert(not fly.Keybind.Warning.Root.Visible and not fill.Warning.Root.Visible)

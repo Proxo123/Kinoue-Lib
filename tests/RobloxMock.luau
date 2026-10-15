@@ -216,10 +216,16 @@ local function create(className)
     end
     function methods:CaptureFocus()
         Mock.Input.Focused = object
+        if events.Focused then
+            events.Focused:Fire()
+        end
     end
     function methods:ReleaseFocus()
         if Mock.Input.Focused == object then
             Mock.Input.Focused = nil
+            if events.FocusLost then
+                events.FocusLost:Fire(false)
+            end
         end
     end
     function methods:Destroy()
@@ -287,6 +293,7 @@ local function create(className)
                 key == "Activated"
                 or key == "InputBegan"
                 or key == "FocusLost"
+                or key == "Focused"
                 or key == "MouseEnter"
                 or key == "MouseLeave"
                 or key == "Destroying"

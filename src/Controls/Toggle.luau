@@ -5,18 +5,37 @@ local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
-local KEYBIND_INSET = 95
+local ROW_HEIGHT = 30
+local ROW_PADDING = 8
+local SWITCH_WIDTH = 34
+local SWITCH_HEIGHT = 20
+local KNOB_SIZE = 16
+local KNOB_INSET = 2
+local SWITCH_GAP = 8
+local KEY_ESTIMATE = 70
 local COG_SIZE = 18
 local COG_ICON_SIZE = 14
 local COG_GAP = 4
-local SETTINGS_INDENT = 20
-local GUIDE_OFFSET = 6
+local SETTINGS_INDENT = 22
+local GUIDE_OFFSET = 14
+local ANIMATION = 0.16
 
 local Toggle = {}
 
+local function newRow(parent)
+    local row = Util.frame(parent, {
+        Name = "Toggle",
+        Size = UDim2.new(1, 0, 0, ROW_HEIGHT),
+        BackgroundColor3 = Theme.Color.Input,
+        BackgroundTransparency = 1,
+    })
+    Util.corner(row, Theme.Radius - 1)
+    return row
+end
+
 local function buildRow(group, subToggle)
     if not subToggle then
-        local row = Control.row(group)
+        local row = newRow(group.Container)
         return row, row
     end
     local holder = Util.frame(group.Container, {
@@ -26,18 +45,34 @@ local function buildRow(group, subToggle)
         BackgroundTransparency = 1,
     })
     Util.list(holder, false, Theme.ControlGap)
-    local row = Util.frame(holder, {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Theme.RowHeight),
+    return holder, newRow(holder)
+end
+
+local function buildSwitch(row)
+    local track = Util.frame(row, {
+        Name = "Switch",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -ROW_PADDING + 2, 0.5, 0),
+        Size = UDim2.fromOffset(SWITCH_WIDTH, SWITCH_HEIGHT),
+        BackgroundColor3 = Theme.Hover,
     })
-    return holder, row
+    Util.corner(track, SWITCH_HEIGHT / 2)
+    local knob = Util.frame(track, {
+        Name = "Knob",
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, KNOB_INSET, 0.5, 0),
+        Size = UDim2.fromOffset(KNOB_SIZE, KNOB_SIZE),
+        BackgroundColor3 = Theme.Muted,
+    })
+    Util.corner(knob, KNOB_SIZE / 2)
+    return track, knob
 end
 
 local function attachSettings(group, control, window, row, newGroup)
     local cog = Util.button(row, "", {
         Name = "SettingsButton",
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, 0, 0.5, 0),
+        Position = UDim2.new(1, -(ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP), 0.5, 0),
         Size = UDim2.fromOffset(COG_SIZE, COG_SIZE),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -103,42 +138,47 @@ function Toggle.add(group, id, info, newGroup)
     local holder, row = buildRow(group, info.SubToggle == true)
     control.Row = holder
 
-    local rightInset = 0
+    local rightInset = ROW_PADDING - 2 + SWITCH_WIDTH + SWITCH_GAP
     if info.SubToggle == true then
-        rightInset = attachSettings(group, control, window, row, newGroup)
+        rightInset += attachSettings(group, control, window, row, newGroup)
     end
 
     local hit = Util.button(row, "", {
-        Size = UDim2.new(1, -(rightInset + (keybind and KEYBIND_INSET or 0)), 1, 0),
+        Name = "Hit",
+        Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
     control.Root = hit
-
-    local box = Util.frame(hit, {
-        Position = UDim2.new(0, 0, 0.5, -6),
-        Size = UDim2.fromOffset(13, 13),
-        BackgroundColor3 = Theme.Panel,
-        BorderSizePixel = 1,
-        BorderColor3 = Theme.Outline,
-    })
     local name = Util.label(hit, info.Text or id, {
-        Position = UDim2.fromOffset(20, 0),
-        Size = UDim2.new(1, -20, 1, 0),
+        Name = "Label",
+        Position = UDim2.fromOffset(ROW_PADDING, 0),
+        Size = UDim2.new(1, -(ROW_PADDING + rightInset + (keybind and KEY_ESTIMATE or 0)), 1, 0),
+        TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    local track, knob = buildSwitch(row)
+    control.Switch = track
+    control.Knob = knob
 
     control.Render = function(value)
-        window.Scope:Tween(box, 0.16, {
-            BackgroundColor3 = value and Theme.Accent or Theme.Panel,
-            BorderColor3 = value and Theme.Accent or Theme.Outline,
-        }, window.ReducedMotion)
-        name.TextTransparency = control.Enabled and 0 or Theme.DisabledTransparency
+        local reduced = window.ReducedMotion
+        window.Scope:Tween(track, ANIMATION, { BackgroundColor3 = value and Theme.Accent or Theme.Hover }, reduced)
+        window.Scope:Tween(knob, ANIMATION, {
+            Position = UDim2.new(0, value and SWITCH_WIDTH - KNOB_SIZE - KNOB_INSET or KNOB_INSET, 0.5, 0),
+            BackgroundColor3 = value and Color3.new(1, 1, 1) or Theme.Muted,
+        }, reduced)
+        local transparency = control.Enabled and 0 or Theme.DisabledTransparency
+        name.TextTransparency = transparency
+        track.BackgroundTransparency = control.Enabled and 0 or 0.5
     end
 
     window.Scope:Connect(hit.Activated, function()
         if control.Enabled then
             control:Set(not control:Get())
         end
+    end)
+    Util.hover(window.Scope, hit, function(hovered)
+        row.BackgroundTransparency = (hovered and control.Enabled) and 0 or 1
     end)
 
     if keybind then

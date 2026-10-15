@@ -8,7 +8,7 @@ end
 local window = UI:CreateWindow({
     Name = "Kinoue",
     Id = "KinoueExample",
-    Footer = "Example",
+    Subtitle = "Example",
     ToggleKey = Enum.KeyCode.RightShift,
 })
 if environment then

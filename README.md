@@ -15,7 +15,7 @@ Or import `dist/Kinoue.rbxmx` as a ModuleScript and `require` it.
 ## Quick start
 
 ```lua
-local window = UI:CreateWindow({ Name = "Kinoue", Footer = "My script" })
+local window = UI:CreateWindow({ Name = "Kinoue", Subtitle = "My script" })
 local main = window:AddTab("Main")
 local group = main:AddGroupbox("Controls", "Left")
 
@@ -35,7 +35,7 @@ RightShift shows and hides the window.
 local window = UI:CreateWindow({
     Name = "Kinoue",
     Id = "Kinoue",
-    Footer = "My script",
+    Subtitle = "My script",
     Size = Vector2.new(704, 470),
     MinSize = Vector2.new(480, 360),
     Position = UDim2.fromScale(0.5, 0.5),
@@ -91,11 +91,11 @@ print(UI:GetTheme(), UI.Themes)
 
 Pass `ShowSettings = false` to `CreateWindow` to hide the gear button.
 
-The footer shows the library version in small grey text on the right.
+`Subtitle` appears in small grey text next to the window name. `Footer` is still accepted as an older name for it. The footer shows a status line on the left and the library version on the right.
 
 ## Search
 
-The magnifier next to the gear opens a search box. Type to filter every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside closes the search.
+The search field next to the gear filters every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside clears and closes the search.
 
 ## Notifications
 
@@ -228,7 +228,7 @@ Extra methods:
 | Method | Description |
 | --- | --- |
 | `dropdown:UpdateOptions(options)` | Replaces the options, keeping the selection when it still exists. |
-| `keybind:Unbind()` | Clears the key; the bind shows `[Unbound]`. |
+| `keybind:Unbind()` | Clears the key; the keycap shows `Unbound`. |
 | `toggle:SetSettingsOpen(open)` / `toggle:IsSettingsOpen()` | Opens, closes or reads a sub-toggle's settings panel. |
 | `color:Open()` / `color:Close()` | Opens or closes the picker popup. |
 | `label:SetText(text)` / `label:SetVisible(visible)` | Updates a label. |
@@ -242,7 +242,7 @@ Extra methods:
 Keybinds can sit on their own row (`AddKeybind`) or next to a toggle or button (`Keybind = {...}`).
 
 - Click the key label, then press a key to rebind it. Escape cancels.
-- Click the grey × left of the key to unbind it. Unbound keys show `[Unbound]`.
+- Keys show as keycaps. Click the grey × left of a keycap to unbind it. Unbound keys show a faint `Unbound` keycap.
 - `Keybind = true` adds an empty slot that starts unbound.
 - A toggle's keybind flips the toggle unless you pass your own `Pressed`.
 - `Clearable = false` hides the ×, as on the built-in menu key.
@@ -269,10 +269,9 @@ local row = right:AddButtons({
     { Text = "Open color", Callback = function() color:Open() end },
     { Text = "Close color", Callback = function() color:Close() end },
 })
-row[1].TextColor3 = UI.Theme.Accent
 ```
 
-`AddButtons` returns the underlying `TextButton` instances.
+`AddButtons` returns the underlying `TextButton` instances. `Primary = true` gives a button the filled accent style.
 
 ## Preview
 
