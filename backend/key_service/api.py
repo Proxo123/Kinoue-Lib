@@ -1,13 +1,12 @@
-import os
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from .store import Denied, Store
+from .store import Denied
+from .postgres import environment_store
+from .admin import attach_admin
 
 
 class Credentials(BaseModel):
@@ -38,7 +37,8 @@ class BodyLimit:
             if event["type"] == "http.disconnect":
                 return
             size += len(event.get("body", b""))
-            if size > 8192:
+            limit = 3 * 1024 * 1024 if scope.get("path") == "/admin/api/applications" else 8192
+            if size > limit:
                 await JSONResponse({"error": "request_too_large"}, status_code=413)(scope, receive, send)
                 return
             chunks.append(event.get("body", b""))
@@ -56,21 +56,25 @@ class BodyLimit:
         await self.app(scope, replay, send)
 
 
-def create_app(store=None):
-    store = store or Store(Path(os.environ.get("KINOUE_DATA_DIR", "var")))
+def create_app(store=None, admin_hash=None, origin=None):
+    store = store or environment_store()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(BodyLimit)
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
-        if request.url.path != "/health":
+        if request.url.path.startswith(("/v1/", "/admin/api/")):
             try:
-                await run_in_threadpool(store.rate_limit, request.client.host if request.client else "unknown")
+                admin = request.url.path.startswith("/admin/")
+                await run_in_threadpool(store.rate_limit, request.client.host if request.client else "unknown", "admin" if admin else "client", 180 if admin else 60)
             except Denied as error:
                 return JSONResponse({"error": error.code}, status_code=error.status, headers={"Retry-After": "60", "Cache-Control": "no-store"})
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         return response
 
     @app.exception_handler(Denied)
@@ -79,6 +83,10 @@ def create_app(store=None):
 
     @app.exception_handler(RequestValidationError)
     async def invalid(_, __):
+        return JSONResponse({"error": "invalid_request"}, status_code=400)
+
+    @app.exception_handler(ValueError)
+    async def invalid_value(_, __):
         return JSONResponse({"error": "invalid_request"}, status_code=400)
 
     @app.get("/health")
@@ -97,4 +105,5 @@ def create_app(store=None):
     def script(body: Session):
         return store.script(body.application, body.token, body.hwid)
 
+    attach_admin(app, store, admin_hash, origin)
     return app

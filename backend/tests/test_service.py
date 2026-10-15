@@ -3,23 +3,8 @@ import json
 import sqlite3
 
 import pytest
-from fastapi.testclient import TestClient
-
-from key_service.api import create_app
+from key_service.postgres import PostgresStore
 from key_service.store import Denied, Store
-
-
-@pytest.fixture
-def setup(tmp_path):
-    Store.initialize(tmp_path)
-    clock = [2000000000]
-    store = Store(tmp_path, now=lambda: clock[0])
-    source = tmp_path / "example.luau"
-    source.write_text('return "protected-script"', encoding="utf-8")
-    store.register("king", "King", source)
-    store.register("second", "Second", source)
-    license = store.issue("king", 30)
-    return store, license, clock, TestClient(create_app(store))
 
 
 def redeem(client, license, hwid="device-one", application="king"):
@@ -36,8 +21,12 @@ def test_redeem_bind_and_load(setup):
     assert loaded.headers["cache-control"] == "no-store"
     assert redeem(client, license, "device-two").status_code == 403
     assert redeem(client, license).status_code == 200
-    with sqlite3.connect(store.database) as db:
-        dump = "\n".join(db.iterdump())
+    if isinstance(store, PostgresStore):
+        with store.connect() as db:
+            dump = str(db.execute("SELECT * FROM licenses").fetchall()) + str(db.execute("SELECT * FROM sessions").fetchall())
+    else:
+        with sqlite3.connect(store.database) as db:
+            dump = "\n".join(db.iterdump())
     assert license["key"] not in dump and token not in dump and "device-one" not in dump
 
 
@@ -123,7 +112,7 @@ def test_rate_limit_and_reset(setup):
 def test_restart_retains_bindings_and_sessions(setup):
     store, license, _, client = setup
     token = redeem(client, license).json()["token"]
-    restarted = Store(store.directory, now=store.now)
+    restarted = PostgresStore(store.url, store.secret.hex(), now=store.now) if isinstance(store, PostgresStore) else Store(store.directory, now=store.now)
     assert restarted.script("king", token, "device-one") == 'return "protected-script"'
     with pytest.raises(Denied, match="hwid_mismatch"):
         restarted.redeem("king", license["key"], "device-two")
@@ -145,4 +134,4 @@ def test_sessions_are_bounded(setup):
     for _ in range(12):
         store.redeem("king", license["key"], "device-one")
     with store.connect() as db:
-        assert db.execute("SELECT count(*) FROM sessions").fetchone()[0] <= 5
+        assert db.execute("SELECT count(*) AS total FROM sessions").fetchone()["total"] <= 5

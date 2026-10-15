@@ -1,8 +1,13 @@
 import argparse
 import json
 import sys
+import getpass
+import os
+import secrets
 
 from .store import Store
+from .postgres import environment_store
+from .security import password_hash
 
 
 def main():
@@ -10,6 +15,8 @@ def main():
     parser.add_argument("--data", default="var")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init")
+    commands.add_parser("admin-password")
+    commands.add_parser("generate-secret")
     register = commands.add_parser("register")
     register.add_argument("application")
     register.add_argument("script")
@@ -22,9 +29,20 @@ def main():
         command.add_argument("license_id")
     args = parser.parse_args()
     try:
+        if args.command == "admin-password":
+            password = getpass.getpass("Admin password: ")
+            if password != getpass.getpass("Confirm password: "):
+                raise ValueError("Passwords did not match")
+            print(password_hash(password))
+            return
+        if args.command == "generate-secret":
+            print(secrets.token_hex(32))
+            return
         if args.command == "init":
-            Store.initialize(args.data)
-        store = Store(args.data)
+            if not (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")):
+                Store.initialize(args.data)
+        os.environ["KINOUE_DATA_DIR"] = args.data
+        store = environment_store()
         if args.command == "register":
             store.register(args.application, args.name, args.script)
         elif args.command == "issue":

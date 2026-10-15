@@ -132,6 +132,8 @@ return UI:CreateKeySystem({
 
 See [KeySystem.lua](examples/KeySystem.lua) and [backend setup, deployment, and limits](backend/README.md). The library does not contain a master key or a protected script's source.
 
+The backend includes a Vercel-ready admin site with Postgres storage. Create and manage keys, view encrypted HWID records after signing in, reset or replace a device binding, revoke/delete access, and upload script payloads from `/admin/`.
+
 ## Search
 
 The magnifier next to the gear opens a search box. Type to filter every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside closes the search.
