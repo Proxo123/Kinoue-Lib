@@ -14,6 +14,7 @@ COMPILE_TARGETS = [
     "dist/KinoueDemo.lua",
     "examples/Example.lua",
     "examples/ESP.lua",
+    "examples/KeySystem.lua",
 ]
 
 SUITES = [
@@ -33,6 +34,7 @@ SUITES = [
     ("search", "UI", None),
     ("replace", "UI", None),
     ("background", "UI", None),
+    ("keysystem", "UI", None),
 ]
 
 

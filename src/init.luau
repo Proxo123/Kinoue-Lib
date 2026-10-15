@@ -1,15 +1,20 @@
 local Theme = require(script.internal.Theme)
 local Util = require(script.internal.Util)
 local Window = require(script.Window)
+local KeySystem = require(script.KeySystem)
 
 local Library = {
-    Version = "0.7.0",
+    Version = "0.8.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
 
 function Library:CreateWindow(options)
     return Window.new(options or {}, Library.Version)
+end
+
+function Library:CreateKeySystem(options)
+    return Util.withContext(KeySystem.new, self, options)
 end
 
 function Library:SetTheme(theme)

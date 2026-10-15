@@ -1678,6 +1678,385 @@ Util.protect(Group, {
 return Group
 end
 
+__factories["KeySystem"] = function()
+local HttpService = game:GetService("HttpService")
+local Util = __require("internal/Util")
+
+local KeySystem = {}
+KeySystem.__index = KeySystem
+
+local MESSAGES = {
+    invalid_credentials = "Invalid key or saved login.",
+    hwid_mismatch = "Key is bound to another device.",
+    license_expired = "Key expired.",
+    license_revoked = "Key revoked.",
+    session_expired = "Enter your key again.",
+    rate_limited = "Too many attempts. Try again shortly.",
+    script_unavailable = "Script unavailable.",
+    invalid_request = "Invalid request.",
+    unsupported_executor = "Unsupported executor: HWID unavailable.",
+    unsupported_http = "Unsupported executor: HTTP unavailable.",
+    unsupported_loader = "Unsupported executor: loadstring unavailable.",
+    connection_failed = "Could not connect to the key server.",
+    timeout = "Connection timed out.",
+    invalid_response = "Invalid key server response.",
+    script_failed = "Script failed to load.",
+}
+
+local function fingerprint()
+    local providers = { gethwid, get_hwid, type(syn) == "table" and syn.get_hwid or nil }
+    for _, provider in pairs(providers) do
+        if type(provider) == "function" then
+            local ok, value = pcall(provider)
+            if ok and type(value) == "string" and #value > 0 and #value <= 512 and value:find("%S") then
+                return value
+            end
+        end
+    end
+end
+
+local function endpoint(value, localhost)
+    assert(type(value) == "string" and not value:find("[?#@%s]"), "Endpoint must be an HTTPS service URL")
+    local allowed = value:match("^https://[^/]+")
+        or localhost and (value:match("^http://127%.0%.0%.1:%d+") or value:match("^http://localhost:%d+"))
+    assert(allowed, "Endpoint requires HTTPS; AllowLocalhost only permits a loopback development service")
+    if not value:match("^https://") then
+        local host = value:match("^http://([^/]+)")
+        assert(
+            host and (host:match("^127%.0%.0%.1:%d+$") or host:match("^localhost:%d+$")),
+            "Only loopback HTTP is allowed"
+        )
+    end
+    return value:gsub("/+$", "")
+end
+
+function KeySystem:_status(text)
+    if not self.Dead and not self.Window.Dead then
+        self.Window:SetStatus(text)
+    end
+end
+
+function KeySystem:_busy(value)
+    self.Busy = value
+    if not self.Window.Dead then
+        self.Key:SetEnabled(not value and self.Supported)
+        self.RedeemButton:SetEnabled(not value and self.Supported)
+        self.ForgetButton:SetEnabled(not value)
+        self.Remember:SetEnabled(not value and self.CanRemember)
+    end
+end
+
+function KeySystem:_fail(code)
+    self.State, self.Error = "error", code
+    self.Job = nil
+    self:_busy(false)
+    self:_status(MESSAGES[code] or "Key verification failed.")
+    if self.Options.OnError then
+        self.Window:Dispatch(self.Options.OnError, code, MESSAGES[code])
+    end
+end
+
+function KeySystem:_clearCache()
+    self.Token = nil
+    if type(delfile) == "function" then
+        pcall(delfile, self.CachePath)
+    elseif type(writefile) == "function" then
+        pcall(writefile, self.CachePath, "")
+    end
+end
+
+function KeySystem:_save(response)
+    if not self.Remember:Get() or not self.CanRemember then
+        return
+    end
+    local saved = pcall(function()
+        local folder = ""
+        for segment in self.CachePath:gmatch("([^/]+)/") do
+            folder = folder == "" and segment or folder .. "/" .. segment
+            if type(isfolder) ~= "function" or not isfolder(folder) then
+                pcall(makefolder, folder)
+            end
+        end
+        writefile(
+            self.CachePath,
+            HttpService:JSONEncode({
+                Version = 1,
+                Application = self.Application,
+                Endpoint = self.Endpoint,
+                Token = response.token,
+                ExpiresAt = response.expires_at,
+            })
+        )
+    end)
+    self.Remembered = saved
+end
+
+function KeySystem:_api(route, credentials, raw)
+    local body = { application = self.Application, hwid = self.Hwid }
+    for key, value in pairs(credentials) do
+        body[key] = value
+    end
+    local ok, response = pcall(self.Request, {
+        Url = self.Endpoint .. "/v1/" .. route,
+        Method = "POST",
+        Timeout = self.Timeout,
+        Headers = { ["Content-Type"] = "application/json", Accept = raw and "text/plain" or "application/json" },
+        Body = HttpService:JSONEncode(body),
+    })
+    if not ok or type(response) ~= "table" or type(response.StatusCode) ~= "number" then
+        return nil, "connection_failed"
+    end
+    if response.StatusCode >= 200 and response.StatusCode < 300 and raw then
+        if type(response.Body) ~= "string" or #response.Body < 1 or #response.Body > 2097152 then
+            return nil, "invalid_response"
+        end
+        return response.Body
+    end
+    local decoded, value = pcall(HttpService.JSONDecode, HttpService, response.Body)
+    if not decoded or type(value) ~= "table" then
+        return nil, "invalid_response"
+    end
+    if response.StatusCode < 200 or response.StatusCode >= 300 then
+        return nil, MESSAGES[value.error] and value.error or "connection_failed"
+    end
+    if
+        type(value.token) ~= "string"
+        or #value.token < 32
+        or #value.token > 256
+        or type(value.expires_at) ~= "number"
+        or value.expires_at ~= value.expires_at
+        or value.expires_at == math.huge
+        or value.expires_at <= os.time()
+    then
+        return nil, "invalid_response"
+    end
+    return value
+end
+
+function KeySystem:_run(route, credentials)
+    if self.Dead or self.Loaded or self.Busy or not self.Supported then
+        return false
+    end
+    self.Generation += 1
+    local generation = self.Generation
+    self.State, self.Error = "checking", nil
+    self:_busy(true)
+    self:_status("Checking key...")
+    self.Job = task.defer(function()
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        local response, code = self:_api(route, credentials)
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        if not response then
+            if
+                code == "invalid_credentials"
+                or code == "hwid_mismatch"
+                or code == "license_expired"
+                or code == "license_revoked"
+                or code == "session_expired"
+            then
+                self:_clearCache()
+            end
+            self:_fail(code)
+            return
+        end
+        self.Token = response.token
+        self:_save(response)
+        self.Key:SetSilent("")
+        self:_status("Loading...")
+        local source, downloadError = self:_api("script", { token = self.Token }, true)
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        if not source then
+            self:_fail(downloadError)
+            return
+        end
+        local loader = loadstring(source)
+        if type(loader) ~= "function" then
+            self:_fail("script_failed")
+            return
+        end
+        self.State = "loading"
+        self.Window:SetVisible(false)
+        local loaded, result = pcall(loader)
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        if not loaded then
+            self.Window:SetVisible(true)
+            self:_fail("script_failed")
+            return
+        end
+        self.Loaded, self.Result, self.State, self.Job, self.Busy = true, result, "loaded", nil, false
+        self.Completing = true
+        self.Window:Destroy()
+        if self.Options.OnLoaded then
+            pcall(self.Options.OnLoaded, result)
+        end
+    end)
+    task.delay(self.Timeout, function()
+        if not self.Dead and self.Busy and generation == self.Generation and self.State ~= "loading" then
+            self.Generation += 1
+            if self.Job and type(task.cancel) == "function" then
+                pcall(task.cancel, self.Job)
+            end
+            self.Job = nil
+            self:_fail("timeout")
+        end
+    end)
+    return true
+end
+
+function KeySystem:Redeem(key)
+    if self.Dead then
+        return false
+    end
+    key = type(key) == "string" and key:match("^%s*(.-)%s*$") or ""
+    if #key < 16 or #key > 256 then
+        self:_status("Enter a valid key.")
+        return false
+    end
+    return self:_run("redeem", { key = key })
+end
+
+function KeySystem:Forget()
+    if self.Dead or self.Loaded or self.Busy then
+        return
+    end
+    self:_clearCache()
+    self.Key:SetSilent("")
+    self:_status("Enter key.")
+end
+
+function KeySystem:Destroy()
+    if self.Dead then
+        return
+    end
+    self.Dead = true
+    self.Generation += 1
+    if self.Job and type(task.cancel) == "function" and self.Job ~= coroutine.running() then
+        pcall(task.cancel, self.Job)
+    end
+    self.Job, self.Hwid, self.Token = nil, nil, nil
+    if not self.Window.Dead then
+        self.Window:Destroy()
+    end
+end
+
+function KeySystem.new(library, options)
+    options = options or {}
+    local application = options.Application
+    assert(
+        type(application) == "string" and #application <= 64 and application:match("^[a-z][a-z0-9_-]*$"),
+        "Application requires a lowercase application ID"
+    )
+    local self = setmetatable({
+        Options = options,
+        Application = application,
+        Endpoint = endpoint(options.Endpoint, options.AllowLocalhost == true),
+        Generation = 0,
+        State = "ready",
+        Dead = false,
+        Busy = false,
+        Loaded = false,
+    }, KeySystem)
+    self.Timeout = math.clamp(tonumber(options.Timeout) or 20, 5, 60)
+    self.CachePath = (options.CachePath or "Kinoue/keys/" .. application .. ".json"):gsub("\\", "/")
+    assert(
+        self.CachePath:match("^[%w_./-]+$") and not self.CachePath:find("%.%.") and self.CachePath:sub(1, 1) ~= "/",
+        "CachePath must be an executor workspace path"
+    )
+    self.CanRemember = type(readfile) == "function" and type(writefile) == "function" and type(makefolder) == "function"
+    self.Hwid = fingerprint()
+    self.Request = request or http_request or (type(syn) == "table" and syn.request)
+    self.Supported = self.Hwid ~= nil and type(self.Request) == "function" and type(loadstring) == "function"
+    self.Window = library:CreateWindow({
+        Name = options.Name or "Kinoue",
+        Id = options.Id or "Kinoue_Key_" .. application,
+        Size = Vector2.new(420, 320),
+        MinSize = Vector2.new(320, 280),
+        Resizable = false,
+        ShowSettings = false,
+        ReplaceExisting = true,
+        Background = options.Background,
+    })
+    local page = self.Window:AddTab("Key")
+    page:SetTitle("")
+    local group = page:AddGroupbox("Access", "Left")
+    self.Key = group:AddTextbox("KeySystem.Key", { Text = "Key", MaxLength = 256 })
+    self.Key.Persist = false
+    self.Remember = group:AddToggle("KeySystem.Remember", {
+        Text = "Remember",
+        Keybind = false,
+        Value = self.CanRemember and options.Remember ~= false,
+        Callback = function(value)
+            if not value then
+                self:_clearCache()
+            end
+        end,
+    })
+    self.Remember:SetEnabled(self.CanRemember)
+    self.RedeemButton = group:AddButton({
+        Text = "Redeem",
+        Callback = function()
+            self:Redeem(self.Key.Root.Text)
+        end,
+    })
+    self.ForgetButton = group:AddButton({
+        Text = "Forget",
+        Callback = function()
+            self:Forget()
+        end,
+    })
+    self.Window.Scope:Connect(self.Key.Root.FocusLost, function(enter)
+        if enter then
+            self:Redeem(self.Key.Root.Text)
+        end
+    end)
+    self.Window:OnDestroy(function()
+        if not self.Completing then
+            self:Destroy()
+        end
+    end)
+    if not self.Supported then
+        local code = not self.Hwid and "unsupported_executor"
+            or type(self.Request) ~= "function" and "unsupported_http"
+            or "unsupported_loader"
+        self:_fail(code)
+        Util.warn(MESSAGES[code])
+        return self
+    end
+    self:_status("Enter key.")
+    if self.Remember:Get() then
+        local ok, cache = pcall(function()
+            return HttpService:JSONDecode(readfile(self.CachePath))
+        end)
+        if
+            ok
+            and type(cache) == "table"
+            and cache.Version == 1
+            and cache.Application == self.Application
+            and cache.Endpoint == self.Endpoint
+            and type(cache.Token) == "string"
+            and #cache.Token >= 32
+            and #cache.Token <= 256
+            and type(cache.ExpiresAt) == "number"
+            and cache.ExpiresAt > os.time()
+        then
+            self:_run("session", { token = cache.Token })
+        end
+    end
+    return self
+end
+
+Util.protect(KeySystem, { "Redeem", "Forget", "Destroy" })
+return KeySystem
+end
+
 __factories["Window/Background"] = function()
 local RunService = game:GetService("RunService")
 local Media = __require("internal/LocalMedia")
@@ -4057,15 +4436,20 @@ __factories["init"] = function()
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 local Window = __require("Window")
+local KeySystem = __require("KeySystem")
 
 local Library = {
-    Version = "0.7.0",
+    Version = "0.8.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
 
 function Library:CreateWindow(options)
     return Window.new(options or {}, Library.Version)
+end
+
+function Library:CreateKeySystem(options)
+    return Util.withContext(KeySystem.new, self, options)
 end
 
 function Library:SetTheme(theme)

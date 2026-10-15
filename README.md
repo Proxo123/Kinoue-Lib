@@ -117,6 +117,21 @@ window:ClearBackground()
 
 GIFs loop continuously using their frame delays (zero/one-centisecond delays use 100 ms). Playback follows rendered frames, skips overdue frames, and pauses while the window is hidden, image opacity is zero, or Animations is off. Static images have no playback connection. Files are limited to 32 MB; static images are limited to 4096 pixels per side. GIFs are limited to 300 frames, a 4-million-pixel source canvas/frame, and 200 million decoded source pixels. They are downscaled to at most 512 pixels per side and 8 million total output pixels, packed into 1024-pixel PNG pages with edge padding, and cached under `Kinoue/backgrounds`. Preparation yields between work chunks; later loads reuse cached pages. The cache can be deleted when the library is unloaded.
 
+## Key systems
+
+Kinoue includes a reusable key UI and client with `UI:CreateKeySystem`. Keys are redeemed by the [backend key service](backend/README.md), bound to the executor-provided HWID, and exchanged for a remembered session. Only an authorized session can download and run the configured script. Executors without a working HWID function report an unsupported-executor error and cannot continue.
+
+```lua
+return UI:CreateKeySystem({
+    Name = "My script",
+    Application = "my-script",
+    Endpoint = "https://keys.example.com",
+    CachePath = "MyScript/auth.json",
+})
+```
+
+See [KeySystem.lua](examples/KeySystem.lua) and [backend setup, deployment, and limits](backend/README.md). The library does not contain a master key or a protected script's source.
+
 ## Search
 
 The magnifier next to the gear opens a search box. Type to filter every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside closes the search.

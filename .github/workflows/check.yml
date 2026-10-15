@@ -22,5 +22,9 @@ jobs:
         run: .cache/stylua --check src tests examples
       - name: Compile and check behavior
         run: python3 tools/test.py --luau .cache/luau/luau --compiler .cache/luau/luau-compile
+      - name: Install key service test dependencies
+        run: python3 -m pip install -r backend/requirements-dev.txt
+      - name: Check key service
+        run: python3 -m pytest -q backend/tests
       - name: Check reproducible build
         run: git diff --exit-code -- dist

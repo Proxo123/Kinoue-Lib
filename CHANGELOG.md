@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Add `CreateKeySystem`: a reusable key UI, HWID capability checks, remembered sessions, and authenticated script loading. Unsupported executors fail closed without substituting another identifier.
+- Add a self-hosted backend with per-application keys, atomic first-device binding, expiring/rotating sessions, authenticated payload downloads, revocation/device reset commands, and API tests.
+- Cache session tokens instead of raw keys or HWIDs; revalidate on every launch and require HTTPS for public services.
+
 ## 0.7.0
 
 - Add local PNG, JPEG, and animated GIF window backgrounds through executor file and asset functions.
