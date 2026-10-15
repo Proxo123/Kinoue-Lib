@@ -7,9 +7,9 @@ local Util = require(script.Parent.Parent.internal.Util)
 
 local ROW_HEIGHT = 30
 local ROW_PADDING = 8
-local SWITCH_WIDTH = 34
-local SWITCH_HEIGHT = 20
-local KNOB_SIZE = 16
+local SWITCH_WIDTH = 32
+local SWITCH_HEIGHT = 18
+local KNOB_SIZE = 14
 local KNOB_INSET = 2
 local SWITCH_GAP = 8
 local KEY_ESTIMATE = 70
@@ -62,7 +62,7 @@ local function buildSwitch(row)
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, KNOB_INSET, 0.5, 0),
         Size = UDim2.fromOffset(KNOB_SIZE, KNOB_SIZE),
-        BackgroundColor3 = Theme.Muted,
+        BackgroundColor3 = Color3.new(1, 1, 1),
     })
     Util.corner(knob, KNOB_SIZE / 2)
     return track, knob
@@ -170,7 +170,7 @@ function Toggle.add(group, id, info, newGroup)
         window.Scope:Tween(track, ANIMATION, { BackgroundColor3 = value and Theme.Accent or Theme.Hover }, reduced)
         window.Scope:Tween(knob, ANIMATION, {
             Position = UDim2.new(0, value and SWITCH_WIDTH - KNOB_SIZE - KNOB_INSET or KNOB_INSET, 0.5, 0),
-            BackgroundColor3 = value and Color3.new(1, 1, 1) or Theme.Muted,
+            BackgroundColor3 = Color3.new(1, 1, 1),
         }, reduced)
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
         name.TextTransparency = transparency
@@ -183,7 +183,7 @@ function Toggle.add(group, id, info, newGroup)
         end
     end)
     Util.hover(window.Scope, hit, function(hovered)
-        row.BackgroundTransparency = (hovered and control.Enabled) and 0 or 1
+        row.BackgroundTransparency = (hovered and control.Enabled) and 0.5 or 1
     end)
 
     if keybind then

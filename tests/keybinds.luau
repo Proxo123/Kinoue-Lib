@@ -15,7 +15,7 @@ local key = group:AddKeybind("Action", {
     end,
 })
 assert(
-    key.Root.Text == "Q" and key.Root.BackgroundTransparency == 0 and key.Clear.Visible,
+    key.Root.Text == "Q" and key.Root.BorderColor3 == UI.Theme.Hover and key.Clear.Visible,
     "Bound keys show a clear button"
 )
 assert(key.Clear.Text == "×" and key.Clear.TextColor3 == UI.Theme.Muted, "Clear button is a grey x")
@@ -27,7 +27,7 @@ key.Clear.Activated:Fire()
 assert(key:Get() == KeyCode.Unknown and changes[#changes] == KeyCode.Unknown, "Clear button unbinds")
 assert(released == 1 and not key.Down, "Unbinding a held key releases it")
 assert(
-    key.Root.Text == "Unbound" and key.Root.BackgroundTransparency == 1 and not key.Clear.Visible,
+    key.Root.Text == "Unbound" and key.Root.BorderColor3 == UI.Theme.Outline and not key.Clear.Visible,
     "Unbound keys say Unbound and hide the clear button"
 )
 

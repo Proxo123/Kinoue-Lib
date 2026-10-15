@@ -4,7 +4,7 @@ local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
-local FIELD_HEIGHT = 28
+local FIELD_HEIGHT = 30
 local ICON_SIZE = 13
 local RESULTS_WIDTH = 280
 local RESULT_HEIGHT = 36
@@ -322,7 +322,7 @@ function Search.build(window, headerHeight, rightOffset, width)
         BorderSizePixel = 1,
         BorderColor3 = Theme.Color.Outline,
     })
-    Util.corner(field, Theme.Radius)
+    Util.corner(field, Theme.Radius + 1)
     local icon = Icons.search(field, ICON_SIZE, {
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 9, 0.5, 0),

@@ -7,7 +7,7 @@ local Util = require(script.Parent.Parent.internal.Util)
 local LABEL_INSET = 110
 local KEY_HEIGHT = 20
 local KEY_PADDING = 14
-local KEY_TEXT_SIZE = 12
+local KEY_TEXT_SIZE = 11
 local CLEAR_SIZE = 14
 local WARNING_SIZE = 12
 local ICON_GAP = 4
@@ -67,7 +67,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
         BackgroundColor3 = Theme.Input,
         BorderSizePixel = 1,
         BorderColor3 = Theme.Outline,
-        Font = Theme.MonoFont,
+        Font = Theme.FontMedium,
         TextColor3 = Theme.Text,
         TextSize = KEY_TEXT_SIZE,
     })
@@ -102,7 +102,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     end
 
     local function show(text)
-        keyWidth = Util.textWidth(text, KEY_TEXT_SIZE, Theme.MonoFont) + KEY_PADDING
+        keyWidth = Util.textWidth(text, KEY_TEXT_SIZE, Theme.FontMedium) + KEY_PADDING
         control.Root.Text = text
         control.Root.Size = UDim2.fromOffset(keyWidth, KEY_HEIGHT)
         layout()
@@ -120,9 +120,9 @@ function Keybind.attach(group, row, id, info, inline, inset)
             root.BackgroundTransparency = 0.85
         else
             root.TextColor3 = (bound or capturing) and Theme.Text or Theme.Muted
-            root.BorderColor3 = capturing and Theme.Accent or Theme.Outline
+            root.BorderColor3 = capturing and Theme.Accent or (bound and Theme.Hover or Theme.Outline)
             root.BackgroundColor3 = Theme.Input
-            root.BackgroundTransparency = (bound or capturing) and 0 or 1
+            root.BackgroundTransparency = 1
         end
         control.Warning:SetColor(Theme.Danger)
         control.Warning.Root.Visible = conflicted and not hidden

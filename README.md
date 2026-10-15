@@ -45,7 +45,7 @@ local window = UI:CreateWindow({
     SnapDistance = 8,
     ToggleKey = Enum.KeyCode.RightShift,
     ReducedMotion = false,
-    RainbowAccent = true,
+    RainbowAccent = false,
     ShowSettings = true,
     ReplaceExisting = true,
 })
@@ -79,7 +79,7 @@ The gear button in the top-right corner of the header opens the settings page. P
 
 - **Theme:** a preset (Dark, Midnight, Ocean, Rose, Forest, Light), color pickers for the accent, background, panels, outlines, text and muted text, and a reset button.
 - **Window:** Menu key (RightShift by default), Lock to screen and Snap to edges.
-- **Appearance:** Animations and Rainbow accent line.
+- **Appearance:** Animations and Rainbow accent line (off by default).
 
 Settings are saved with the rest of the config under IDs that start with `UI.`. Themes apply to every window at once.
 
@@ -185,6 +185,8 @@ preview:Select()
 
 local advanced = left:AddDisclosure("Advanced")
 ```
+
+Pages start straight with their groupboxes. `SetTitle` or `SetMode` adds a title row above them.
 
 A disclosure is a collapsible section with a chevron icon that rotates as it opens. It supports the same `Add*` methods as a groupbox. Pass `true` as the second argument to start it open, and use `advanced:SetOpen(open)` to open or close it from code.
 

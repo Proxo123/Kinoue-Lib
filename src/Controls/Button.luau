@@ -35,8 +35,8 @@ local function style(window, button, primary, isEnabled)
             button.TextColor3 = Color3.new(1, 1, 1)
             button.BackgroundTransparency = hovered and PRIMARY_HOVER_TRANSPARENCY or 0
         else
-            button.BackgroundColor3 = (hovered and enabled) and Theme.Hover or Theme.Input
-            button.BorderColor3 = Theme.Outline
+            button.BackgroundColor3 = (hovered and enabled) and Theme.Selected or Theme.Input
+            button.BorderColor3 = Theme.Hover
             button.TextColor3 = enabled and Theme.Text or Theme.Muted
             button.BackgroundTransparency = 0
         end
