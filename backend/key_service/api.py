@@ -23,6 +23,15 @@ class Session(Credentials):
     token: str = Field(strict=True, min_length=32, max_length=256)
 
 
+class Execution(Session):
+    execution_id: str = Field(strict=True, pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    user_id: int = Field(strict=True, ge=1, le=9007199254740991)
+    username: str = Field(strict=True, pattern=r"^[A-Za-z0-9_]{1,20}$")
+    display_name: str = Field(strict=True, min_length=1, max_length=50)
+    place_id: int = Field(strict=True, ge=0, le=9007199254740991)
+    library_version: str = Field(strict=True, pattern=r"^[0-9A-Za-z._-]{1,32}$")
+
+
 class BodyLimit:
     def __init__(self, app):
         self.app = app
@@ -108,6 +117,10 @@ def create_app(store=None, admin_hash=None, origin=None):
     @app.post("/v1/logout")
     def logout(body: Session):
         return store.logout(body.application, body.token, body.hwid)
+
+    @app.post("/v1/executions")
+    def execution(body: Execution):
+        return store.record_execution(**body.model_dump())
 
     attach_admin(app, store, admin_hash, origin)
     return app

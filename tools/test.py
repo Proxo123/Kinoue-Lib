@@ -35,6 +35,7 @@ SUITES = [
     ("replace", "UI", None),
     ("background", "UI", None),
     ("keysystem", "UI", None),
+    ("session", "UI", None),
     ("layout", "UI", None),
 ]
 
