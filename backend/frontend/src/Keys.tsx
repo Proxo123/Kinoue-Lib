@@ -147,6 +147,7 @@ export function Keys({
             <label htmlFor="app-filter">Script</label>
             <select
               id="app-filter"
+              aria-label="Filter by script"
               value={application}
               onChange={(event) => filter({ application: event.target.value })}
             >
