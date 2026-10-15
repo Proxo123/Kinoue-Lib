@@ -44,8 +44,8 @@ local function style(window, button, primary, isEnabled)
             button.TextColor3 = Color3.new(1, 1, 1)
             button.BackgroundTransparency = hovered and PRIMARY_HOVER_TRANSPARENCY or 0
         else
-            button.BackgroundColor3 = (hovered and enabled) and Theme.Hover or Theme.Input
-            button.BorderColor3 = Theme.Outline
+            button.BackgroundColor3 = (hovered and enabled) and Theme.Selected or Theme.Input
+            button.BorderColor3 = Theme.Hover
             button.TextColor3 = enabled and Theme.Text or Theme.Muted
             button.BackgroundTransparency = 0
         end
@@ -1028,7 +1028,7 @@ local Util = __require("internal/Util")
 local LABEL_INSET = 110
 local KEY_HEIGHT = 20
 local KEY_PADDING = 14
-local KEY_TEXT_SIZE = 12
+local KEY_TEXT_SIZE = 11
 local CLEAR_SIZE = 14
 local WARNING_SIZE = 12
 local ICON_GAP = 4
@@ -1088,7 +1088,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
         BackgroundColor3 = Theme.Input,
         BorderSizePixel = 1,
         BorderColor3 = Theme.Outline,
-        Font = Theme.MonoFont,
+        Font = Theme.FontMedium,
         TextColor3 = Theme.Text,
         TextSize = KEY_TEXT_SIZE,
     })
@@ -1123,7 +1123,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
     end
 
     local function show(text)
-        keyWidth = Util.textWidth(text, KEY_TEXT_SIZE, Theme.MonoFont) + KEY_PADDING
+        keyWidth = Util.textWidth(text, KEY_TEXT_SIZE, Theme.FontMedium) + KEY_PADDING
         control.Root.Text = text
         control.Root.Size = UDim2.fromOffset(keyWidth, KEY_HEIGHT)
         layout()
@@ -1141,9 +1141,9 @@ function Keybind.attach(group, row, id, info, inline, inset)
             root.BackgroundTransparency = 0.85
         else
             root.TextColor3 = (bound or capturing) and Theme.Text or Theme.Muted
-            root.BorderColor3 = capturing and Theme.Accent or Theme.Outline
+            root.BorderColor3 = capturing and Theme.Accent or (bound and Theme.Hover or Theme.Outline)
             root.BackgroundColor3 = Theme.Input
-            root.BackgroundTransparency = (bound or capturing) and 0 or 1
+            root.BackgroundTransparency = 1
         end
         control.Warning:SetColor(Theme.Danger)
         control.Warning.Root.Visible = conflicted and not hidden
@@ -1460,13 +1460,11 @@ function Slider.add(group, id, info)
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 0),
         Size = UDim2.fromOffset(0, LABEL_HEIGHT),
-        BackgroundColor3 = Theme.Color.Input,
-        BackgroundTransparency = 0,
-        Font = Theme.MonoFont,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
-        TextXAlignment = Enum.TextXAlignment.Center,
+        TextXAlignment = Enum.TextXAlignment.Right,
     })
-    Util.corner(output, Theme.SmallRadius)
+
     local hit = Util.button(control.Row, "", {
         Name = "Track",
         Position = UDim2.fromOffset(0, LABEL_HEIGHT + 4),
@@ -1505,7 +1503,7 @@ function Slider.add(group, id, info)
         knob.Position = UDim2.fromScale(fraction, 0.5)
         local text = string.format(info.Format or "%g", value) .. suffix
         output.Text = text
-        output.Size = UDim2.fromOffset(Util.textWidth(text, Theme.SmallSize, Theme.MonoFont) + 12, LABEL_HEIGHT)
+        output.Size = UDim2.fromOffset(Util.textWidth(text, Theme.SmallSize) + 2, LABEL_HEIGHT)
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
         output.TextTransparency = transparency
         label.TextTransparency = transparency
@@ -1641,9 +1639,9 @@ local Util = __require("internal/Util")
 
 local ROW_HEIGHT = 30
 local ROW_PADDING = 8
-local SWITCH_WIDTH = 34
-local SWITCH_HEIGHT = 20
-local KNOB_SIZE = 16
+local SWITCH_WIDTH = 32
+local SWITCH_HEIGHT = 18
+local KNOB_SIZE = 14
 local KNOB_INSET = 2
 local SWITCH_GAP = 8
 local KEY_ESTIMATE = 70
@@ -1696,7 +1694,7 @@ local function buildSwitch(row)
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, KNOB_INSET, 0.5, 0),
         Size = UDim2.fromOffset(KNOB_SIZE, KNOB_SIZE),
-        BackgroundColor3 = Theme.Muted,
+        BackgroundColor3 = Color3.new(1, 1, 1),
     })
     Util.corner(knob, KNOB_SIZE / 2)
     return track, knob
@@ -1804,7 +1802,7 @@ function Toggle.add(group, id, info, newGroup)
         window.Scope:Tween(track, ANIMATION, { BackgroundColor3 = value and Theme.Accent or Theme.Hover }, reduced)
         window.Scope:Tween(knob, ANIMATION, {
             Position = UDim2.new(0, value and SWITCH_WIDTH - KNOB_SIZE - KNOB_INSET or KNOB_INSET, 0.5, 0),
-            BackgroundColor3 = value and Color3.new(1, 1, 1) or Theme.Muted,
+            BackgroundColor3 = Color3.new(1, 1, 1),
         }, reduced)
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
         name.TextTransparency = transparency
@@ -1817,7 +1815,7 @@ function Toggle.add(group, id, info, newGroup)
         end
     end)
     Util.hover(window.Scope, hit, function(hovered)
-        row.BackgroundTransparency = (hovered and control.Enabled) and 0 or 1
+        row.BackgroundTransparency = (hovered and control.Enabled) and 0.5 or 1
     end)
 
     if keybind then
@@ -2633,22 +2631,22 @@ local Icons = __require("internal/Icons")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
-local HEADER_HEIGHT = 44
-local TAB_BAR_HEIGHT = 36
-local FOOTER_HEIGHT = 28
-local EDGE = 14
+local HEADER_HEIGHT = 52
+local TAB_BAR_HEIGHT = 44
+local FOOTER_HEIGHT = 30
+local EDGE = 18
 local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
-local SETTINGS_BUTTON_SIZE = 28
+local SETTINGS_BUTTON_SIZE = 30
 local SETTINGS_ICON_SIZE = 16
 local HEADER_BUTTON_MARGIN = 10
 local HEADER_BUTTON_GAP = 6
-local SEARCH_WIDTH = 160
+local SEARCH_WIDTH = 150
 local VERSION_TEXT_SIZE = 11
-local STATUS_DOT = 6
 local TAB_STRIP_PADDING = 3
-local TAB_STRIP_HEIGHT = 24 + 2 * TAB_STRIP_PADDING
+local TAB_HEIGHT = 28
+local TAB_STRIP_HEIGHT = TAB_HEIGHT + 2 * TAB_STRIP_PADDING
 local TITLE_GAP = 8
 local TABS_GAP = 16
 
@@ -2729,7 +2727,7 @@ local function buildSettingsButton(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
-    Util.corner(window.SettingsButton, Theme.Radius)
+    Util.corner(window.SettingsButton, Theme.Radius + 1)
     window.SettingsIcon = Icons.gear(window.SettingsButton, SETTINGS_ICON_SIZE)
     Util.hover(window.Scope, window.SettingsButton, function(hovered)
         window.SettingsButton.BackgroundTransparency = hovered and 0 or 1
@@ -2786,6 +2784,7 @@ local function buildAccent(window)
             return
         end
         lastFrame = -1
+        window.Accent.Visible = window.RainbowAccent
         animate()
         if window.RainbowAccent and not window.ReducedMotion then
             window.AccentScope = Util.scope()
@@ -2816,9 +2815,23 @@ local function buildTabs(window)
         BorderColor3 = Theme.Color.Outline,
         Visible = false,
     })
-    Util.corner(window.TabStrip, Theme.Radius + 1)
+    Util.corner(window.TabStrip, Theme.Radius + 2)
     Util.padding(window.TabStrip, TAB_STRIP_PADDING)
-    Util.list(window.TabStrip, true, 2)
+    window.TabPill = Util.frame(window.TabStrip, {
+        Name = "Pill",
+        Size = UDim2.fromOffset(0, TAB_HEIGHT),
+        BackgroundColor3 = Theme.Color.Selected,
+        Visible = false,
+    })
+    Util.corner(window.TabPill, Theme.Radius - 1)
+    window.TabButtons = Util.frame(window.TabStrip, {
+        Name = "Buttons",
+        Size = UDim2.fromOffset(0, TAB_HEIGHT),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1,
+        ZIndex = 2,
+    })
+    Util.list(window.TabButtons, true, 0)
     window.Scope:Connect(window.TabStrip:GetPropertyChangedSignal("AbsoluteSize"), function()
         Chrome.layoutTabs(window)
     end)
@@ -2866,18 +2879,10 @@ local function buildFooter(window)
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Color.Outline,
     })
-    window.StatusDot = Util.frame(window.Footer, {
-        Name = "StatusDot",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, EDGE, 0.5, 0),
-        Size = UDim2.fromOffset(STATUS_DOT, STATUS_DOT),
-        BackgroundColor3 = Theme.Color.Success,
-    })
-    Util.corner(window.StatusDot, STATUS_DOT / 2)
     window.Status = Util.label(window.Footer, "Ready", {
         Name = "Status",
-        Position = UDim2.fromOffset(EDGE + STATUS_DOT + 6, 0),
-        Size = UDim2.new(0.7, -(EDGE + STATUS_DOT + 6), 1, 0),
+        Position = UDim2.fromOffset(EDGE, 0),
+        Size = UDim2.new(0.7, -EDGE, 1, 0),
         TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -2888,11 +2893,9 @@ local function buildFooter(window)
             Name = "Version",
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -EDGE, 0, 0),
-            Size = UDim2.new(0, Util.textWidth(text, VERSION_TEXT_SIZE, Theme.MonoFont), 1, 0),
-            Font = Theme.MonoFont,
+            Size = UDim2.new(0, Util.textWidth(text, VERSION_TEXT_SIZE), 1, 0),
             TextSize = VERSION_TEXT_SIZE,
             TextColor3 = Theme.Color.Muted,
-            TextTransparency = 0.25,
             TextXAlignment = Enum.TextXAlignment.Right,
         })
     end
@@ -2923,6 +2926,31 @@ function Chrome.build(window, options)
     Background.surface(window, window.TabStrip)
     buildResizeHandle(window)
     Chrome.layoutTabs(window)
+end
+
+function Chrome.paintTabs(window, instant)
+    local active = window.ActivePage
+    local pill = window.TabPill
+    local offset, width = 0, nil
+    for _, page in ipairs(window.Pages) do
+        local size = page.Button.Size.X.Offset
+        if page == active then
+            width = size
+            break
+        end
+        offset += size
+    end
+    if not width then
+        pill.Visible = false
+        return
+    end
+    local goal = {
+        Position = UDim2.fromOffset(offset, 0),
+        Size = UDim2.fromOffset(width, TAB_HEIGHT),
+    }
+    local reduced = instant or window.ReducedMotion or not pill.Visible
+    pill.Visible = true
+    window.Scope:Tween(pill, 0.26, goal, reduced, Enum.EasingStyle.Quint)
 end
 
 function Chrome.layoutAccent(window)
@@ -3473,12 +3501,15 @@ local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
 local NARROW_WIDTH = 520
-local EDGE = 14
-local TITLE_HEIGHT = 28
-local TAB_HEIGHT = 24
+local EDGE = 18
+local TOP_PADDING = 16
+local TITLE_HEIGHT = 36
+local TAB_HEIGHT = 28
+local TAB_PADDING = 24
 local TAB_TEXT_SIZE = 13
-local SUBBAR_HEIGHT = 26
-local GROUP_HEADER_HEIGHT = 30
+local SUBBAR_HEIGHT = 28
+local GROUP_HEADER_HEIGHT = 36
+local GROUP_HEADER_INSET = 14
 
 local Background = __require("Window/Background")
 
@@ -3496,21 +3527,23 @@ local function build(window, name)
         Visible = false,
     })
     self.Title = Util.label(self.Frame, name, {
-        Position = UDim2.fromOffset(EDGE, 0),
-        Size = UDim2.new(0.65, -EDGE, 0, TITLE_HEIGHT),
+        Position = UDim2.fromOffset(EDGE, 4),
+        Size = UDim2.new(0.65, -EDGE, 0, TITLE_HEIGHT - 4),
         Font = Theme.FontBold,
         TextSize = Theme.TextSize,
+        Visible = false,
     })
     self.Mode = Util.label(self.Frame, "", {
-        Position = UDim2.new(0.65, 0, 0, 0),
-        Size = UDim2.new(0.35, -EDGE, 0, TITLE_HEIGHT),
+        Position = UDim2.new(0.65, 0, 0, 4),
+        Size = UDim2.new(0.35, -EDGE, 0, TITLE_HEIGHT - 4),
         TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize - 1,
         TextXAlignment = Enum.TextXAlignment.Right,
+        Visible = false,
     })
     self.Scroll = Util.new("ScrollingFrame", {
-        Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT),
-        Size = UDim2.new(1, -2 * EDGE, 1, -(TITLE_HEIGHT + 8)),
+        Position = UDim2.fromOffset(EDGE, TOP_PADDING),
+        Size = UDim2.new(1, -2 * EDGE, 1, -(TOP_PADDING + 10)),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
@@ -3540,17 +3573,16 @@ end
 
 function Page.new(window, name)
     local self = build(window, name)
-    self.Button = Util.button(window.TabStrip, name, {
+    self.Button = Util.button(window.TabButtons, name, {
         Name = "Tab",
-        Size = UDim2.fromOffset(Util.textWidth(name, TAB_TEXT_SIZE, Theme.FontMedium) + 20, TAB_HEIGHT),
+        Size = UDim2.fromOffset(Util.textWidth(name, TAB_TEXT_SIZE, Theme.FontMedium) + TAB_PADDING, TAB_HEIGHT),
         BorderSizePixel = 0,
-        BackgroundColor3 = Theme.Color.Selected,
         BackgroundTransparency = 1,
         Font = Theme.FontMedium,
         TextSize = TAB_TEXT_SIZE,
         TextColor3 = Theme.Color.Muted,
+        ZIndex = 2,
     })
-    Util.corner(self.Button, Theme.Radius - 1)
     self.Line = Util.frame(self.Button, {
         Name = "Indicator",
         AnchorPoint = Vector2.new(0.5, 1),
@@ -3599,14 +3631,33 @@ function Page:Relayout()
     end
 end
 
+function Page:LayoutHeader()
+    local showTitle = self.ShowTitle == true
+    self.Title.Visible = showTitle
+    self.Mode.Visible = showTitle
+    local top = showTitle and TITLE_HEIGHT or TOP_PADDING
+    if self.Subbar then
+        self.Subbar.Position = UDim2.fromOffset(EDGE, top)
+        top += SUBBAR_HEIGHT + 10
+    end
+    self.Scroll.Position = UDim2.fromOffset(EDGE, top)
+    self.Scroll.Size = UDim2.new(1, -2 * EDGE, 1, -(top + 10))
+end
+
 function Page:SetTitle(text)
     self.Title.Text = text
+    self.ShowTitle = true
+    self:LayoutHeader()
 end
 
 function Page:SetMode(text)
     text = text or ""
     if self.Mode.Text ~= text then
         self.Mode.Text = text
+    end
+    if text ~= "" and not self.ShowTitle then
+        self.ShowTitle = true
+        self:LayoutHeader()
     end
 end
 
@@ -3624,18 +3675,24 @@ function Page:AddGroupbox(title, side)
         BorderColor3 = Theme.Color.Outline,
     })
     Util.corner(frame, Theme.CardRadius)
-    Util.label(frame, string.upper(title), {
+    Util.label(frame, title, {
         Name = "Header",
-        Position = UDim2.fromOffset(Theme.Padding + 2, 0),
-        Size = UDim2.new(1, -2 * (Theme.Padding + 2), 0, GROUP_HEADER_HEIGHT),
-        Font = Theme.FontBold,
-        TextSize = Theme.TinySize,
+        Position = UDim2.fromOffset(GROUP_HEADER_INSET, 0),
+        Size = UDim2.new(1, -2 * GROUP_HEADER_INSET, 0, GROUP_HEADER_HEIGHT),
+        Font = Theme.FontMedium,
+        TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    Util.frame(frame, {
+        Name = "HeaderDivider",
+        Position = UDim2.fromOffset(0, GROUP_HEADER_HEIGHT),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Theme.Color.Outline,
+    })
     Background.surface(self.Window, frame)
     local container = Util.frame(frame, {
-        Position = UDim2.fromOffset(Theme.Padding, GROUP_HEADER_HEIGHT),
+        Position = UDim2.fromOffset(Theme.Padding, GROUP_HEADER_HEIGHT + 6),
         Size = UDim2.new(1, -2 * Theme.Padding, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
@@ -3663,13 +3720,12 @@ function Page:AddSubTab(title)
     if not self.Subbar then
         self.Subbar = Util.frame(self.Frame, {
             Name = "SubTabs",
-            Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT),
+            Position = UDim2.fromOffset(EDGE, TOP_PADDING),
             Size = UDim2.new(1, -2 * EDGE, 0, SUBBAR_HEIGHT),
             BackgroundTransparency = 1,
         })
         Util.list(self.Subbar, true, 4)
-        self.Scroll.Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT + SUBBAR_HEIGHT + 6)
-        self.Scroll.Size = UDim2.new(1, -2 * EDGE, 1, -(TITLE_HEIGHT + SUBBAR_HEIGHT + 14))
+        self:LayoutHeader()
     end
     return Subpage.new(self, title)
 end
@@ -3678,7 +3734,7 @@ function Subpage.new(page, title)
     local self = setmetatable({ Page = page, Groups = {}, Title = title }, Subpage)
     self.Button = Util.button(page.Subbar, title, {
         Name = "SubTab",
-        Size = UDim2.fromOffset(Util.textWidth(title, TAB_TEXT_SIZE, Theme.FontMedium) + 18, TAB_HEIGHT),
+        Size = UDim2.fromOffset(Util.textWidth(title, TAB_TEXT_SIZE, Theme.FontMedium) + TAB_PADDING, TAB_HEIGHT),
         BorderSizePixel = 0,
         BackgroundColor3 = Theme.Color.Selected,
         BackgroundTransparency = 1,
@@ -3743,7 +3799,7 @@ local Icons = __require("internal/Icons")
 local Theme = __require("internal/Theme")
 local Util = __require("internal/Util")
 
-local FIELD_HEIGHT = 28
+local FIELD_HEIGHT = 30
 local ICON_SIZE = 13
 local RESULTS_WIDTH = 280
 local RESULT_HEIGHT = 36
@@ -4061,7 +4117,7 @@ function Search.build(window, headerHeight, rightOffset, width)
         BorderSizePixel = 1,
         BorderColor3 = Theme.Color.Outline,
     })
-    Util.corner(field, Theme.Radius)
+    Util.corner(field, Theme.Radius + 1)
     local icon = Icons.search(field, ICON_SIZE, {
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 9, 0.5, 0),
@@ -4381,6 +4437,8 @@ local EDGE_MARGIN = 12
 local FIT_MARGIN = 24
 local OPEN_DURATION = 0.18
 local CLOSE_DURATION = 0.15
+local PAGE_NUDGE = 6
+local PAGE_DURATION = 0.22
 
 local Window = {}
 Window.__index = Window
@@ -4402,7 +4460,7 @@ function Window.new(options, version)
     self.SearchIndex = {}
     self.NotificationsEnabled = options.Notifications ~= false
     self.ReducedMotion = options.ReducedMotion == true
-    self.RainbowAccent = options.RainbowAccent ~= false
+    self.RainbowAccent = options.RainbowAccent == true
     self.BindableToggles = options.BindableToggles == true
     self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
@@ -4736,10 +4794,11 @@ end
 function Window:StyleTabs()
     for _, item in ipairs(self.Pages) do
         local active = item == self.ActivePage
-        item.Line.Visible = active
-        item.Button.BackgroundTransparency = active and 0 or 1
+        item.Line.Visible = false
+        item.Button.BackgroundTransparency = 1
         item.Button.TextColor3 = active and Theme.Text or Theme.Muted
     end
+    Chrome.paintTabs(self)
 end
 
 function Window:SelectTab(page)
@@ -4755,7 +4814,12 @@ function Window:SelectTab(page)
     for _, item in ipairs(self.Pages) do
         item.Frame.Visible = item == page
     end
+    local previous = self.ActivePage
     self.ActivePage = page
+    if previous and previous ~= page and not self.ReducedMotion then
+        page.Frame.Position = UDim2.fromOffset(0, PAGE_NUDGE)
+        self.Scope:Tween(page.Frame, PAGE_DURATION, { Position = UDim2.new() }, false, Enum.EasingStyle.Quint)
+    end
     self:StyleTabs()
     Chrome.paintSettingsButton(self)
     page:Relayout()
@@ -4949,7 +5013,7 @@ local Window = __require("Window")
 local KeySystem = __require("KeySystem")
 
 local Library = {
-    Version = "0.9.1",
+    Version = "0.10.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -6276,8 +6340,8 @@ local Theme = {
     Padding = 10,
     Radius = 7,
     SmallRadius = 4,
-    CardRadius = 9,
-    WindowRadius = 10,
+    CardRadius = 10,
+    WindowRadius = 12,
     DisabledTransparency = 0.55,
     Preset = "Dark",
     ColorKeys = COLOR_KEYS,
@@ -6285,16 +6349,16 @@ local Theme = {
 
 Theme.Presets = {
     Dark = {
-        Background = Color3.fromRGB(18, 18, 20),
-        Panel = Color3.fromRGB(23, 23, 26),
-        Input = Color3.fromRGB(30, 30, 34),
-        Hover = Color3.fromRGB(44, 44, 51),
-        Outline = Color3.fromRGB(38, 38, 43),
-        Text = Color3.fromRGB(236, 236, 239),
-        Muted = Color3.fromRGB(142, 142, 150),
-        Accent = Color3.fromRGB(57, 128, 233),
-        Selected = Color3.fromRGB(42, 42, 49),
-        Danger = Color3.fromRGB(235, 87, 87),
+        Background = Color3.fromRGB(21, 21, 23),
+        Panel = Color3.fromRGB(27, 27, 30),
+        Input = Color3.fromRGB(36, 36, 40),
+        Hover = Color3.fromRGB(54, 54, 59),
+        Outline = Color3.fromRGB(40, 40, 44),
+        Text = Color3.fromRGB(232, 232, 234),
+        Muted = Color3.fromRGB(139, 139, 146),
+        Accent = Color3.fromRGB(76, 125, 217),
+        Selected = Color3.fromRGB(44, 44, 49),
+        Danger = Color3.fromRGB(229, 114, 108),
         Success = Color3.fromRGB(79, 191, 116),
     },
     Midnight = {

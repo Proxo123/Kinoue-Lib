@@ -36,7 +36,7 @@ toggle:Set(true)
 assert(box.BackgroundColor3 == Theme.Accent, "Enabled toggles fill with the accent")
 assert(toggle.Knob.Position.X.Offset > 2, "The knob slides right when enabled")
 toggle.Root.MouseEnter:Fire()
-assert(toggle.Row.BackgroundTransparency == 0, "Rows highlight on hover")
+assert(toggle.Row.BackgroundTransparency == 0.5, "Rows highlight on hover")
 toggle.Root.MouseLeave:Fire()
 assert(toggle.Row.BackgroundTransparency == 1)
 
@@ -101,8 +101,14 @@ assert(window.Controls["UI.LockToScreen"]:Get() == true and not window.AllowOffs
 assert(window:GetPosition().X == 12 and window:GetPosition().Y == 12, "Locking pulls the window back on screen")
 
 window.Controls["UI.Animations"]:Set(true)
-assert(not window.ReducedMotion and window.AccentScope ~= nil)
+assert(
+    not window.ReducedMotion and window.AccentScope == nil and not window.Accent.Visible,
+    "The accent line is off by default"
+)
+window:SetRainbowAccent(true)
+assert(window.AccentScope ~= nil and window.Accent.Visible)
 window.Controls["UI.RainbowAccent"]:Set(false)
+assert(not window.Accent.Visible)
 assert(not window.RainbowAccent and window.AccentScope == nil, "A static accent line needs no animation")
 window:SetRainbowAccent(true)
 assert(window.Controls["UI.RainbowAccent"]:Get() == true and window.AccentScope ~= nil)

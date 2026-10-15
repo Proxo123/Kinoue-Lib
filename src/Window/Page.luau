@@ -3,12 +3,15 @@ local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
 local NARROW_WIDTH = 520
-local EDGE = 14
-local TITLE_HEIGHT = 28
-local TAB_HEIGHT = 24
+local EDGE = 18
+local TOP_PADDING = 16
+local TITLE_HEIGHT = 36
+local TAB_HEIGHT = 28
+local TAB_PADDING = 24
 local TAB_TEXT_SIZE = 13
-local SUBBAR_HEIGHT = 26
-local GROUP_HEADER_HEIGHT = 30
+local SUBBAR_HEIGHT = 28
+local GROUP_HEADER_HEIGHT = 36
+local GROUP_HEADER_INSET = 14
 
 local Background = require(script.Parent.Background)
 
@@ -26,21 +29,23 @@ local function build(window, name)
         Visible = false,
     })
     self.Title = Util.label(self.Frame, name, {
-        Position = UDim2.fromOffset(EDGE, 0),
-        Size = UDim2.new(0.65, -EDGE, 0, TITLE_HEIGHT),
+        Position = UDim2.fromOffset(EDGE, 4),
+        Size = UDim2.new(0.65, -EDGE, 0, TITLE_HEIGHT - 4),
         Font = Theme.FontBold,
         TextSize = Theme.TextSize,
+        Visible = false,
     })
     self.Mode = Util.label(self.Frame, "", {
-        Position = UDim2.new(0.65, 0, 0, 0),
-        Size = UDim2.new(0.35, -EDGE, 0, TITLE_HEIGHT),
+        Position = UDim2.new(0.65, 0, 0, 4),
+        Size = UDim2.new(0.35, -EDGE, 0, TITLE_HEIGHT - 4),
         TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize - 1,
         TextXAlignment = Enum.TextXAlignment.Right,
+        Visible = false,
     })
     self.Scroll = Util.new("ScrollingFrame", {
-        Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT),
-        Size = UDim2.new(1, -2 * EDGE, 1, -(TITLE_HEIGHT + 8)),
+        Position = UDim2.fromOffset(EDGE, TOP_PADDING),
+        Size = UDim2.new(1, -2 * EDGE, 1, -(TOP_PADDING + 10)),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
@@ -70,17 +75,16 @@ end
 
 function Page.new(window, name)
     local self = build(window, name)
-    self.Button = Util.button(window.TabStrip, name, {
+    self.Button = Util.button(window.TabButtons, name, {
         Name = "Tab",
-        Size = UDim2.fromOffset(Util.textWidth(name, TAB_TEXT_SIZE, Theme.FontMedium) + 20, TAB_HEIGHT),
+        Size = UDim2.fromOffset(Util.textWidth(name, TAB_TEXT_SIZE, Theme.FontMedium) + TAB_PADDING, TAB_HEIGHT),
         BorderSizePixel = 0,
-        BackgroundColor3 = Theme.Color.Selected,
         BackgroundTransparency = 1,
         Font = Theme.FontMedium,
         TextSize = TAB_TEXT_SIZE,
         TextColor3 = Theme.Color.Muted,
+        ZIndex = 2,
     })
-    Util.corner(self.Button, Theme.Radius - 1)
     self.Line = Util.frame(self.Button, {
         Name = "Indicator",
         AnchorPoint = Vector2.new(0.5, 1),
@@ -129,14 +133,33 @@ function Page:Relayout()
     end
 end
 
+function Page:LayoutHeader()
+    local showTitle = self.ShowTitle == true
+    self.Title.Visible = showTitle
+    self.Mode.Visible = showTitle
+    local top = showTitle and TITLE_HEIGHT or TOP_PADDING
+    if self.Subbar then
+        self.Subbar.Position = UDim2.fromOffset(EDGE, top)
+        top += SUBBAR_HEIGHT + 10
+    end
+    self.Scroll.Position = UDim2.fromOffset(EDGE, top)
+    self.Scroll.Size = UDim2.new(1, -2 * EDGE, 1, -(top + 10))
+end
+
 function Page:SetTitle(text)
     self.Title.Text = text
+    self.ShowTitle = true
+    self:LayoutHeader()
 end
 
 function Page:SetMode(text)
     text = text or ""
     if self.Mode.Text ~= text then
         self.Mode.Text = text
+    end
+    if text ~= "" and not self.ShowTitle then
+        self.ShowTitle = true
+        self:LayoutHeader()
     end
 end
 
@@ -154,18 +177,24 @@ function Page:AddGroupbox(title, side)
         BorderColor3 = Theme.Color.Outline,
     })
     Util.corner(frame, Theme.CardRadius)
-    Util.label(frame, string.upper(title), {
+    Util.label(frame, title, {
         Name = "Header",
-        Position = UDim2.fromOffset(Theme.Padding + 2, 0),
-        Size = UDim2.new(1, -2 * (Theme.Padding + 2), 0, GROUP_HEADER_HEIGHT),
-        Font = Theme.FontBold,
-        TextSize = Theme.TinySize,
+        Position = UDim2.fromOffset(GROUP_HEADER_INSET, 0),
+        Size = UDim2.new(1, -2 * GROUP_HEADER_INSET, 0, GROUP_HEADER_HEIGHT),
+        Font = Theme.FontMedium,
+        TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    Util.frame(frame, {
+        Name = "HeaderDivider",
+        Position = UDim2.fromOffset(0, GROUP_HEADER_HEIGHT),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Theme.Color.Outline,
+    })
     Background.surface(self.Window, frame)
     local container = Util.frame(frame, {
-        Position = UDim2.fromOffset(Theme.Padding, GROUP_HEADER_HEIGHT),
+        Position = UDim2.fromOffset(Theme.Padding, GROUP_HEADER_HEIGHT + 6),
         Size = UDim2.new(1, -2 * Theme.Padding, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
@@ -193,13 +222,12 @@ function Page:AddSubTab(title)
     if not self.Subbar then
         self.Subbar = Util.frame(self.Frame, {
             Name = "SubTabs",
-            Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT),
+            Position = UDim2.fromOffset(EDGE, TOP_PADDING),
             Size = UDim2.new(1, -2 * EDGE, 0, SUBBAR_HEIGHT),
             BackgroundTransparency = 1,
         })
         Util.list(self.Subbar, true, 4)
-        self.Scroll.Position = UDim2.fromOffset(EDGE, TITLE_HEIGHT + SUBBAR_HEIGHT + 6)
-        self.Scroll.Size = UDim2.new(1, -2 * EDGE, 1, -(TITLE_HEIGHT + SUBBAR_HEIGHT + 14))
+        self:LayoutHeader()
     end
     return Subpage.new(self, title)
 end
@@ -208,7 +236,7 @@ function Subpage.new(page, title)
     local self = setmetatable({ Page = page, Groups = {}, Title = title }, Subpage)
     self.Button = Util.button(page.Subbar, title, {
         Name = "SubTab",
-        Size = UDim2.fromOffset(Util.textWidth(title, TAB_TEXT_SIZE, Theme.FontMedium) + 18, TAB_HEIGHT),
+        Size = UDim2.fromOffset(Util.textWidth(title, TAB_TEXT_SIZE, Theme.FontMedium) + TAB_PADDING, TAB_HEIGHT),
         BorderSizePixel = 0,
         BackgroundColor3 = Theme.Color.Selected,
         BackgroundTransparency = 1,

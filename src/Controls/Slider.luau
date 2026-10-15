@@ -34,13 +34,11 @@ function Slider.add(group, id, info)
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 0),
         Size = UDim2.fromOffset(0, LABEL_HEIGHT),
-        BackgroundColor3 = Theme.Color.Input,
-        BackgroundTransparency = 0,
-        Font = Theme.MonoFont,
+        TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
-        TextXAlignment = Enum.TextXAlignment.Center,
+        TextXAlignment = Enum.TextXAlignment.Right,
     })
-    Util.corner(output, Theme.SmallRadius)
+
     local hit = Util.button(control.Row, "", {
         Name = "Track",
         Position = UDim2.fromOffset(0, LABEL_HEIGHT + 4),
@@ -79,7 +77,7 @@ function Slider.add(group, id, info)
         knob.Position = UDim2.fromScale(fraction, 0.5)
         local text = string.format(info.Format or "%g", value) .. suffix
         output.Text = text
-        output.Size = UDim2.fromOffset(Util.textWidth(text, Theme.SmallSize, Theme.MonoFont) + 12, LABEL_HEIGHT)
+        output.Size = UDim2.fromOffset(Util.textWidth(text, Theme.SmallSize) + 2, LABEL_HEIGHT)
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
         output.TextTransparency = transparency
         label.TextTransparency = transparency

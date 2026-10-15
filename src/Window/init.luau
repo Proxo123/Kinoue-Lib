@@ -17,6 +17,8 @@ local EDGE_MARGIN = 12
 local FIT_MARGIN = 24
 local OPEN_DURATION = 0.18
 local CLOSE_DURATION = 0.15
+local PAGE_NUDGE = 6
+local PAGE_DURATION = 0.22
 
 local Window = {}
 Window.__index = Window
@@ -38,7 +40,7 @@ function Window.new(options, version)
     self.SearchIndex = {}
     self.NotificationsEnabled = options.Notifications ~= false
     self.ReducedMotion = options.ReducedMotion == true
-    self.RainbowAccent = options.RainbowAccent ~= false
+    self.RainbowAccent = options.RainbowAccent == true
     self.BindableToggles = options.BindableToggles == true
     self.SettingsOpen = false
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.RightShift
@@ -372,10 +374,11 @@ end
 function Window:StyleTabs()
     for _, item in ipairs(self.Pages) do
         local active = item == self.ActivePage
-        item.Line.Visible = active
-        item.Button.BackgroundTransparency = active and 0 or 1
+        item.Line.Visible = false
+        item.Button.BackgroundTransparency = 1
         item.Button.TextColor3 = active and Theme.Text or Theme.Muted
     end
+    Chrome.paintTabs(self)
 end
 
 function Window:SelectTab(page)
@@ -391,7 +394,12 @@ function Window:SelectTab(page)
     for _, item in ipairs(self.Pages) do
         item.Frame.Visible = item == page
     end
+    local previous = self.ActivePage
     self.ActivePage = page
+    if previous and previous ~= page and not self.ReducedMotion then
+        page.Frame.Position = UDim2.fromOffset(0, PAGE_NUDGE)
+        self.Scope:Tween(page.Frame, PAGE_DURATION, { Position = UDim2.new() }, false, Enum.EasingStyle.Quint)
+    end
     self:StyleTabs()
     Chrome.paintSettingsButton(self)
     page:Relayout()

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+New look, based on the quieter Elevated design:
+
+- Calmer palette: graphite surfaces, a softer default blue, and the accent color used only for things that are on.
+- Tabs sit in a pill bar in the header. A single highlight slides and resizes to the selected tab, and the new page eases into place.
+- Groupboxes are cards with a plain title and a thin divider under it, with no lines between rows.
+- Smaller switches with white knobs, a soft row hover, outlined keycaps, plain slider values and softer buttons.
+- Pages no longer show a title row unless `SetTitle` or `SetMode` is used.
+- The rainbow line under the header is now off by default; turn it on with `RainbowAccent = true` or in settings.
+- The footer is plain text: status on the left, version on the right.
+
 ## 0.9.1
 
 - Fix the sub-toggle cog: clicks went to the toggle row underneath, flipping the toggle instead of opening its settings. Keycaps and the clear button also sit above the row now.

@@ -4,22 +4,22 @@ local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
-local HEADER_HEIGHT = 44
-local TAB_BAR_HEIGHT = 36
-local FOOTER_HEIGHT = 28
-local EDGE = 14
+local HEADER_HEIGHT = 52
+local TAB_BAR_HEIGHT = 44
+local FOOTER_HEIGHT = 30
+local EDGE = 18
 local ACCENT_WIDTH = 364
 local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
-local SETTINGS_BUTTON_SIZE = 28
+local SETTINGS_BUTTON_SIZE = 30
 local SETTINGS_ICON_SIZE = 16
 local HEADER_BUTTON_MARGIN = 10
 local HEADER_BUTTON_GAP = 6
-local SEARCH_WIDTH = 160
+local SEARCH_WIDTH = 150
 local VERSION_TEXT_SIZE = 11
-local STATUS_DOT = 6
 local TAB_STRIP_PADDING = 3
-local TAB_STRIP_HEIGHT = 24 + 2 * TAB_STRIP_PADDING
+local TAB_HEIGHT = 28
+local TAB_STRIP_HEIGHT = TAB_HEIGHT + 2 * TAB_STRIP_PADDING
 local TITLE_GAP = 8
 local TABS_GAP = 16
 
@@ -100,7 +100,7 @@ local function buildSettingsButton(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     })
-    Util.corner(window.SettingsButton, Theme.Radius)
+    Util.corner(window.SettingsButton, Theme.Radius + 1)
     window.SettingsIcon = Icons.gear(window.SettingsButton, SETTINGS_ICON_SIZE)
     Util.hover(window.Scope, window.SettingsButton, function(hovered)
         window.SettingsButton.BackgroundTransparency = hovered and 0 or 1
@@ -157,6 +157,7 @@ local function buildAccent(window)
             return
         end
         lastFrame = -1
+        window.Accent.Visible = window.RainbowAccent
         animate()
         if window.RainbowAccent and not window.ReducedMotion then
             window.AccentScope = Util.scope()
@@ -187,9 +188,23 @@ local function buildTabs(window)
         BorderColor3 = Theme.Color.Outline,
         Visible = false,
     })
-    Util.corner(window.TabStrip, Theme.Radius + 1)
+    Util.corner(window.TabStrip, Theme.Radius + 2)
     Util.padding(window.TabStrip, TAB_STRIP_PADDING)
-    Util.list(window.TabStrip, true, 2)
+    window.TabPill = Util.frame(window.TabStrip, {
+        Name = "Pill",
+        Size = UDim2.fromOffset(0, TAB_HEIGHT),
+        BackgroundColor3 = Theme.Color.Selected,
+        Visible = false,
+    })
+    Util.corner(window.TabPill, Theme.Radius - 1)
+    window.TabButtons = Util.frame(window.TabStrip, {
+        Name = "Buttons",
+        Size = UDim2.fromOffset(0, TAB_HEIGHT),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1,
+        ZIndex = 2,
+    })
+    Util.list(window.TabButtons, true, 0)
     window.Scope:Connect(window.TabStrip:GetPropertyChangedSignal("AbsoluteSize"), function()
         Chrome.layoutTabs(window)
     end)
@@ -237,18 +252,10 @@ local function buildFooter(window)
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Color.Outline,
     })
-    window.StatusDot = Util.frame(window.Footer, {
-        Name = "StatusDot",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, EDGE, 0.5, 0),
-        Size = UDim2.fromOffset(STATUS_DOT, STATUS_DOT),
-        BackgroundColor3 = Theme.Color.Success,
-    })
-    Util.corner(window.StatusDot, STATUS_DOT / 2)
     window.Status = Util.label(window.Footer, "Ready", {
         Name = "Status",
-        Position = UDim2.fromOffset(EDGE + STATUS_DOT + 6, 0),
-        Size = UDim2.new(0.7, -(EDGE + STATUS_DOT + 6), 1, 0),
+        Position = UDim2.fromOffset(EDGE, 0),
+        Size = UDim2.new(0.7, -EDGE, 1, 0),
         TextSize = Theme.SmallSize - 1,
         TextColor3 = Theme.Color.Muted,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -259,11 +266,9 @@ local function buildFooter(window)
             Name = "Version",
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -EDGE, 0, 0),
-            Size = UDim2.new(0, Util.textWidth(text, VERSION_TEXT_SIZE, Theme.MonoFont), 1, 0),
-            Font = Theme.MonoFont,
+            Size = UDim2.new(0, Util.textWidth(text, VERSION_TEXT_SIZE), 1, 0),
             TextSize = VERSION_TEXT_SIZE,
             TextColor3 = Theme.Color.Muted,
-            TextTransparency = 0.25,
             TextXAlignment = Enum.TextXAlignment.Right,
         })
     end
@@ -294,6 +299,31 @@ function Chrome.build(window, options)
     Background.surface(window, window.TabStrip)
     buildResizeHandle(window)
     Chrome.layoutTabs(window)
+end
+
+function Chrome.paintTabs(window, instant)
+    local active = window.ActivePage
+    local pill = window.TabPill
+    local offset, width = 0, nil
+    for _, page in ipairs(window.Pages) do
+        local size = page.Button.Size.X.Offset
+        if page == active then
+            width = size
+            break
+        end
+        offset += size
+    end
+    if not width then
+        pill.Visible = false
+        return
+    end
+    local goal = {
+        Position = UDim2.fromOffset(offset, 0),
+        Size = UDim2.fromOffset(width, TAB_HEIGHT),
+    }
+    local reduced = instant or window.ReducedMotion or not pill.Visible
+    pill.Visible = true
+    window.Scope:Tween(pill, 0.26, goal, reduced, Enum.EasingStyle.Quint)
 end
 
 function Chrome.layoutAccent(window)
