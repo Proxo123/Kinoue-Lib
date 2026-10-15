@@ -5,3 +5,4 @@ __pycache__/
 *.rbxl.lock
 *.rbxlx.lock
 .cache/
+node_modules/
