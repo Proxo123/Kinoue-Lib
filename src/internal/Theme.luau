@@ -1,4 +1,5 @@
-local COLOR_KEYS = { "Background", "Panel", "Input", "Hover", "Outline", "Text", "Muted", "Accent", "Selected" }
+local COLOR_KEYS =
+    { "Background", "Panel", "Input", "Hover", "Outline", "Text", "Muted", "Accent", "Selected", "Danger" }
 
 local Theme = {
     Font = Enum.Font.Code,
@@ -24,6 +25,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(171, 171, 171),
         Accent = Color3.fromRGB(57, 128, 233),
         Selected = Color3.fromRGB(35, 50, 74),
+        Danger = Color3.fromRGB(235, 87, 87),
     },
     Midnight = {
         Background = Color3.fromRGB(14, 16, 24),
@@ -35,6 +37,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(150, 158, 180),
         Accent = Color3.fromRGB(124, 92, 255),
         Selected = Color3.fromRGB(40, 34, 72),
+        Danger = Color3.fromRGB(240, 92, 112),
     },
     Ocean = {
         Background = Color3.fromRGB(12, 22, 28),
@@ -46,6 +49,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(150, 175, 185),
         Accent = Color3.fromRGB(38, 190, 190),
         Selected = Color3.fromRGB(20, 60, 64),
+        Danger = Color3.fromRGB(236, 98, 98),
     },
     Rose = {
         Background = Color3.fromRGB(24, 18, 22),
@@ -57,6 +61,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(185, 160, 172),
         Accent = Color3.fromRGB(233, 84, 128),
         Selected = Color3.fromRGB(70, 32, 46),
+        Danger = Color3.fromRGB(245, 96, 96),
     },
     Forest = {
         Background = Color3.fromRGB(16, 22, 18),
@@ -68,6 +73,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(160, 180, 164),
         Accent = Color3.fromRGB(88, 190, 110),
         Selected = Color3.fromRGB(32, 62, 40),
+        Danger = Color3.fromRGB(232, 96, 86),
     },
     Light = {
         Background = Color3.fromRGB(240, 240, 242),
@@ -79,6 +85,7 @@ Theme.Presets = {
         Muted = Color3.fromRGB(110, 110, 118),
         Accent = Color3.fromRGB(40, 110, 220),
         Selected = Color3.fromRGB(215, 228, 250),
+        Danger = Color3.fromRGB(205, 45, 45),
     },
 }
 

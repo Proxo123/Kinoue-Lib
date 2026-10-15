@@ -13,19 +13,77 @@ function Control.row(group, height)
     })
 end
 
-function Control.new(group, id, initial, normalize, callback)
-    local window = group.Window
-    local control = Model.control(initial, normalize, function(value)
-        window:Dispatch(callback, value)
-        window:ConfigChanged()
-    end)
-    control.Enabled = true
+local function describe(control, value)
+    local notify = control.Notify
+    if type(notify) == "function" then
+        return notify(value)
+    end
+    if type(notify) == "string" then
+        return notify
+    end
+    local name = control.DisplayName
+    if type(value) == "boolean" then
+        return name .. (value and " enabled" or " disabled")
+    end
+    if typeof(value) == "EnumItem" then
+        if value == Enum.KeyCode.Unknown then
+            return name .. " unbound"
+        end
+        return name .. " bound to " .. value.Name
+    end
+    if typeof(value) == "Color3" then
+        return name .. " set to #" .. value:ToHex()
+    end
+    if type(value) == "number" then
+        return name .. ": " .. string.format("%g", value)
+    end
+    if value == nil then
+        return name
+    end
+    return name .. ": " .. tostring(value)
+end
 
-    function control:SetCallback(fn)
-        self.Callback = function(value)
+function Control.notify(window, control, value)
+    if not control.Notify or window.SuppressNotify then
+        return
+    end
+    local ok, message = pcall(describe, control, value)
+    if not ok then
+        Util.warn("Notification failed: " .. tostring(message))
+    elseif message then
+        window:Notify({ Text = message })
+    end
+end
+
+function Control.searchable(group, name, target)
+    group.Window:AddSearchEntry({
+        Kind = "Setting",
+        Name = name,
+        Group = group,
+        Target = target,
+    })
+end
+
+function Control.new(group, id, initial, normalize, callback, info)
+    info = info or {}
+    local window = group.Window
+    local control
+
+    local function wrap(fn)
+        return function(value)
             window:Dispatch(fn, value)
             window:ConfigChanged()
+            Control.notify(window, control, value)
         end
+    end
+
+    control = Model.control(initial, normalize, wrap(callback))
+    control.Enabled = true
+    control.DisplayName = info.Name or info.Text or id
+    control.Notify = info.Notify
+
+    function control:SetCallback(fn)
+        self.Callback = wrap(fn)
         return self
     end
 
@@ -53,7 +111,13 @@ function Control.new(group, id, initial, normalize, callback)
     end
 
     Util.protect(control, { "Set", "SetEnabled", "SetVisible" })
-    return window:Register(id, control)
+    window:Register(id, control)
+    if not info.Inline and info.Searchable ~= false then
+        Control.searchable(group, control.DisplayName, function()
+            return control.Row
+        end)
+    end
+    return control
 end
 
 function Control.closePopupWhenHidden(control, window)

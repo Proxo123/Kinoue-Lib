@@ -38,6 +38,19 @@ function Disclosure.add(group, title, newGroup, open)
     child.Header = button
     child.Icon = icon
     child.Section = section
+    child.Parent = group
+    child.Label = title
+    child.Reveal = function()
+        section:SetOpen(true, true)
+    end
+    window:AddSearchEntry({
+        Kind = "Section",
+        Name = title,
+        Group = group,
+        Target = function()
+            return button
+        end,
+    })
 
     local function paint()
         icon:SetColor(section.Open and Theme.Text or Theme.Muted)

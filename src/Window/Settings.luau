@@ -106,6 +106,14 @@ local function buildWindow(window, page, options)
             window:SetReducedMotion(not value)
         end,
     })
+    look:AddToggle("UI.Notifications", {
+        Text = "Notifications",
+        Keybind = false,
+        Value = window.NotificationsEnabled,
+        Callback = function(value)
+            window.NotificationsEnabled = value
+        end,
+    })
     look:AddToggle("UI.RainbowAccent", {
         Text = "Rainbow accent line",
         Keybind = false,
@@ -117,7 +125,7 @@ local function buildWindow(window, page, options)
 end
 
 function Settings.build(window, options)
-    local page = Page.hidden(window, "Settings")
+    local page = Page.hidden(window, "UI settings")
     page:SetTitle("UI settings")
     page:SetMode("Theme applies to every window")
     local controls = buildTheme(window, page)

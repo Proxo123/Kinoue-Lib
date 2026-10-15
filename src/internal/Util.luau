@@ -54,6 +54,10 @@ function Util.protect(object, names)
     return object
 end
 
+function Util.textSize(text, size, maxWidth)
+    return TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(maxWidth or 10000, 10000))
+end
+
 function Util.textWidth(text, size)
     size = size or Theme.TextSize
     local key = size .. "\0" .. text
@@ -236,7 +240,7 @@ function Scope:Release(connection)
     end
 end
 
-function Scope:Tween(object, duration, props, reduced)
+function Scope:Tween(object, duration, props, reduced, style)
     local prior = self.Tweens[object]
     if prior then
         prior:Cancel()
@@ -248,7 +252,7 @@ function Scope:Tween(object, duration, props, reduced)
         self.Tweens[object] = nil
         return
     end
-    local info = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local info = TweenInfo.new(duration, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(object, info, props)
     self.Tweens[object] = tween
     tween:Play()

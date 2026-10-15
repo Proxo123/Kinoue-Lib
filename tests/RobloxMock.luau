@@ -178,6 +178,8 @@ local function create(className)
             ImageTransparency = 0,
             ScrollBarImageTransparency = 0,
             BorderSizePixel = 0,
+            Rotation = 0,
+            CanvasPosition = vec(0, 0),
         }
     local object
     function methods:GetChildren()
@@ -212,6 +214,14 @@ local function create(className)
         events[name] = events[name] or signal()
         return events[name]
     end
+    function methods:CaptureFocus()
+        Mock.Input.Focused = object
+    end
+    function methods:ReleaseFocus()
+        if Mock.Input.Focused == object then
+            Mock.Input.Focused = nil
+        end
+    end
     function methods:Destroy()
         if Mock.ProtectCoreDestroy and Mock.Identity ~= 8 then
             local ancestor = self
@@ -221,6 +231,9 @@ local function create(className)
                 end
                 ancestor = ancestor.Parent
             end
+        end
+        if events.Destroying then
+            events.Destroying:Fire()
         end
         for _, child in ipairs(children(self)) do
             child:Destroy()
@@ -274,6 +287,9 @@ local function create(className)
                 key == "Activated"
                 or key == "InputBegan"
                 or key == "FocusLost"
+                or key == "MouseEnter"
+                or key == "MouseLeave"
+                or key == "Destroying"
                 or key == "DescendantAdded"
                 or key == "DescendantRemoving"
             then

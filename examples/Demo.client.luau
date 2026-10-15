@@ -34,16 +34,32 @@ welcome:AddLabel("RightShift shows or hides the menu.", true)
 welcome:AddLabel("Every control here is live.", true)
 
 local quick = pages.Home:AddGroupbox("Quick settings", "Right")
-local notifications = quick:AddToggle("Notifications", { Text = "Notifications", Value = true, SubToggle = true })
+local notifications = quick:AddToggle("Notifications", {
+    Text = "Notifications",
+    Value = true,
+    SubToggle = true,
+    Callback = function(value)
+        window.Controls["UI.Notifications"]:Set(value)
+    end,
+})
 notifications.Settings:AddSlider("NotifyDuration", { Text = "Duration", Min = 1, Max = 10, Value = 3, Suffix = "s" })
-notifications.Settings:AddDropdown("NotifyCorner", { Text = "Corner", Options = { "Bottom right", "Top right" } })
-quick:AddToggle("Sounds", { Text = "Sounds" })
+quick:AddToggle("Sounds", { Text = "Sounds", Notify = true })
+quick:AddButton({
+    Text = "Test notification",
+    Callback = function()
+        window:Notify({
+            Title = "Kinoue",
+            Text = "Notifications slide in here and close on their own.",
+            Duration = window.Controls.NotifyDuration:Get(),
+        })
+    end,
+})
 quick:AddDropdown("Language", { Text = "Language", Options = { "English", "German", "Spanish", "French" } })
 
 local toggles = pages.Inputs:AddGroupbox("Toggles", "Left")
-toggles:AddToggle("AutoSave", { Text = "Auto save", Value = true })
+toggles:AddToggle("AutoSave", { Text = "Auto save", Value = true, Notify = true })
 toggles:AddToggle("ShowHints", { Text = "Show hints", Keybind = true })
-toggles:AddToggle("CompactMode", { Text = "Compact mode", Keybind = { Value = Enum.KeyCode.C } })
+toggles:AddToggle("CompactMode", { Text = "Compact mode", Notify = true, Keybind = { Value = Enum.KeyCode.C } })
 
 local sliders = pages.Inputs:AddGroupbox("Sliders", "Left")
 sliders:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 24, Value = 16, Suffix = "studs/s" })

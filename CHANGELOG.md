@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Add notifications: `window:Notify(text or options)` and a `Notify` option on every control and button. Cards slide in at the bottom right with a close button and a timer bar, stay visible while the menu is hidden, and can be turned off in settings.
+- Add header search: a magnifier next to the gear finds tabs, sub-tabs, groupboxes, sections and controls, then jumps to the result, opening whatever it is inside.
+- Show keybind conflicts: shared keys turn red, show a warning icon, and list the other binds on hover.
+- Stop crashing on duplicate IDs. Same-text button and toggle keybinds get unique IDs, and explicit duplicates are renamed with a warning.
+- Shut an old window down completely when `ReplaceExisting` (or anything else) destroys its ScreenGui. Its keybinds, auto-save and notifications no longer linger after a script re-run.
+- Show the library version in small grey text at the bottom right of the footer.
+- Add a `Danger` theme color.
+
 ## 0.5.1
 
 - Keybinds now fire while the menu is hidden. Keys the game already handled, such as chat, and typing in a textbox are still ignored.

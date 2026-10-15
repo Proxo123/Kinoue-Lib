@@ -12,8 +12,13 @@ local ACCENT_FRAME_RATE = 30
 local ACCENT_CYCLE_FRAMES = 150
 local SETTINGS_BUTTON_SIZE = 20
 local SETTINGS_ICON_SIZE = 16
+local HEADER_BUTTON_MARGIN = 6
+local HEADER_BUTTON_GAP = 4
+local VERSION_TEXT_SIZE = 11
 
 local Chrome = {}
+Chrome.HEADER_HEIGHT = HEADER_HEIGHT
+Chrome.SEARCH_OFFSET = HEADER_BUTTON_MARGIN + SETTINGS_BUTTON_SIZE + HEADER_BUTTON_GAP
 
 local function buildRoot(window, options)
     local position = options.Position or UDim2.fromScale(0.5, 0.5)
@@ -43,7 +48,7 @@ local function buildHeader(window, options)
     })
     Util.label(window.Header, options.Name or "Kinoue", {
         Position = UDim2.fromOffset(8, 0),
-        Size = UDim2.new(1, -(SETTINGS_BUTTON_SIZE + 16), 1, 0),
+        Size = UDim2.new(1, -(Chrome.SEARCH_OFFSET + SETTINGS_BUTTON_SIZE + 8), 1, 0),
         TextSize = Theme.TextSize + 1,
     })
     Util.frame(window.Header, {
@@ -57,7 +62,7 @@ local function buildSettingsButton(window)
     window.SettingsButton = Util.button(window.Header, "", {
         Name = "SettingsButton",
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -6, 0.5, 0),
+        Position = UDim2.new(1, -HEADER_BUTTON_MARGIN, 0.5, 0),
         Size = UDim2.fromOffset(SETTINGS_BUTTON_SIZE, SETTINGS_BUTTON_SIZE),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -159,9 +164,25 @@ local function buildFooter(window, options)
         Size = UDim2.new(0.7, -7, 1, 0),
         TextSize = Theme.SmallSize,
     })
+    local reserved = 7
+    if window.Version then
+        local text = "v" .. window.Version
+        local width = Util.textWidth(text, VERSION_TEXT_SIZE)
+        window.VersionLabel = Util.label(window.Footer, text, {
+            Name = "Version",
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -7, 0, 0),
+            Size = UDim2.new(0, width, 1, 0),
+            TextSize = VERSION_TEXT_SIZE,
+            TextColor3 = Theme.Color.Muted,
+            TextTransparency = 0.25,
+            TextXAlignment = Enum.TextXAlignment.Right,
+        })
+        reserved += width + 8
+    end
     Util.label(window.Footer, options.Footer or "", {
         Position = UDim2.new(0.7, 0, 0, 0),
-        Size = UDim2.new(0.3, -7, 1, 0),
+        Size = UDim2.new(0.3, -reserved, 1, 0),
         TextSize = Theme.SmallSize,
         TextColor3 = Theme.Color.Muted,
         TextXAlignment = Enum.TextXAlignment.Right,

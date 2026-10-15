@@ -2,11 +2,14 @@ local Cursor = require(script.Parent.internal.Cursor)
 local Fade = require(script.Parent.internal.Fade)
 local Mount = require(script.Parent.internal.Mount)
 local Theme = require(script.Parent.internal.Theme)
+local Tooltip = require(script.Parent.internal.Tooltip)
 local Util = require(script.Parent.internal.Util)
 local Chrome = require(script.Chrome)
 local Config = require(script.Config)
 local Input = require(script.Input)
+local Notifications = require(script.Notifications)
 local Page = require(script.Page)
+local Search = require(script.Search)
 local Settings = require(script.Settings)
 
 local EDGE_MARGIN = 12
@@ -21,14 +24,18 @@ for name, method in pairs(Config) do
     Window[name] = method
 end
 
-function Window.new(options)
+function Window.new(options, version)
     local self = setmetatable({}, Window)
     self.Scope = Util.scope()
+    self.Name = options.Name or "Kinoue"
+    self.Version = version
     self.Controls = {}
     self.Pages = {}
     self.Keybinds = {}
     self.Cleanup = {}
     self.ThemeHooks = {}
+    self.SearchIndex = {}
+    self.NotificationsEnabled = options.Notifications ~= false
     self.ReducedMotion = options.ReducedMotion == true
     self.RainbowAccent = options.RainbowAccent ~= false
     self.BindableToggles = options.BindableToggles == true
@@ -51,7 +58,11 @@ function Window.new(options)
         DisplayOrder = options.DisplayOrder or 100,
     })
     Mount.core(self.Screen, options.ReplaceExisting == true)
+    self.Scope:Connect(self.Screen.Destroying, function()
+        self:Destroy()
+    end)
     Chrome.build(self, options)
+    Search.build(self, Chrome.HEADER_HEIGHT, Chrome.SEARCH_OFFSET)
 
     self.Fade = Fade.new(self.Screen)
     self.Fade:Set(1)
@@ -107,11 +118,72 @@ function Window:Dispatch(callback, ...)
     end
 end
 
+function Window:UniqueId(base)
+    if not self.Controls[base] then
+        return base
+    end
+    local index = 2
+    while self.Controls[base .. index] do
+        index += 1
+    end
+    return base .. index
+end
+
 function Window:Register(id, control)
-    assert(type(id) == "string" and not self.Controls[id], "Control IDs must be unique: " .. tostring(id))
+    assert(type(id) == "string", "Control IDs must be strings: " .. tostring(id))
+    if self.Controls[id] then
+        local unique = self:UniqueId(id)
+        Util.warn('Duplicate control ID "' .. id .. '"; registered as "' .. unique .. '"')
+        id = unique
+    end
     self.Controls[id] = control
     control.Id = id
     return control
+end
+
+function Window:AddSearchEntry(entry)
+    table.insert(self.SearchIndex, entry)
+    return entry
+end
+
+function Window:OpenSearch()
+    Search.open(self)
+    return self
+end
+
+function Window:CloseSearch()
+    Search.close(self)
+    return self
+end
+
+function Window:Notify(options)
+    return Notifications.show(self, options)
+end
+
+function Window:UpdateKeyConflicts()
+    local byKey = {}
+    for _, control in ipairs(self.Keybinds) do
+        local key = control:Get()
+        if control.Enabled and key ~= Enum.KeyCode.Unknown then
+            byKey[key] = byKey[key] or {}
+            table.insert(byKey[key], control)
+        end
+    end
+    for _, control in ipairs(self.Keybinds) do
+        local conflicts = {}
+        local shared = control.Enabled and byKey[control:Get()]
+        if shared and #shared > 1 then
+            for _, other in ipairs(shared) do
+                if other ~= control then
+                    table.insert(conflicts, other)
+                end
+            end
+        end
+        control.Conflicts = conflicts
+        if control.PaintConflict then
+            control.PaintConflict()
+        end
+    end
 end
 
 function Window:SetStatus(text)
@@ -154,6 +226,10 @@ function Window:SetVisible(value, initial)
 
     local version = self.VisibilityVersion
     self:ClosePopup()
+    if not value then
+        Search.close(self)
+        Tooltip.hide(self)
+    end
     self.Resizing = nil
     if self.Capturing then
         self.Capturing.Render(self.Capturing:Get())
@@ -408,6 +484,12 @@ function Window:Destroy()
         self:ClosePopup()
     end)
     self.PopupOwner = nil
+    cleanupStep("Search", function()
+        Search.close(self)
+    end)
+    cleanupStep("Notifications", function()
+        Notifications.destroy(self)
+    end)
     cleanupStep("Cursor", function()
         Cursor.set(self, false)
     end)

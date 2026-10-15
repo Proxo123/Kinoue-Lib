@@ -109,4 +109,82 @@ function Icons.chevron(parent, size, props)
     return icon:SetColor(props.Color or Theme.Muted)
 end
 
+function Icons.warning(parent, size, props)
+    props = props or {}
+    local icon = newIcon(parent, size, props)
+    local side = size
+    local height = side * math.sqrt(3) / 2
+    local thickness = math.max(1, math.floor(size / 9))
+    local edges = {
+        { 0, height / 2, 0 },
+        { -side / 4, 0, -60 },
+        { side / 4, 0, 60 },
+    }
+    for _, edge in ipairs(edges) do
+        table.insert(
+            icon.Fills,
+            Util.frame(icon.Root, {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, edge[1], 0.5, edge[2]),
+                Size = UDim2.fromOffset(side, thickness),
+                Rotation = edge[3],
+                ZIndex = props.ZIndex,
+            })
+        )
+    end
+    local mark = math.max(1, math.floor(size / 8))
+    table.insert(
+        icon.Fills,
+        Util.frame(icon.Root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, -height * 0.05),
+            Size = UDim2.fromOffset(mark, math.max(2, math.floor(height * 0.35))),
+            ZIndex = props.ZIndex,
+        })
+    )
+    table.insert(
+        icon.Fills,
+        Util.frame(icon.Root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, height * 0.3),
+            Size = UDim2.fromOffset(mark, mark),
+            ZIndex = props.ZIndex,
+        })
+    )
+    return icon:SetColor(props.Color or Theme.Danger)
+end
+
+function Icons.search(parent, size, props)
+    props = props or {}
+    local icon = newIcon(parent, size, props)
+    local lens = math.max(4, math.floor(size * 0.55))
+    local thickness = math.max(1, math.floor(size / 8))
+    local ring = Util.frame(icon.Root, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, -size * 0.1, 0.5, -size * 0.1),
+        Size = UDim2.fromOffset(lens, lens),
+        BackgroundTransparency = 1,
+        ZIndex = props.ZIndex,
+    })
+    Util.new("UICorner", { CornerRadius = UDim.new(1, 0) }, ring)
+    table.insert(
+        icon.Strokes,
+        Util.new("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Thickness = thickness,
+        }, ring)
+    )
+    table.insert(
+        icon.Fills,
+        Util.frame(icon.Root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, size * 0.25, 0.5, size * 0.25),
+            Size = UDim2.fromOffset(math.max(3, math.floor(size * 0.35)), thickness + 1),
+            Rotation = 45,
+            ZIndex = props.ZIndex,
+        })
+    )
+    return icon:SetColor(props.Color or Theme.Muted)
+end
+
 return Icons

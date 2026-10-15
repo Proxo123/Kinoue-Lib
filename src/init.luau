@@ -3,13 +3,13 @@ local Util = require(script.internal.Util)
 local Window = require(script.Window)
 
 local Library = {
-    Version = "0.5.1",
+    Version = "0.6.0",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
 
 function Library:CreateWindow(options)
-    return Window.new(options or {})
+    return Window.new(options or {}, Library.Version)
 end
 
 function Library:SetTheme(theme)

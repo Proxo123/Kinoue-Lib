@@ -98,7 +98,7 @@ function Dropdown.add(group, id, info)
     local control = Control.new(group, id, initial, function(value)
         assert(value == nil or find(value), "Unknown dropdown value: " .. tostring(value))
         return value
-    end, info.Callback)
+    end, info.Callback, info)
     control.Window = window
 
     control.Row = Control.row(group, 41)

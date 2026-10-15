@@ -120,7 +120,7 @@ function ColorPicker.add(group, id, info)
     local control = Control.new(group, id, info.Value or Color3.new(1, 1, 1), function(value)
         assert(typeof(value) == "Color3", "ColorPicker requires Color3")
         return value
-    end, info.Callback)
+    end, info.Callback, info)
 
     control.Row = Control.row(group)
     Util.label(control.Row, info.Text or id, { Size = UDim2.new(1, -85, 1, 0) })
