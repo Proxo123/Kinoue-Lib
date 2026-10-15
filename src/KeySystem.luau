@@ -60,7 +60,6 @@ function KeySystem:_busy(value)
     if not self.Window.Dead then
         self.Key:SetEnabled(not value and self.Supported)
         self.RedeemButton:SetEnabled(not value and self.Supported)
-        self.ForgetButton:SetEnabled(not value)
         self.Remember:SetEnabled(not value and self.CanRemember)
     end
 end
@@ -77,6 +76,7 @@ end
 
 function KeySystem:_clearCache()
     self.Token = nil
+    self.Remembered = false
     if type(delfile) == "function" then
         pcall(delfile, self.CachePath)
     elseif type(writefile) == "function" then
@@ -213,6 +213,12 @@ function KeySystem:_run(route, credentials)
         self.Loaded, self.Result, self.State, self.Job, self.Busy = true, result, "loaded", nil, false
         self.Completing = true
         self.Window:Destroy()
+        if type(result) == "table" then
+            local window = result.Window or result
+            if type(window) == "table" and type(window.SetLogoutHandler) == "function" then
+                self:AttachWindow(window)
+            end
+        end
         if self.Options.OnLoaded then
             pcall(self.Options.OnLoaded, result)
         end
@@ -251,6 +257,89 @@ function KeySystem:Forget()
     self:_status("Enter key.")
 end
 
+function KeySystem:AttachWindow(window)
+    assert(
+        type(window) == "table" and type(window.SetLogoutHandler) == "function",
+        "AttachWindow requires a Kinoue window"
+    )
+    if self.Dead then
+        return self
+    end
+    if self.SessionWindow and not self.SessionWindow.Dead then
+        self.SessionWindow:SetLogoutHandler(nil)
+    end
+    self.SessionWindow = window
+    window:SetLogoutHandler(function()
+        self:Logout()
+    end)
+    return self
+end
+
+function KeySystem:Logout()
+    if self.Dead or not self.Loaded or self.Busy then
+        return false
+    end
+    local result = self.Result
+    local unload = self.Options.OnUnload
+    if not unload and type(result) == "table" and type(result.Destroy) == "function" then
+        unload = function()
+            result:Destroy()
+        end
+    end
+    if not unload and self.SessionWindow then
+        unload = function()
+            self.SessionWindow:Destroy()
+        end
+    end
+    if not unload then
+        return false
+    end
+    self.Generation += 1
+    self.State, self.Busy = "logging_out", true
+    local generation, token = self.Generation, self.Token
+    self:_clearCache()
+    if token then
+        local request = self.Request
+        local parameters = {
+            Url = self.Endpoint .. "/v1/logout",
+            Method = "POST",
+            Timeout = self.Timeout,
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ application = self.Application, hwid = self.Hwid, token = token }),
+        }
+        task.defer(function()
+            pcall(request, parameters)
+        end)
+    end
+    self.LogoutJob = task.defer(function()
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        local ok, message = pcall(unload, result)
+        self.LogoutJob = nil
+        if self.Dead or generation ~= self.Generation then
+            return
+        end
+        if not ok then
+            self.State, self.Busy = "loaded", false
+            Util.warn("Logout cleanup failed: " .. tostring(message))
+            if self.SessionWindow and not self.SessionWindow.Dead then
+                self.SessionWindow:SetStatus("Could not unload script.")
+            end
+            return
+        end
+        if self.SessionWindow and not self.SessionWindow.Dead then
+            self.SessionWindow:Destroy()
+        end
+        self.SessionWindow, self.Result, self.Loaded = nil, nil, false
+        self.State, self.Error = "ready", nil
+        self:_buildWindow()
+        self:_busy(false)
+        self:_status("Enter key.")
+    end)
+    return true
+end
+
 function KeySystem:Destroy()
     if self.Dead then
         return
@@ -260,42 +349,25 @@ function KeySystem:Destroy()
     if self.Job and type(task.cancel) == "function" and self.Job ~= coroutine.running() then
         pcall(task.cancel, self.Job)
     end
+    if self.LogoutJob and type(task.cancel) == "function" and self.LogoutJob ~= coroutine.running() then
+        pcall(task.cancel, self.LogoutJob)
+    end
+    if self.SessionWindow and not self.SessionWindow.Dead then
+        self.SessionWindow:SetLogoutHandler(nil)
+    end
+    self.LogoutJob, self.SessionWindow = nil, nil
     self.Job, self.Hwid, self.Token = nil, nil, nil
     if not self.Window.Dead then
         self.Window:Destroy()
     end
 end
 
-function KeySystem.new(library, options)
-    options = options or {}
-    local application = options.Application
-    assert(
-        type(application) == "string" and #application <= 64 and application:match("^[a-z][a-z0-9_-]*$"),
-        "Application requires a lowercase application ID"
-    )
-    local self = setmetatable({
-        Options = options,
-        Application = application,
-        Endpoint = endpoint(options.Endpoint, options.AllowLocalhost == true),
-        Generation = 0,
-        State = "ready",
-        Dead = false,
-        Busy = false,
-        Loaded = false,
-    }, KeySystem)
-    self.Timeout = math.clamp(tonumber(options.Timeout) or 20, 5, 60)
-    self.CachePath = (options.CachePath or "Kinoue/keys/" .. application .. ".json"):gsub("\\", "/")
-    assert(
-        self.CachePath:match("^[%w_./-]+$") and not self.CachePath:find("%.%.") and self.CachePath:sub(1, 1) ~= "/",
-        "CachePath must be an executor workspace path"
-    )
-    self.CanRemember = type(readfile) == "function" and type(writefile) == "function" and type(makefolder) == "function"
-    self.Hwid = fingerprint()
-    self.Request = request or http_request or (type(syn) == "table" and syn.request)
-    self.Supported = self.Hwid ~= nil and type(self.Request) == "function" and type(loadstring) == "function"
-    self.Window = library:CreateWindow({
+function KeySystem:_buildWindow()
+    local options = self.Options
+    self.Completing = false
+    self.Window = self.Library:CreateWindow({
         Name = options.Name or "Kinoue",
-        Id = options.Id or "Kinoue_Key_" .. application,
+        Id = options.Id or "Kinoue_Key_" .. self.Application,
         Size = Vector2.new(420, 320),
         MinSize = Vector2.new(320, 280),
         Resizable = false,
@@ -325,12 +397,6 @@ function KeySystem.new(library, options)
             self:Redeem(self.Key.Root.Text)
         end,
     })
-    self.ForgetButton = group:AddButton({
-        Text = "Forget",
-        Callback = function()
-            self:Forget()
-        end,
-    })
     self.Window.Scope:Connect(self.Key.Root.FocusLost, function(enter)
         if enter then
             self:Redeem(self.Key.Root.Text)
@@ -341,6 +407,37 @@ function KeySystem.new(library, options)
             self:Destroy()
         end
     end)
+end
+
+function KeySystem.new(library, options)
+    options = options or {}
+    local application = options.Application
+    assert(
+        type(application) == "string" and #application <= 64 and application:match("^[a-z][a-z0-9_-]*$"),
+        "Application requires a lowercase application ID"
+    )
+    local self = setmetatable({
+        Options = options,
+        Library = library,
+        Application = application,
+        Endpoint = endpoint(options.Endpoint, options.AllowLocalhost == true),
+        Generation = 0,
+        State = "ready",
+        Dead = false,
+        Busy = false,
+        Loaded = false,
+    }, KeySystem)
+    self.Timeout = math.clamp(tonumber(options.Timeout) or 20, 5, 60)
+    self.CachePath = (options.CachePath or "Kinoue/keys/" .. application .. ".json"):gsub("\\", "/")
+    assert(
+        self.CachePath:match("^[%w_./-]+$") and not self.CachePath:find("%.%.") and self.CachePath:sub(1, 1) ~= "/",
+        "CachePath must be an executor workspace path"
+    )
+    self.CanRemember = type(readfile) == "function" and type(writefile) == "function" and type(makefolder) == "function"
+    self.Hwid = fingerprint()
+    self.Request = request or http_request or (type(syn) == "table" and syn.request)
+    self.Supported = self.Hwid ~= nil and type(self.Request) == "function" and type(loadstring) == "function"
+    self:_buildWindow()
     if not self.Supported then
         local code = not self.Hwid and "unsupported_executor"
             or type(self.Request) ~= "function" and "unsupported_http"
@@ -372,5 +469,5 @@ function KeySystem.new(library, options)
     return self
 end
 
-Util.protect(KeySystem, { "Redeem", "Forget", "Destroy" })
+Util.protect(KeySystem, { "Redeem", "Forget", "AttachWindow", "Logout", "Destroy" })
 return KeySystem

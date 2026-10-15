@@ -135,3 +135,21 @@ def test_sessions_are_bounded(setup):
         store.redeem("king", license["key"], "device-one")
     with store.connect() as db:
         assert db.execute("SELECT count(*) AS total FROM sessions").fetchone()["total"] <= 5
+
+
+def test_logout_invalidates_only_the_authenticated_session(setup):
+    store, license, _, client = setup
+    first = redeem(client, license).json()["token"]
+    second = redeem(client, license).json()["token"]
+    body = {"application": "king", "hwid": "device-one", "token": first}
+    assert client.post("/v1/logout", json={**body, "hwid": "another-device"}).json() == {"ok": True}
+    assert client.post("/v1/script", json=body).status_code == 200
+    assert client.post("/v1/logout", json={**body, "application": "second"}).status_code == 200
+    assert client.post("/v1/script", json=body).status_code == 200
+    assert client.post("/v1/logout", json=body).json() == {"ok": True}
+    assert client.post("/v1/logout", json=body).json() == {"ok": True}
+    assert client.post("/v1/script", json=body).status_code == 401
+    assert client.post("/v1/session", json=body).status_code == 401
+    assert client.post("/v1/script", json={**body, "token": second}).status_code == 200
+    assert store.license_detail(license["id"])["hwid_bound"]
+    assert redeem(client, license).status_code == 200

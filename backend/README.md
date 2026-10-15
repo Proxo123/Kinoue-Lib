@@ -68,7 +68,11 @@ The executor must provide a working `gethwid`, `get_hwid`, or `syn.get_hwid`, an
 
 Only the device-bound session token and its expiry, application, and endpoint are cached. Raw keys and HWIDs are not written to the client cache. The server revalidates and rotates a cached session before downloading a script. An invalid/revoked/expired login never falls back to running a previously downloaded payload. A network failure preserves the cache so it can be tried again later.
 
-`CreateKeySystem` returns a controller with `Window`, `State`, `Error`, `Supported`, `Loaded`, `Result`, `Remembered`, and the methods `Redeem(key)`, `Forget()`, and `Destroy()`. Optional `OnLoaded(result)` and `OnError(code, message)` callbacks report outcomes. Protected scripts should return after setting up their own event handlers. There is no frame-based authentication loop.
+`CreateKeySystem` returns a controller with `Window`, `State`, `Error`, `Supported`, `Loaded`, `Result`, `Remembered`, and the methods `Redeem(key)`, `Forget()`, `Logout()`, `AttachWindow(window)`, and `Destroy()`. The key page shows Key, Remember, and Redeem. Optional `OnLoaded(result)` and `OnError(code, message)` callbacks report outcomes. Protected scripts should return after setting up their own event handlers. There is no frame-based authentication loop.
+
+Return the Kinoue window, or a controller with `Window` and `Destroy()` fields, from the protected payload. Kinoue then adds **Logout** to that window's built-in settings. Logout runs the returned controller's cleanup, clears the saved login, requests revocation of the current server session, and opens a fresh Key page without reusing the cached token. UI configuration is preserved. The server binding stays attached to the license. Local logout works if the server is unavailable; server token revocation requires connectivity.
+
+For another return type, supply `OnUnload(result)` to clean up the script and call `gate:AttachWindow(window)` from `OnLoaded` to add the settings button. `window:SetLogoutHandler(callback)` also supports a custom logout flow. `Forget()` remains available for programmatic cache clearing before loading; it has no button on the key page.
 
 ## Operations
 
@@ -79,7 +83,7 @@ python -m key_service reset-device LICENSE_ID
 
 Revocation blocks future redemption, session refreshes, and script downloads. A device reset clears the binding and invalidates all remembered sessions; the next successful key redemption establishes the new binding. Neither operation can erase code already downloaded to a user-controlled executor or stop a script that is already running. Executor HWIDs are client-provided identifiers, not hardware attestation, and can be spoofed by a modified client. This is a licensing gate, not copy protection.
 
-The executor API exposes `/health`, `/v1/redeem`, `/v1/session`, and `/v1/script`. Each POST includes `application` and `hwid`; redeem adds `key`, and session/script add `token`. Responses are marked `no-store`. Inputs are bounded, validation errors redact submitted credentials, and device binding uses a transaction with row locking on Postgres. Keys/device binding IDs/session tokens use domain-separated HMACs; only the admin-readable HWID additionally has encrypted storage. The server limits requests per source IP. If using a proxy, configure Uvicorn to trust only that proxy and configure HTTPS, body limits, and connection timeouts there as well.
+The executor API exposes `/health`, `/v1/redeem`, `/v1/session`, `/v1/logout`, and `/v1/script`. Each POST includes `application` and `hwid`; redeem adds `key`, and session/script/logout add `token`. Logout invalidates only that authenticated session and preserves the license's device binding. Responses are marked `no-store`. Inputs are bounded, validation errors redact submitted credentials, and device binding uses a transaction with row locking on Postgres. Keys/device binding IDs/session tokens use domain-separated HMACs; only the admin-readable HWID additionally has encrypted storage. The server limits requests per source IP. If using a proxy, configure Uvicorn to trust only that proxy and configure HTTPS, body limits, and connection timeouts there as well.
 
 ## Container
 

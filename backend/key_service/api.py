@@ -105,5 +105,9 @@ def create_app(store=None, admin_hash=None, origin=None):
     def script(body: Session):
         return store.script(body.application, body.token, body.hwid)
 
+    @app.post("/v1/logout")
+    def logout(body: Session):
+        return store.logout(body.application, body.token, body.hwid)
+
     attach_admin(app, store, admin_hash, origin)
     return app

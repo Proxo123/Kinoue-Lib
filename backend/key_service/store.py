@@ -221,6 +221,14 @@ class Store:
             raise Denied("script_unavailable", 503)
         return row["source"]
 
+    def logout(self, application, token, hwid):
+        with self.connect(write=True) as db:
+            row = db.execute(self.locked("SELECT l.* FROM sessions s JOIN licenses l ON l.id=s.license_id WHERE s.token_hash=? AND l.application=?"),
+                             (self.digest("session", token), application)).fetchone()
+            if row and row["hwid_hash"] and hmac.compare_digest(row["hwid_hash"], self.digest("hwid:" + application, hwid)):
+                db.execute("DELETE FROM sessions WHERE token_hash=?", (self.digest("session", token),))
+        return {"ok": True}
+
     def rate_limit(self, ip, group="client", limit=60, seconds=60):
         now = int(self.now())
         bucket = self.digest("rate:" + group, ip)

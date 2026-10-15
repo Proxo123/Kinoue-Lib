@@ -426,6 +426,12 @@ function Window:ToggleSettings()
     return self:OpenSettings()
 end
 
+function Window:SetLogoutHandler(callback)
+    assert(callback == nil or type(callback) == "function", "Logout handler must be a function")
+    Settings.setLogout(self, callback)
+    return self
+end
+
 local function syncSetting(window, id, value)
     local control = window.Controls[id]
     if control then
@@ -500,6 +506,7 @@ function Window:Destroy()
     self.Open = false
     self.Capturing = nil
     self.Resizing = nil
+    self.LogoutHandler = nil
     self.VisibilityVersion += 1
 
     cleanupStep("Visibility", function()

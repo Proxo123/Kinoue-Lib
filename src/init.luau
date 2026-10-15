@@ -4,7 +4,7 @@ local Window = require(script.Window)
 local KeySystem = require(script.KeySystem)
 
 local Library = {
-    Version = "0.8.0",
+    Version = "0.8.1",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }

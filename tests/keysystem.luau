@@ -52,6 +52,10 @@ local function create(extra)
 end
 local gate = create()
 Mock:Advance(1)
+assert(gate.ForgetButton == nil)
+for _, child in ipairs(gate.Window.Screen:GetDescendants()) do
+    assert(child.Text ~= "Forget", "The key page must not show a Forget button")
+end
 assert(gate.Supported and not gate.Busy and #requests == 0)
 assert(not gate:Redeem("short") and #requests == 0)
 assert(gate:Redeem(key) and not gate:Redeem(key), "Concurrent redemption must be suppressed")
@@ -158,8 +162,65 @@ assert(not pcall(create, { Endpoint = "http://127.0.0.1.attacker.test:8000", All
 assert(not pcall(create, { CachePath = "../auth.json" }))
 gate = create({ Endpoint = "http://127.0.0.1:8765", AllowLocalhost = true, Remember = false })
 gate:Destroy()
+files = { ["King/settings.json"] = "preserved-settings" }
+local unloaded = 0
+local originalLoader = env.loadstring
+env.loadstring = function(source)
+    local compiled, message = loadstring(source)
+    if compiled then
+        setfenv(compiled, env)
+    end
+    return compiled, message
+end
+env.createLogoutPayload = function()
+    local window = UI:CreateWindow({ Name = "Protected", ReducedMotion = true })
+    return {
+        Window = window,
+        Destroy = function()
+            unloaded += 1
+            window:Destroy()
+        end,
+    }
+end
+response = function(options)
+    if options.Url:match("/script$") then
+        return { StatusCode = 200, Body = "return createLogoutPayload()" }
+    end
+    return success(options)
+end
+gate = create()
+assert(gate:Redeem(key))
+Mock:Advance(0)
+assert(gate.Loaded and gate.SessionWindow == gate.Result.Window)
+local loadedWindow = gate.Result.Window
+local logout = loadedWindow.SettingsPage.Controls.Logout
+assert(logout and logout.Root.Text == "Logout")
+loadedWindow:OpenSettings()
+logout.Root.Activated:Fire()
+assert(not files[gate.CachePath] and not gate.Remembered and not gate:Logout())
+Mock:Advance(0)
+assert(unloaded == 1 and loadedWindow.Dead and not gate.Loaded and gate.Result == nil)
+assert(gate.State == "ready" and not gate.Window.Dead and not gate.Busy and not gate.Token)
+assert(gate.Window.ActivePage.Name == "Key" and gate.Key.Root.Text == "")
+assert(files["King/settings.json"] == "preserved-settings")
+local logoutRequest
+for _, request in ipairs(requests) do
+    if request.Url:match("/logout$") then
+        logoutRequest = request
+    end
+end
+assert(logoutRequest and http:JSONDecode(logoutRequest.Body).token == token)
+assert(gate:Redeem(key))
+Mock:Advance(0)
+assert(gate.Loaded and gate.Result.Window ~= loadedWindow and gate.Result.Window.SettingsPage.Controls.Logout)
+assert(gate:Logout())
+Mock:Advance(0)
+assert(unloaded == 2 and gate.State == "ready" and not gate.Loaded)
+gate:Destroy()
+env.createLogoutPayload = nil
+env.loadstring = originalLoader
 Mock:Advance(30)
 assert(Mock:ConnectionCount() == 0, "Key windows must release every UI signal")
 print(
-    "PASS: key redemption, device checks, saved-session validation, no cached raw key/HWID, unsupported executors, failures and cleanup"
+    "PASS: key redemption, device checks, remembered sessions, settings logout, payload cleanup/re-login, token invalidation, unsupported executors and failures"
 )

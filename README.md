@@ -132,6 +132,8 @@ return UI:CreateKeySystem({
 
 See [KeySystem.lua](examples/KeySystem.lua) and [backend setup, deployment, and limits](backend/README.md). The library does not contain a master key or a protected script's source.
 
+Return the protected Kinoue window, or a script controller with `Window` and `Destroy()`, to get **Logout** in its built-in settings. Logout cleans up the script, clears the remembered login, revokes the current server session, and returns to the Key page. UI settings stay saved. Custom integrations can use `gate:AttachWindow(window)` and `OnUnload(result)`.
+
 The backend includes a Vercel-ready admin site with Postgres storage. Create and manage keys, view encrypted HWID records after signing in, reset or replace a device binding, revoke/delete access, and upload script payloads from `/admin/`.
 
 ## Search

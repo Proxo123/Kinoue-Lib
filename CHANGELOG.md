@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+- Remove the Forget button from the key page and add Logout to authenticated windows' built-in settings.
+- Unload the protected script, clear its remembered login, revoke the current server session, and reopen the key page on logout. Preserve UI settings and allow signing in again without rerunning the loader.
+- Add `KeySystem:Logout`, `KeySystem:AttachWindow`, `Window:SetLogoutHandler`, and optional `OnUnload(result)` cleanup for reusable integrations.
+
 ## 0.8.0
 
 - Add `CreateKeySystem`: a reusable key UI, HWID capability checks, remembered sessions, and authenticated script loading. Unsupported executors fail closed without substituting another identifier.

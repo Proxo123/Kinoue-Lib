@@ -96,6 +96,7 @@ local function buildWindow(window, page, options)
         end,
     })
     group:AddLabel("Unlock to drag past screen edges.", true)
+    page.LogoutGroup = group
 
     local look = page:AddGroupbox("Appearance", "Right")
     look:AddToggle("UI.Animations", {
@@ -122,6 +123,25 @@ local function buildWindow(window, page, options)
             window:SetRainbowAccent(value)
         end,
     })
+end
+
+function Settings.setLogout(window, callback)
+    local page = window.SettingsPage
+    if callback and not page.Controls.Logout then
+        page.Controls.Logout = page.LogoutGroup:AddButton({
+            Text = "Logout",
+            Callback = function()
+                if window.LogoutHandler then
+                    window.LogoutHandler()
+                end
+            end,
+        })
+    end
+    window.LogoutHandler = callback
+    if page.Controls.Logout then
+        page.Controls.Logout.Row.Visible = callback ~= nil
+        page.Controls.Logout:SetEnabled(callback ~= nil)
+    end
 end
 
 local function buildBackground(window, page)
