@@ -3,6 +3,37 @@ Mock:Advance(1)
 local main = window:AddTab("Main")
 window:AddTab("Visuals")
 local group = main:AddGroupbox("Main", "Left")
+local rightGroup = main:AddGroupbox("Right", "Right")
+local outlines = {}
+for _, card in ipairs({ group.Frame, rightGroup.Frame, window.TabStrip }) do
+    local outline
+    for _, child in ipairs(card:GetChildren()) do
+        if child:IsA("UIStroke") then
+            outline = child
+            break
+        end
+    end
+    assert(
+        outline and outline.BorderStrokePosition == Mock.Enum.BorderStrokePosition.Inner,
+        "Outlines stay inside cards and tab strips, including clipped left/top edges"
+    )
+    assert(outline.Thickness == 1)
+    table.insert(outlines, outline)
+end
+window.Fade:Set(1)
+for _, outline in ipairs(outlines) do
+    assert(outline.Transparency == 1, "Inset outlines fade with the window")
+end
+window.Fade:Set(0)
+for _, outline in ipairs(outlines) do
+    assert(outline.Transparency == 0, "Inset outlines return after reopening")
+end
+local outlineColor = Mock.Environment.Color3.fromRGB(95, 100, 110)
+UI:SetTheme({ Outline = outlineColor })
+for _, outline in ipairs(outlines) do
+    assert(outline.Color == outlineColor, "Inset outlines follow theme edits")
+end
+UI:SetTheme("Dark")
 
 local feature =
     group:AddToggle("Feature", { Text = "Feature", SubToggle = true, Keybind = { Value = Mock.Enum.KeyCode.H } })
