@@ -1,5 +1,7 @@
 import argparse
 import subprocess
+import struct
+import zlib
 from pathlib import Path
 
 import build
@@ -30,6 +32,7 @@ SUITES = [
     ("notifications", "UI", None),
     ("search", "UI", None),
     ("replace", "UI", None),
+    ("background", "UI", None),
 ]
 
 
@@ -63,6 +66,22 @@ def main():
     build.main()
     subprocess.run([args.compiler, "--null", *COMPILE_TARGETS], cwd=ROOT, check=True)
     subprocess.run([args.luau, "tests/model.luau"], cwd=ROOT, check=True)
+    media = subprocess.run([args.luau, "tests/media.luau"], cwd=ROOT, check=True, capture_output=True, text=True)
+    for line in media.stdout.splitlines():
+        if not line.startswith("PNG:"):
+            print(line)
+            continue
+        data = bytes.fromhex(line[4:])
+        assert data[:8] == b"\x89PNG\r\n\x1a\n"
+        offset, compressed = 8, bytearray()
+        while offset < len(data):
+            size = struct.unpack_from(">I", data, offset)[0]
+            chunk = data[offset + 4:offset + 8 + size]
+            assert zlib.crc32(chunk) == struct.unpack_from(">I", data, offset + 8 + size)[0]
+            if chunk[:4] == b"IDAT":
+                compressed.extend(chunk[4:])
+            offset += 12 + size
+        assert zlib.decompress(compressed) == bytes([0, 255, 0, 0, 255, 0, 255, 0, 128])
 
     CACHE.mkdir(exist_ok=True)
     for name, library, example in SUITES:

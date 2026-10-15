@@ -124,12 +124,74 @@ local function buildWindow(window, page, options)
     })
 end
 
+local function buildBackground(window, page)
+    local group = page:AddGroupbox("Background", "Left")
+    local defaults = window.BackgroundState.Options
+    group:AddToggle("UI.Background.Enabled", {
+        Text = "Enabled",
+        Value = defaults.Enabled,
+        Keybind = false,
+        Callback = function(value)
+            window:SetBackground({ Enabled = value })
+        end,
+    })
+    group:AddTextbox("UI.Background.File", {
+        Text = "File",
+        Value = defaults.File,
+        MaxLength = 1024,
+        Callback = function(value)
+            window:SetBackground({ File = value })
+        end,
+    })
+    group:AddButtons({
+        {
+            Text = "Load",
+            Callback = function()
+                local file = window.Controls["UI.Background.File"]
+                file:Set(file.Root.Text)
+                window:SetBackground({ Enabled = true }, true)
+            end,
+        },
+        {
+            Text = "Clear",
+            Callback = function()
+                window:ClearBackground()
+            end,
+        },
+    })
+    for _, entry in ipairs({
+        { Key = "Opacity", Text = "Image opacity", Min = 0, Max = 1 },
+        { Key = "PanelOpacity", Text = "Panel opacity", Min = 0, Max = 1 },
+        { Key = "Speed", Text = "Playback speed", Min = 0.1, Max = 4 },
+    }) do
+        group:AddSlider("UI.Background." .. entry.Key, {
+            Text = entry.Text,
+            Value = defaults[entry.Key],
+            Min = entry.Min,
+            Max = entry.Max,
+            Step = 0.05,
+            Callback = function(value)
+                window:SetBackground({ [entry.Key] = value })
+            end,
+        })
+    end
+    group:AddDropdown("UI.Background.Fit", {
+        Text = "Fit",
+        Options = { "Cover", "Contain", "Stretch" },
+        Value = defaults.Fit,
+        Callback = function(value)
+            window:SetBackground({ Fit = value })
+        end,
+    })
+end
+
 function Settings.build(window, options)
     local page = Page.hidden(window, "UI settings")
     page:SetTitle("UI settings")
     page:SetMode("Theme applies to every window")
     local controls = buildTheme(window, page)
     buildWindow(window, page, options)
+    buildBackground(window, page)
 
     function controls.sync()
         controls.Preset:SetSilent(Theme.Preset)

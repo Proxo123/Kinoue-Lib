@@ -4,6 +4,7 @@ local Mount = require(script.Parent.internal.Mount)
 local Theme = require(script.Parent.internal.Theme)
 local Tooltip = require(script.Parent.internal.Tooltip)
 local Util = require(script.Parent.internal.Util)
+local Background = require(script.Background)
 local Chrome = require(script.Chrome)
 local Config = require(script.Config)
 local Input = require(script.Input)
@@ -61,7 +62,9 @@ function Window.new(options, version)
     self.Scope:Connect(self.Screen.Destroying, function()
         self:Destroy()
     end)
+    Background.init(self, options.Background)
     Chrome.build(self, options)
+    Background.mount(self)
     Search.build(self, Chrome.HEADER_HEIGHT, Chrome.SEARCH_OFFSET)
 
     self.Fade = Fade.new(self.Screen)
@@ -156,6 +159,30 @@ function Window:CloseSearch()
     return self
 end
 
+function Window:SetBackground(options, reload)
+    Background.set(self, options, reload)
+    return self
+end
+
+function Window:ClearBackground()
+    return self:SetBackground({ Enabled = false, File = "" })
+end
+
+function Window:GetBackgroundStatus()
+    local state = self.BackgroundState
+    local media = state.Media
+    return {
+        Loading = state.Loading == true,
+        Error = state.Error,
+        File = state.LoadedFile,
+        Kind = media and media.Kind,
+        Frames = media and #media.Frames or 0,
+        Width = media and media.Width,
+        Height = media and media.Height,
+        Cached = media and media.Cached == true,
+    }
+end
+
 function Window:Notify(options)
     return Notifications.show(self, options)
 end
@@ -221,6 +248,7 @@ function Window:SetVisible(value, initial)
         return
     end
     self.Open = value
+    Background.sync(self)
     self.VisibilityVersion += 1
     self.UpdateAccent()
 
@@ -414,6 +442,7 @@ end
 
 function Window:SetReducedMotion(reduced)
     self.ReducedMotion = reduced == true
+    Background.sync(self)
     syncSetting(self, "UI.Animations", not self.ReducedMotion)
     self.UpdateAccent()
     return self
@@ -504,6 +533,9 @@ function Window:Destroy()
             self.AccentScope:Destroy()
             self.AccentScope = nil
         end
+    end)
+    cleanupStep("Background", function()
+        Background.destroy(self)
     end)
     cleanupStep("Signals", function()
         self.Scope:Destroy()
