@@ -19,6 +19,17 @@ Use a separate database and secrets for previews, or disable preview deployment.
 
 ## Admin panel
 
+The admin interface is a React + TypeScript application. Its source is in `frontend/`; the bundled JavaScript and static assets in `key_service/web/` are committed so Python deployments and containers need no Node runtime. The frontend uses the existing same-origin API, session cookie, CSRF protection, and content security policy.
+
+To change the interface, use Node 24 or later and run from `backend/frontend`:
+
+```powershell
+npm ci --ignore-scripts
+npm run build
+```
+
+Commit both the source and the generated `key_service/web/` assets. CI typechecks, builds, and checks that those assets match the source. Run the Python app normally to preview the result at `/admin/`; the same build is served locally and on Vercel.
+
 - Create labeled keys for any registered script, with 1–3650 days of validity.
 - Search and filter keys by script, status, label, key hint, or license ID; results are paginated.
 - View the bound HWID, replace it with another HWID, or reset the lock so the next redemption establishes a new binding.

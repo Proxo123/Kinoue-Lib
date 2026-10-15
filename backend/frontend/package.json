@@ -1,0 +1,23 @@
+{
+  "name": "kinoue-admin",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && node build.mjs",
+    "check": "tsc --noEmit",
+    "format": "prettier --write src index.html build.mjs package.json tsconfig.json",
+    "format:check": "prettier --check src index.html build.mjs package.json tsconfig.json"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2"
+  }
+}
