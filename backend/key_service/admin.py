@@ -80,8 +80,8 @@ def attach_admin(app, store, admin_hash=None, origin=None):
         return FileResponse(assets / "index.html", media_type="text/html")
 
     @app.get("/admin/assets/{filename}", include_in_schema=False)
-    def asset(filename: Literal["app.js", "style.css"]):
-        return FileResponse(assets / filename, media_type="text/javascript" if filename.endswith(".js") else "text/css")
+    def asset(filename: Literal["app.js", "style.css", "icon.svg"]):
+        return FileResponse(assets / filename, media_type={"app.js": "text/javascript", "style.css": "text/css", "icon.svg": "image/svg+xml"}[filename])
 
     @router.post("/login")
     def login(body: Login, request: Request):

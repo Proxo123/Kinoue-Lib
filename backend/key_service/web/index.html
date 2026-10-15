@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>King — Keys</title>
+  <link rel="icon" type="image/svg+xml" href="/admin/assets/icon.svg">
   <link rel="stylesheet" href="/admin/assets/style.css">
   <script src="/admin/assets/app.js" defer></script>
 </head>
@@ -76,7 +77,7 @@
     <div id="script-list" class="script-list"></div>
     <form id="script-form" class="stack-block">
       <div class="section-heading"><h3 id="script-form-title">Add script</h3><button id="cancel-script-edit" type="button" class="quiet" hidden>Cancel edit</button></div>
-      <div class="two-fields"><div><label for="script-name">Name</label><input id="script-name" maxlength="80" required></div><div><label for="script-id">Application ID</label><input id="script-id" pattern="[a-z][a-z0-9_-]{0,63}" maxlength="64" placeholder="king" required></div></div>
+      <div class="two-fields"><div><label for="script-name">Name</label><input id="script-name" maxlength="80" required></div><div><label for="script-id">Application ID</label><input id="script-id" pattern="[a-z][a-z0-9_\-]{0,63}" maxlength="64" placeholder="king" required></div></div>
       <label for="script-file">Luau file</label><input id="script-file" type="file" accept=".lua,.luau,.txt" required>
       <div class="dialog-footer"><button class="primary" type="submit">Save script <span aria-hidden="true">↗</span></button></div>
     </form>
