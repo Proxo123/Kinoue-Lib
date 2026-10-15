@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.2
+
+- Draw generated UI outlines inside their frames so scroll containers no longer clip section borders along the left and top edges. Keep border colors and visibility fades in sync.
+
 ## 0.10.1
 
 - Integrate the 0.10.0 quieter look with the compact key dialog, Session license countdown, and authenticated execution reporting from 0.9.2/0.9.3.

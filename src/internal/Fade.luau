@@ -32,6 +32,7 @@ local function replaceBorder(object, entry)
     end
     local stroke = Util.new("UIStroke", {
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        BorderStrokePosition = Enum.BorderStrokePosition.Inner,
         Color = object.BorderColor3,
         Thickness = object.BorderSizePixel,
         Transparency = 0,
