@@ -11,6 +11,7 @@ local Input = require(script.Input)
 local Notifications = require(script.Notifications)
 local Page = require(script.Page)
 local Search = require(script.Search)
+local Session = require(script.Session)
 local Settings = require(script.Settings)
 
 local EDGE_MARGIN = 12
@@ -432,6 +433,10 @@ function Window:SetLogoutHandler(callback)
     assert(callback == nil or type(callback) == "function", "Logout handler must be a function")
     Settings.setLogout(self, callback)
     return self
+end
+
+function Window:SetSessionInfo(info)
+    return Session.set(self, info)
 end
 
 local function syncSetting(window, id, value)

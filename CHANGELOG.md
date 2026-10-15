@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.3
+
+- Add a License section to authenticated scripts' Session tab with the key's remaining time. Use license expiry and the server clock, handle keys without expiry, and release the countdown on unload.
+- Report successful script starts with the Roblox player ID, username, display name, place, and library version. Authenticate reports against the key's device-bound session and make retries idempotent.
+- Add private, paginated execution history to each key in the admin dashboard, with player profile links and server-recorded timestamps. Preserve history through key resets and revocation; deleting the key removes its history.
+
 ## 0.9.2
 
 - Replace the full key window with a compact dialog containing a key input, Redeem, and Close. Remove tabs, search, settings, group headers, the footer, and the Remember toggle from authentication.

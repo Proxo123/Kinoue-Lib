@@ -1,4 +1,5 @@
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 local KeyDialog = require(script.Parent.internal.KeyDialog)
 local Util = require(script.Parent.internal.Util)
 
@@ -138,6 +139,9 @@ function KeySystem:_api(route, credentials, raw)
     if response.StatusCode < 200 or response.StatusCode >= 300 then
         return nil, MESSAGES[value.error] and value.error or "connection_failed"
     end
+    if route == "executions" then
+        return value.ok == true and value or nil, value.ok ~= true and "invalid_response" or nil
+    end
     if
         type(value.token) ~= "string"
         or #value.token < 32
@@ -149,7 +153,49 @@ function KeySystem:_api(route, credentials, raw)
     then
         return nil, "invalid_response"
     end
+    for _, field in ipairs({ "license_expires_at", "server_time" }) do
+        local timestamp = value[field]
+        if
+            timestamp ~= nil
+            and (type(timestamp) ~= "number" or timestamp ~= timestamp or math.abs(timestamp) == math.huge)
+        then
+            return nil, "invalid_response"
+        end
+    end
     return value
+end
+
+function KeySystem:_reportExecution()
+    local player = Players.LocalPlayer
+    if not player then
+        return
+    end
+    local generation = self.Generation
+    local credentials = {
+        token = self.Token,
+        execution_id = HttpService:GenerateGUID(false),
+        user_id = player.UserId,
+        username = player.Name,
+        display_name = player.DisplayName,
+        place_id = game.PlaceId,
+        library_version = self.Library.Version,
+    }
+    self.ExecutionJob = task.defer(function()
+        for attempt = 1, 3 do
+            if self.Dead or not self.Loaded or generation ~= self.Generation then
+                break
+            end
+            local response = self:_api("executions", credentials)
+            if response then
+                self.ExecutionReported = true
+                break
+            end
+            if attempt < 3 then
+                task.wait(attempt)
+            end
+        end
+        self.ExecutionJob = nil
+    end)
 end
 
 function KeySystem:_run(route, credentials)
@@ -159,6 +205,7 @@ function KeySystem:_run(route, credentials)
     self.Generation += 1
     local generation = self.Generation
     self.State, self.Error = "checking", nil
+    self.ExecutionReported = false
     self:_busy(true)
     self:_status("Checking key...")
     self.Job = task.defer(function()
@@ -183,6 +230,9 @@ function KeySystem:_run(route, credentials)
             return
         end
         self.Token = response.token
+        self.LicenseExpiresAt = response.license_expires_at
+        self.ServerTime = response.server_time
+        self.LicenseInfoKnown = response.license_expires_at ~= nil or response.server_time ~= nil
         self:_save(response)
         self.Key:SetSilent("")
         self:_status("Loading...")
@@ -221,6 +271,9 @@ function KeySystem:_run(route, credentials)
         end
         if self.Options.OnLoaded then
             pcall(self.Options.OnLoaded, result)
+        end
+        if not self.Dead and self.Loaded then
+            pcall(self._reportExecution, self)
         end
     end)
     task.delay(self.Timeout, function()
@@ -269,6 +322,13 @@ function KeySystem:AttachWindow(window)
         self.SessionWindow:SetLogoutHandler(nil)
     end
     self.SessionWindow = window
+    if type(window.SetSessionInfo) == "function" then
+        window:SetSessionInfo({
+            ExpiresAt = self.LicenseExpiresAt,
+            ServerTime = self.ServerTime,
+            Known = self.LicenseInfoKnown,
+        })
+    end
     window:SetLogoutHandler(function()
         self:Logout()
     end)
@@ -346,6 +406,10 @@ function KeySystem:Destroy()
     end
     self.Dead = true
     self.Generation += 1
+    if self.ExecutionJob and type(task.cancel) == "function" and self.ExecutionJob ~= coroutine.running() then
+        pcall(task.cancel, self.ExecutionJob)
+    end
+    self.ExecutionJob = nil
     if self.Job and type(task.cancel) == "function" and self.Job ~= coroutine.running() then
         pcall(task.cancel, self.Job)
     end

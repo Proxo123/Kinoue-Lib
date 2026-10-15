@@ -69,6 +69,12 @@
     <form id="hwid-form" class="stack-block"><label for="replacement-hwid">Replace HWID</label><div class="input-action"><input id="replacement-hwid" class="mono" maxlength="512" required autocomplete="off"><button class="secondary" type="submit">Save</button></div></form>
     <form id="renew-form" class="stack-block"><label for="renew-days">Renew from today (days)</label><div class="input-action"><input id="renew-days" type="number" min="1" max="3650" value="30" required><button class="secondary" type="submit">Renew</button></div></form>
     <details class="activity"><summary>Activity</summary><ol id="activity-list"></ol></details>
+    <section class="executions" aria-labelledby="executions-title">
+      <div class="section-heading"><h3 id="executions-title">Executions</h3><button id="refresh-executions" class="quiet" type="button">Refresh</button></div>
+      <p id="execution-empty" class="muted">No executions recorded yet.</p>
+      <ol id="execution-list"></ol>
+      <div class="execution-pagination"><span id="execution-count" class="muted" aria-live="polite"></span><div class="pagination"><button id="previous-executions" class="quiet" type="button" aria-label="Previous executions">←</button><button id="next-executions" class="quiet" type="button" aria-label="Next executions">→</button></div></div>
+    </section>
     <div class="dialog-footer split"><button id="delete-key" class="danger" type="button">Delete key</button><button id="revoke-key" class="secondary" type="button">Revoke key</button></div>
   </dialog>
 

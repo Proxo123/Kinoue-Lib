@@ -1931,6 +1931,7 @@ end
 
 __factories["KeySystem"] = function()
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 local KeyDialog = __require("internal/KeyDialog")
 local Util = __require("internal/Util")
 
@@ -2070,6 +2071,9 @@ function KeySystem:_api(route, credentials, raw)
     if response.StatusCode &lt; 200 or response.StatusCode &gt;= 300 then
         return nil, MESSAGES[value.error] and value.error or "connection_failed"
     end
+    if route == "executions" then
+        return value.ok == true and value or nil, value.ok ~= true and "invalid_response" or nil
+    end
     if
         type(value.token) ~= "string"
         or #value.token &lt; 32
@@ -2081,7 +2085,49 @@ function KeySystem:_api(route, credentials, raw)
     then
         return nil, "invalid_response"
     end
+    for _, field in ipairs({ "license_expires_at", "server_time" }) do
+        local timestamp = value[field]
+        if
+            timestamp ~= nil
+            and (type(timestamp) ~= "number" or timestamp ~= timestamp or math.abs(timestamp) == math.huge)
+        then
+            return nil, "invalid_response"
+        end
+    end
     return value
+end
+
+function KeySystem:_reportExecution()
+    local player = Players.LocalPlayer
+    if not player then
+        return
+    end
+    local generation = self.Generation
+    local credentials = {
+        token = self.Token,
+        execution_id = HttpService:GenerateGUID(false),
+        user_id = player.UserId,
+        username = player.Name,
+        display_name = player.DisplayName,
+        place_id = game.PlaceId,
+        library_version = self.Library.Version,
+    }
+    self.ExecutionJob = task.defer(function()
+        for attempt = 1, 3 do
+            if self.Dead or not self.Loaded or generation ~= self.Generation then
+                break
+            end
+            local response = self:_api("executions", credentials)
+            if response then
+                self.ExecutionReported = true
+                break
+            end
+            if attempt &lt; 3 then
+                task.wait(attempt)
+            end
+        end
+        self.ExecutionJob = nil
+    end)
 end
 
 function KeySystem:_run(route, credentials)
@@ -2091,6 +2137,7 @@ function KeySystem:_run(route, credentials)
     self.Generation += 1
     local generation = self.Generation
     self.State, self.Error = "checking", nil
+    self.ExecutionReported = false
     self:_busy(true)
     self:_status("Checking key...")
     self.Job = task.defer(function()
@@ -2115,6 +2162,9 @@ function KeySystem:_run(route, credentials)
             return
         end
         self.Token = response.token
+        self.LicenseExpiresAt = response.license_expires_at
+        self.ServerTime = response.server_time
+        self.LicenseInfoKnown = response.license_expires_at ~= nil or response.server_time ~= nil
         self:_save(response)
         self.Key:SetSilent("")
         self:_status("Loading...")
@@ -2153,6 +2203,9 @@ function KeySystem:_run(route, credentials)
         end
         if self.Options.OnLoaded then
             pcall(self.Options.OnLoaded, result)
+        end
+        if not self.Dead and self.Loaded then
+            pcall(self._reportExecution, self)
         end
     end)
     task.delay(self.Timeout, function()
@@ -2201,6 +2254,13 @@ function KeySystem:AttachWindow(window)
         self.SessionWindow:SetLogoutHandler(nil)
     end
     self.SessionWindow = window
+    if type(window.SetSessionInfo) == "function" then
+        window:SetSessionInfo({
+            ExpiresAt = self.LicenseExpiresAt,
+            ServerTime = self.ServerTime,
+            Known = self.LicenseInfoKnown,
+        })
+    end
     window:SetLogoutHandler(function()
         self:Logout()
     end)
@@ -2278,6 +2338,10 @@ function KeySystem:Destroy()
     end
     self.Dead = true
     self.Generation += 1
+    if self.ExecutionJob and type(task.cancel) == "function" and self.ExecutionJob ~= coroutine.running() then
+        pcall(task.cancel, self.ExecutionJob)
+    end
+    self.ExecutionJob = nil
     if self.Job and type(task.cancel) == "function" and self.Job ~= coroutine.running() then
         pcall(task.cancel, self.Job)
     end
@@ -4116,6 +4180,110 @@ end
 return Search
 end
 
+__factories["Window/Session"] = function()
+local RunService = game:GetService("RunService")
+
+local Session = {}
+
+local function remaining(info)
+    if not info.Known then
+        return "Time left: Unavailable"
+    end
+    if info.ExpiresAt == nil then
+        return "Time left: No expiry"
+    end
+    local seconds = math.max(0, math.ceil(info.ExpiresAt - (os.time() + info.Offset)))
+    if seconds == 0 then
+        return "Time left: Expired"
+    end
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor(seconds / 3600) % 24
+    local minutes = math.floor(seconds / 60) % 60
+    local parts = {}
+    if days &gt; 0 then
+        table.insert(parts, days .. "d")
+    end
+    if days &gt; 0 or hours &gt; 0 then
+        table.insert(parts, hours .. "h")
+    end
+    table.insert(parts, minutes .. "m")
+    table.insert(parts, seconds % 60 .. "s")
+    return "Time left: " .. table.concat(parts, " ")
+end
+
+function Session.set(window, info)
+    if window.Dead then
+        return window
+    end
+    if window.SessionTick then
+        window.Scope:Release(window.SessionTick)
+        window.SessionTick = nil
+    end
+    if not info then
+        if window.SessionTime then
+            window.SessionTime:SetVisible(false)
+        end
+        window.SessionInfo = nil
+        return window
+    end
+    assert(type(info) == "table", "SetSessionInfo requires a table")
+    local expires = info.ExpiresAt
+    assert(
+        expires == nil or type(expires) == "number" and expires == expires and math.abs(expires) &lt; math.huge,
+        "ExpiresAt must be a finite Unix timestamp"
+    )
+    local serverTime = info.ServerTime
+    assert(
+        serverTime == nil
+            or type(serverTime) == "number" and serverTime == serverTime and math.abs(serverTime) &lt; math.huge,
+        "ServerTime must be a finite Unix timestamp"
+    )
+    window.SessionInfo = {
+        Known = info.Known ~= false,
+        ExpiresAt = expires,
+        Offset = serverTime and serverTime - os.time() or 0,
+    }
+    if not window.SessionTime then
+        local page
+        for _, candidate in ipairs(window.Pages) do
+            if candidate.Name == "Session" then
+                page = candidate
+                break
+            end
+        end
+        page = page or window:AddTab("Session")
+        window.SessionPage = page
+        window.SessionGroup = page:AddGroupbox("License", "Left")
+        window.SessionTime = window.SessionGroup:AddLabel("")
+    end
+    window.SessionTime:SetVisible(true)
+    local previous
+    local function render()
+        local text = remaining(window.SessionInfo)
+        if text ~= previous then
+            previous = text
+            window.SessionTime:SetText(text)
+        end
+    end
+    render()
+    if expires then
+        local elapsed = 0
+        window.SessionTick = window.Scope:Connect(RunService.Heartbeat, function(delta)
+            elapsed += delta
+            if elapsed &gt;= 1 then
+                elapsed %= 1
+                if window.Open and window.ActivePage == window.SessionPage then
+                    render()
+                end
+            end
+        end)
+    end
+    return window
+end
+
+return Session
+end
+
 __factories["Window/Settings"] = function()
 local Page = __require("Window/Page")
 local Theme = __require("internal/Theme")
@@ -4360,6 +4528,7 @@ local Input = __require("Window/Input")
 local Notifications = __require("Window/Notifications")
 local Page = __require("Window/Page")
 local Search = __require("Window/Search")
+local Session = __require("Window/Session")
 local Settings = __require("Window/Settings")
 
 local EDGE_MARGIN = 12
@@ -4783,6 +4952,10 @@ function Window:SetLogoutHandler(callback)
     return self
 end
 
+function Window:SetSessionInfo(info)
+    return Session.set(self, info)
+end
+
 local function syncSetting(window, id, value)
     local control = window.Controls[id]
     if control then
@@ -4934,7 +5107,7 @@ local Window = __require("Window")
 local KeySystem = __require("KeySystem")
 
 local Library = {
-    Version = "0.9.2",
+    Version = "0.9.3",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }

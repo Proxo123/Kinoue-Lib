@@ -131,6 +131,10 @@ def attach_admin(app, store, admin_hash=None, origin=None):
     def issue(body: Issue, _=Depends(authenticated)):
         return store.issue(body.application, body.days, body.label)
 
+    @router.get("/licenses/{identifier}/executions")
+    def executions(identifier: str, page: int = Query(default=1, ge=1, le=1000000), _=Depends(authenticated)):
+        return store.executions(identifier, page)
+
     @router.post("/licenses/{identifier}")
     def change(identifier: str, body: Change, _=Depends(authenticated)):
         if not store.change_license(identifier, body.action, body.value):
