@@ -15,7 +15,7 @@ function Slider.add(group, id, info)
 
     local control = Control.new(group, id, info.Value or minimum, function(value)
         return Model.number(value, minimum, maximum, step)
-    end, info.Callback)
+    end, info.Callback, info)
 
     control.Row = Control.row(group, 35)
     Util.label(control.Row, info.Text or id, { Size = UDim2.new(0.65, 0, 0, 18) })

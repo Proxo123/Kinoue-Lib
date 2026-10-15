@@ -26,6 +26,10 @@ SUITES = [
     ("settings", "UI", None),
     ("keybinds", "UI", None),
     ("subtoggle", "UI", None),
+    ("conflicts", "UI", None),
+    ("notifications", "UI", None),
+    ("search", "UI", None),
+    ("replace", "UI", None),
 ]
 
 

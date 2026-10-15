@@ -43,6 +43,8 @@ function Config:LoadConfig(config)
         type(config) == "table" and config.Version == CONFIG_VERSION and type(config.Values) == "table",
         "Unsupported UI config"
     )
+    local suppressed = self.SuppressNotify
+    self.SuppressNotify = true
     for id, saved in pairs(config.Values) do
         local control = self.Controls[id]
         if control then
@@ -54,6 +56,7 @@ function Config:LoadConfig(config)
             end
         end
     end
+    self.SuppressNotify = suppressed
 end
 
 function Config:EncodeConfig()

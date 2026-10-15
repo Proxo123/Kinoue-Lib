@@ -1,12 +1,15 @@
 local Control = require(script.Parent.Control)
+local Icons = require(script.Parent.Parent.internal.Icons)
 local Theme = require(script.Parent.Parent.internal.Theme)
+local Tooltip = require(script.Parent.Parent.internal.Tooltip)
 local Util = require(script.Parent.Parent.internal.Util)
 
 local LABEL_INSET = 110
 local KEY_HEIGHT = 20
 local KEY_PADDING = 4
 local CLEAR_SIZE = 14
-local CLEAR_GAP = 2
+local WARNING_SIZE = 12
+local ICON_GAP = 2
 
 local Keybind = {}
 
@@ -29,21 +32,38 @@ function Keybind.options(keybind)
     return nil
 end
 
+local function conflictText(control)
+    if #control.Conflicts == 0 then
+        return nil
+    end
+    local names = {}
+    for _, other in ipairs(control.Conflicts) do
+        table.insert(names, other.DisplayName)
+    end
+    return "Also bound to: " .. table.concat(names, ", ")
+end
+
 function Keybind.attach(group, row, id, info, inline, inset)
     inset = inset or 0
     local clearable = info.Clearable ~= false
     local window = group.Window
-    local control = Control.new(group, id, info.Value or Enum.KeyCode.Unknown, normalize, info.Callback)
+    local control = Control.new(group, id, info.Value or Enum.KeyCode.Unknown, normalize, info.Callback, {
+        Name = info.Name,
+        Text = info.Text,
+        Notify = info.Notify,
+        Inline = inline,
+    })
     control.Pressed = info.Pressed
     control.Released = info.Released
     control.Row = row
+    control.Conflicts = {}
     control.Root = Util.button(row, "", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        TextColor3 = Theme.Color.Muted,
+        TextColor3 = Theme.Muted,
         TextSize = Theme.SmallSize,
         TextXAlignment = Enum.TextXAlignment.Right,
     })
@@ -56,23 +76,47 @@ function Keybind.attach(group, row, id, info, inline, inset)
         TextColor3 = Theme.Color.Muted,
         TextSize = Theme.SmallSize,
     })
+    control.Warning = Icons.warning(row, WARNING_SIZE, {
+        Name = "Conflict",
+        AnchorPoint = Vector2.new(1, 0.5),
+    })
+    control.Warning.Root.Visible = false
 
     local hidden = false
+    local keyWidth = LABEL_INSET
+
+    local function layout()
+        local offset = inset + keyWidth + ICON_GAP
+        if control.Clear.Visible then
+            control.Clear.Position = UDim2.new(1, -offset, 0.5, 0)
+            offset += CLEAR_SIZE + ICON_GAP
+        end
+        control.Warning.Root.Position = UDim2.new(1, -offset, 0.5, 0)
+    end
 
     local function show(text)
-        local width = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
+        keyWidth = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
         control.Root.Text = text
-        control.Root.Size = UDim2.fromOffset(width, KEY_HEIGHT)
-        control.Clear.Position = UDim2.new(1, -(inset + width + CLEAR_GAP), 0.5, 0)
+        control.Root.Size = UDim2.fromOffset(keyWidth, KEY_HEIGHT)
+        layout()
+    end
+
+    control.PaintConflict = function()
+        local conflicted = #control.Conflicts > 0
+        control.Root.TextColor3 = conflicted and Theme.Danger or Theme.Muted
+        control.Warning:SetColor(Theme.Danger)
+        control.Warning.Root.Visible = conflicted and not hidden
+        layout()
     end
 
     control.Render = function(value)
-        show("[" .. Util.keyName(value) .. "]")
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
         control.Root.TextTransparency = transparency
         control.Clear.TextTransparency = transparency
         control.Root.Visible = not hidden
         control.Clear.Visible = clearable and not hidden and Keybind.isBound(value)
+        show("[" .. Util.keyName(value) .. "]")
+        window:UpdateKeyConflicts()
     end
 
     function control:Unbind()
@@ -109,6 +153,12 @@ function Keybind.attach(group, row, id, info, inline, inset)
             control:Unbind()
         end
     end)
+
+    local function tooltip()
+        return conflictText(control)
+    end
+    Tooltip.bind(window, control.Root, tooltip)
+    Tooltip.bind(window, control.Warning.Root, tooltip)
 
     if inline then
         function control:SetVisible(value)

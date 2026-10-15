@@ -33,7 +33,7 @@ local function buildRow(group, subToggle)
     return holder, row
 end
 
-local function attachSettings(control, window, row, newGroup)
+local function attachSettings(group, control, window, row, newGroup)
     local cog = Util.button(row, "", {
         Name = "SettingsButton",
         AnchorPoint = Vector2.new(1, 0.5),
@@ -55,6 +55,11 @@ local function attachSettings(control, window, row, newGroup)
     control.SettingsIcon = icon
     control.SettingsPanel = panel
     control.Settings = newGroup(window, panel.Container)
+    control.Settings.Parent = group
+    control.Settings.Label = control.DisplayName
+    control.Settings.Reveal = function()
+        panel:SetOpen(true, true)
+    end
 
     local function paint()
         icon:SetColor(panel.Open and Theme.Accent or Theme.Muted)
@@ -87,7 +92,7 @@ function Toggle.add(group, id, info, newGroup)
     local window = group.Window
     local control = Control.new(group, id, info.Value == true, function(value)
         return value == true
-    end, info.Callback)
+    end, info.Callback, info)
 
     local keybind = info.Keybind
     if keybind == nil and window.BindableToggles then
@@ -100,7 +105,7 @@ function Toggle.add(group, id, info, newGroup)
 
     local rightInset = 0
     if info.SubToggle == true then
-        rightInset = attachSettings(control, window, row, newGroup)
+        rightInset = attachSettings(group, control, window, row, newGroup)
     end
 
     local hit = Util.button(row, "", {
@@ -143,7 +148,9 @@ function Toggle.add(group, id, info, newGroup)
                     control:Set(not control:Get())
                 end
             end
-        control.Keybind = Keybind.attach(group, row, keybind.Id or id .. "Key", keybind, true, rightInset)
+        keybind.Name = keybind.Name or control.DisplayName
+        local keyId = keybind.Id or window:UniqueId(id .. "Key")
+        control.Keybind = Keybind.attach(group, row, keyId, keybind, true, rightInset)
     end
 
     control.Render(control:Get())

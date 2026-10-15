@@ -21,7 +21,13 @@ function Button.add(group, info)
         Size = UDim2.fromOffset(width(baseText, info.Width), Theme.RowHeight),
         BorderColor3 = info.Primary and Theme.Color.Accent or Theme.Color.Outline,
     })
-    local result = { Root = button, Row = row, Enabled = info.Disabled ~= true }
+    local result = {
+        Root = button,
+        Row = row,
+        Enabled = info.Disabled ~= true,
+        DisplayName = baseText,
+        Notify = info.Notify,
+    }
 
     local function render()
         local shown = baseText
@@ -35,6 +41,7 @@ function Button.add(group, info)
     local function activate()
         if result.Enabled then
             window:Dispatch(info.Callback)
+            Control.notify(window, result, nil)
         end
     end
 
@@ -56,10 +63,16 @@ function Button.add(group, info)
 
     function result:SetText(value)
         baseText = tostring(value)
+        result.DisplayName = baseText
         render()
     end
 
     window.Scope:Connect(button.Activated, activate)
+    Control.searchable(group, function()
+        return baseText
+    end, function()
+        return row
+    end)
 
     local config = Keybind.options(info.Keybind)
     if config then
@@ -71,7 +84,9 @@ function Button.add(group, info)
                 changed(value)
             end
         end
-        result.Keybind = Keybind.attach(group, row, config.Id or baseText .. "Key", config, true)
+        config.Name = config.Name or baseText
+        local keyId = config.Id or window:UniqueId(baseText .. "Key")
+        result.Keybind = Keybind.attach(group, row, keyId, config, true)
         render()
     end
 

@@ -9,7 +9,7 @@ function Textbox.add(group, id, info)
     local maxLength = info.MaxLength or 256
     local control = Control.new(group, id, info.Value or "", function(value)
         return tostring(value or ""):sub(1, maxLength)
-    end, info.Callback)
+    end, info.Callback, info)
 
     control.Row = Control.row(group, 41)
     Util.label(control.Row, info.Text or id, { Size = UDim2.new(1, 0, 0, 18) })

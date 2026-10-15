@@ -15,7 +15,7 @@ Or import `dist/Kinoue.rbxmx` as a ModuleScript and `require` it.
 ## Quick start
 
 ```lua
-local window = UI:CreateWindow({ Name = "Kinoue", Footer = "v" .. UI.Version })
+local window = UI:CreateWindow({ Name = "Kinoue", Footer = "My script" })
 local main = window:AddTab("Main")
 local group = main:AddGroupbox("Controls", "Left")
 
@@ -35,7 +35,7 @@ RightShift shows and hides the window.
 local window = UI:CreateWindow({
     Name = "Kinoue",
     Id = "Kinoue",
-    Footer = "v" .. UI.Version,
+    Footer = "My script",
     Size = Vector2.new(704, 470),
     MinSize = Vector2.new(480, 360),
     Position = UDim2.fromScale(0.5, 0.5),
@@ -68,6 +68,8 @@ local window = UI:CreateWindow({
 | `window:SetLockToScreen(locked)` | Keeps the window on screen, or lets it be dragged past the edges. |
 | `window:SetReducedMotion(reduced)` | Turns animations off or on. |
 | `window:SetRainbowAccent(enabled)` | Switches the header line between rainbow and the accent color. |
+| `window:Notify(text or options)` | Shows a notification (see below). |
+| `window:OpenSearch()` / `window:CloseSearch()` | Opens or closes the header search. |
 | `window:OnDestroy(callback)` | Runs `callback` after the window is removed. |
 | `window:Destroy()` | Removes the window and disconnects everything. |
 
@@ -88,6 +90,39 @@ print(UI:GetTheme(), UI.Themes)
 ```
 
 Pass `ShowSettings = false` to `CreateWindow` to hide the gear button.
+
+The footer shows the library version in small grey text on the right.
+
+## Search
+
+The magnifier next to the gear opens a search box. Type to filter every tab, sub-tab, groupbox, section and control, including those inside sub-toggle panels and the settings page. Each result shows where it lives, such as `Main > Combat > Aim assist`. Click a result, or press Enter for the first one, and the window jumps there: it opens the tab, sub-tab, section or sub-toggle panel, scrolls to the item and flashes it. Escape or a click outside closes the search.
+
+## Notifications
+
+```lua
+window:Notify("Saved")
+window:Notify({ Title = "Hub", Text = "Config loaded", Duration = 5 })
+
+left:AddToggle("Fly", { Text = "Fly", Notify = true })
+left:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 50, Notify = true })
+left:AddButton({ Text = "Rejoin", Notify = "Rejoining..." })
+left:AddToggle("God", {
+    Text = "God mode",
+    Notify = function(value)
+        return value and "You are invincible" or "You can be hit again"
+    end,
+})
+```
+
+Notifications slide in at the bottom right, show a timer bar, and close on their own or with their × button. They stay visible while the menu is hidden, and up to five show at once.
+
+The `Notify` option works on toggles, sliders, textboxes, dropdowns, color pickers, keybinds and buttons:
+
+- `Notify = true` uses a default message, such as `Fly enabled`, `Speed: 16` or `Fly bound to F`.
+- A string replaces that message.
+- A function receives the new value and returns the message.
+
+Only real changes notify. Silent sets and config loads stay quiet. Users can turn notifications off from the settings page, and `Notifications = false` in `CreateWindow` starts them off.
 
 ## Pages and groupboxes
 
@@ -211,6 +246,7 @@ Keybinds can sit on their own row (`AddKeybind`) or next to a toggle or button (
 - `Keybind = true` adds an empty slot that starts unbound.
 - A toggle's keybind flips the toggle unless you pass your own `Pressed`.
 - `Clearable = false` hides the ×, as on the built-in menu key.
+- When two enabled binds share a key, both key labels turn red and a warning icon appears. Hover either one to see what else uses that key. Both binds still fire.
 - Pass `BindableToggles = true` to `CreateWindow` to give every toggle a slot. Use `Keybind = false` to opt one out.
 
 ## Buttons
@@ -274,6 +310,8 @@ src/
     Input.luau         Keybinds, dragging and resizing
     Page.luau          Tabs, sub-tabs and groupboxes
     Settings.luau      Built-in settings page
+    Search.luau        Header search and navigation
+    Notifications.luau Notification cards
     Config.luau        Config encoding, loading and persistence
   Controls/
     init.luau          Group class with the Add* methods
@@ -282,7 +320,7 @@ src/
     Button.luau, ColorPicker.luau, Disclosure.luau, Dropdown.luau, Keybind.luau,
     Label.luau, Preview.luau, Slider.luau, Textbox.luau, Toggle.luau
   internal/
-    Cursor.luau, Fade.luau, Icons.luau, Model.luau, Mount.luau, Theme.luau, Util.luau
+    Cursor.luau, Fade.luau, Icons.luau, Model.luau, Mount.luau, Theme.luau, Tooltip.luau, Util.luau
 examples/              Demo place script, minimal example and ESP example
 tests/                 Headless behavior tests against a Roblox mock
 tools/                 Bundler and test runner

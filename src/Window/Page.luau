@@ -53,7 +53,9 @@ local function build(window, name)
 end
 
 function Page.hidden(window, name)
-    return build(window, name)
+    local self = build(window, name)
+    window:AddSearchEntry({ Kind = "Tab", Name = name, Page = self })
+    return self
 end
 
 function Page.new(window, name)
@@ -74,6 +76,7 @@ function Page.new(window, name)
     end)
 
     table.insert(window.Pages, self)
+    window:AddSearchEntry({ Kind = "Tab", Name = name, Page = self })
     if #window.Pages == 1 then
         window:SelectTab(self)
     end
@@ -146,7 +149,17 @@ function Page:AddGroupbox(title, side)
     Util.new("UIPadding", { PaddingBottom = UDim.new(0, Theme.Padding) }, frame)
 
     local group = Group.new(self.Window, container, self, frame)
+    group.Title = title
     table.insert(self.Groups, group)
+    self.Window:AddSearchEntry({
+        Kind = "Group",
+        Name = title,
+        Group = group,
+        Self = true,
+        Target = function()
+            return frame
+        end,
+    })
     return group
 end
 
@@ -165,11 +178,12 @@ function Page:AddSubTab(title)
 end
 
 function Subpage.new(page, title)
-    local self = setmetatable({ Page = page, Groups = {} }, Subpage)
+    local self = setmetatable({ Page = page, Groups = {}, Title = title }, Subpage)
     self.Button = Util.button(page.Subbar, title, {
         Size = UDim2.fromOffset(Util.textWidth(title) + 16, 22),
     })
     table.insert(page.Subpages, self)
+    page.Window:AddSearchEntry({ Kind = "Tab", Name = title, Subpage = self })
     page.Window.Scope:Connect(self.Button.Activated, function()
         self:Select()
     end)
@@ -203,6 +217,7 @@ end
 
 function Subpage:AddGroupbox(name, side)
     local group = self.Page:AddGroupbox(name, side)
+    group.Subpage = self
     table.insert(self.Groups, group)
     group.Frame.Visible = self.Page.ActiveSubpage == self
     return group
