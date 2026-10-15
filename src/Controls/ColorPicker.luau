@@ -30,9 +30,12 @@ local function buildPanel(window, control, info)
         BorderColor3 = Theme.Color.Outline,
         ZIndex = 50,
     })
+    Util.corner(panel, Theme.Radius + 3)
     Util.label(panel, info.Text or control.Id, {
-        Position = UDim2.fromOffset(6, 2),
-        Size = UDim2.new(1, -12, 0, 20),
+        Position = UDim2.fromOffset(8, 3),
+        Size = UDim2.new(1, -16, 0, 20),
+        Font = Theme.FontMedium,
+        TextSize = Theme.SmallSize,
         ZIndex = 51,
     })
 
@@ -68,12 +71,13 @@ local function buildPanel(window, control, info)
     }, black)
     local marker = Util.frame(field, {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Size = UDim2.fromOffset(5, 5),
+        Size = UDim2.fromOffset(8, 8),
         BackgroundColor3 = Color3.new(1, 1, 1),
         BorderSizePixel = 1,
         BorderColor3 = Color3.new(0, 0, 0),
         ZIndex = 54,
     })
+    Util.corner(marker, 4)
 
     local hue = Util.button(panel, "", {
         Name = "Hue",
@@ -84,6 +88,7 @@ local function buildPanel(window, control, info)
         ZIndex = 51,
     })
     Util.new("UIGradient", { Rotation = 90, Color = rainbow() }, hue)
+    Util.corner(hue, Theme.SmallRadius)
     local hueMarker = Util.frame(hue, {
         AnchorPoint = Vector2.new(0, 0.5),
         Size = UDim2.new(1, 0, 0, 2),
@@ -95,13 +100,20 @@ local function buildPanel(window, control, info)
         Name = "Hex",
         Position = UDim2.fromOffset(6, 148),
         Size = UDim2.fromOffset(138, 21),
+        Font = Theme.MonoFont,
+        TextSize = Theme.SmallSize,
         ZIndex = 51,
     })
+    Util.corner(hex, Theme.SmallRadius + 1)
     local reset = Util.button(panel, "Reset", {
         Position = UDim2.fromOffset(150, 148),
         Size = UDim2.fromOffset(58, 21),
+        BackgroundColor3 = Theme.Color.Input,
+        Font = Theme.FontMedium,
+        TextSize = Theme.SmallSize,
         ZIndex = 51,
     })
+    Util.corner(reset, Theme.SmallRadius + 1)
 
     return {
         Panel = panel,
@@ -122,12 +134,19 @@ function ColorPicker.add(group, id, info)
         return value
     end, info.Callback, info)
 
-    control.Row = Control.row(group)
-    Util.label(control.Row, info.Text or id, { Size = UDim2.new(1, -85, 1, 0) })
-    control.Root = Util.button(control.Row, "", {
-        Position = UDim2.new(1, -30, 0, 4),
-        Size = UDim2.fromOffset(28, 15),
+    control.Row = Control.row(group, 30)
+    Util.label(control.Row, info.Text or id, {
+        Position = UDim2.fromOffset(8, 0),
+        Size = UDim2.new(1, -56, 1, 0),
+        TextTruncate = Enum.TextTruncate.AtEnd,
     })
+    control.Root = Util.button(control.Row, "", {
+        Name = "Swatch",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -6, 0.5, 0),
+        Size = UDim2.fromOffset(32, 18),
+    })
+    Util.corner(control.Root, Theme.SmallRadius + 1)
 
     local renderPopup = nil
 

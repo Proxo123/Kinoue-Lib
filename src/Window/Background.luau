@@ -1,5 +1,6 @@
 local RunService = game:GetService("RunService")
 local Media = require(script.Parent.Parent.internal.LocalMedia)
+local Theme = require(script.Parent.Parent.internal.Theme)
 local Util = require(script.Parent.Parent.internal.Util)
 
 local Background = {}
@@ -53,6 +54,7 @@ function Background.mount(window)
         ImageTransparency = 1,
         ScaleType = FIT[state.Options.Fit],
     }, window.Root)
+    Util.corner(state.Image, Theme.WindowRadius)
     Background.sync(window)
     Background.load(window)
 end

@@ -15,12 +15,13 @@ local world = visuals:AddSubTab("World")
 local bright = world:AddGroupbox("Lighting", "Left"):AddToggle("Bright", { Text = "Fullbright" })
 
 local state = window.Search
-assert(state.Button.Parent == window.Header, "The search button lives in the header")
-assert(state.Button.Position.X.Offset < window.SettingsButton.Position.X.Offset, "Search sits left of settings")
+assert(state.Field.Parent == window.Header and state.Box.Visible, "The search field is always in the header")
+assert(state.Field.Position.X.Offset < window.SettingsButton.Position.X.Offset, "Search sits left of settings")
+assert(not state.Open and state.Field.BorderColor3 == UI.Theme.Outline)
 
-state.Button.Activated:Fire()
-assert(state.Open and state.Box.Visible and Mock.Input.Focused == state.Box, "Opening focuses the search box")
-assert(state.Icon.Color == UI.Theme.Accent)
+state.Box:CaptureFocus()
+assert(state.Open and Mock.Input.Focused == state.Box, "Clicking the field opens search")
+assert(state.Icon.Color == UI.Theme.Accent and state.Field.BorderColor3 == UI.Theme.Accent, "The field lights up")
 assert(not state.Results.Visible, "Results wait for a query")
 
 state.Box.Text = "smooth"
@@ -79,9 +80,10 @@ Mock.Input.InputBegan:Fire({
     Position = V(5, 700),
 }, false)
 assert(not state.Open, "Clicking elsewhere closes search")
-state.Button.Activated:Fire()
-state.Button.Activated:Fire()
-assert(not state.Open, "The search button toggles")
+window:OpenSearch()
+state.Box.Text = "aim"
+window:CloseSearch()
+assert(not state.Open and state.Box.Text == "" and Mock.Input.Focused == nil, "Closing clears the field")
 window:OpenSearch()
 window:SetVisible(false)
 assert(not state.Open, "Hiding the window closes search")

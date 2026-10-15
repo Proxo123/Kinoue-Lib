@@ -109,6 +109,29 @@ function Icons.chevron(parent, size, props)
     return icon:SetColor(props.Color or Theme.Muted)
 end
 
+function Icons.check(parent, size, props)
+    props = props or {}
+    local icon = newIcon(parent, size, props)
+    local thickness = math.max(2, math.floor(size / 6))
+    local strokes = {
+        { -size * 0.22, size * 0.08, size * 0.42, 45 },
+        { size * 0.12, -size * 0.04, size * 0.78, -45 },
+    }
+    for _, stroke in ipairs(strokes) do
+        table.insert(
+            icon.Fills,
+            Util.frame(icon.Root, {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, stroke[1], 0.5, stroke[2]),
+                Size = UDim2.fromOffset(math.max(3, math.floor(stroke[3])), thickness),
+                Rotation = stroke[4],
+                ZIndex = props.ZIndex,
+            })
+        )
+    end
+    return icon:SetColor(props.Color or Theme.Accent)
+end
+
 function Icons.warning(parent, size, props)
     props = props or {}
     local icon = newIcon(parent, size, props)

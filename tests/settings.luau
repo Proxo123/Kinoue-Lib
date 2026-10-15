@@ -27,16 +27,18 @@ assert(window.SettingsButton and window.SettingsButton.Visible, "Header must sho
 local page = window:AddTab("Main")
 local group = page:AddGroupbox("Controls", "Left")
 local toggle = group:AddToggle("Flag", { Text = "Flag" })
-local box
-for _, child in ipairs(toggle.Root:GetChildren()) do
-    if child.ClassName == "Frame" then
-        box = child
-    end
+local box = toggle.Switch
+for _, descendant in ipairs(toggle.Row:GetDescendants()) do
+    assert(descendant.Text ~= "✓", "Toggles must not show a check mark")
 end
-assert(#box:GetChildren() == 1, "Toggle box must not contain a check mark")
-assert(box:GetChildren()[1].ClassName == "UIStroke")
+assert(box.BackgroundColor3 == Theme.Hover and toggle.Knob.Position.X.Offset == 2, "Off switches sit left and grey")
 toggle:Set(true)
-assert(box.BackgroundColor3 == Theme.Accent and box.BorderColor3 == Theme.Accent, "Enabled toggle fills with accent")
+assert(box.BackgroundColor3 == Theme.Accent, "Enabled toggles fill with the accent")
+assert(toggle.Knob.Position.X.Offset > 2, "The knob slides right when enabled")
+toggle.Root.MouseEnter:Fire()
+assert(toggle.Row.BackgroundTransparency == 0, "Rows highlight on hover")
+toggle.Root.MouseLeave:Fire()
+assert(toggle.Row.BackgroundTransparency == 1)
 
 window.SettingsButton.Activated:Fire()
 assert(window.SettingsOpen and window.ActivePage == window.SettingsPage)
@@ -57,7 +59,7 @@ UI:SetTheme("Ocean")
 local ocean = Theme.Presets.Ocean
 assert(UI:GetTheme() == "Ocean")
 assert(window.Root.BackgroundColor3 == ocean.Background, "Bound backgrounds follow the theme")
-assert(window.Header.BackgroundColor3 == ocean.Panel)
+assert(window.TabStrip.BackgroundColor3 == ocean.Panel)
 assert(page.Line.BackgroundColor3 == ocean.Accent)
 assert(page.Button.TextColor3 == ocean.Text, "Active tab text follows the theme")
 assert(box.BackgroundColor3 == ocean.Accent, "Enabled toggles repaint with the new accent")

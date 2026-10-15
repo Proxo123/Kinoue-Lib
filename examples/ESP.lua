@@ -9,7 +9,7 @@ if environment and environment.KinoueESPExample then
     environment.KinoueESPExample:Destroy()
 end
 
-local window = UI:CreateWindow({ Name = "Kinoue", Id = "KinoueESPExample", Footer = "ESP example" })
+local window = UI:CreateWindow({ Name = "Kinoue", Id = "KinoueESPExample", Subtitle = "ESP example" })
 if environment then
     environment.KinoueESPExample = window
 end

@@ -14,7 +14,10 @@ local key = group:AddKeybind("Action", {
         table.insert(changes, value)
     end,
 })
-assert(key.Root.Text == "[Q]" and key.Clear.Visible, "Bound keys show a clear button")
+assert(
+    key.Root.Text == "Q" and key.Root.BackgroundTransparency == 0 and key.Clear.Visible,
+    "Bound keys show a clear button"
+)
 assert(key.Clear.Text == "×" and key.Clear.TextColor3 == UI.Theme.Muted, "Clear button is a grey x")
 assert(key.Clear.Position.X.Offset < -key.Root.Size.X.Offset, "Clear button sits left of the key")
 
@@ -23,19 +26,22 @@ assert(key.Down)
 key.Clear.Activated:Fire()
 assert(key:Get() == KeyCode.Unknown and changes[#changes] == KeyCode.Unknown, "Clear button unbinds")
 assert(released == 1 and not key.Down, "Unbinding a held key releases it")
-assert(key.Root.Text == "[Unbound]" and not key.Clear.Visible, "Unbound keys say Unbound and hide the clear button")
+assert(
+    key.Root.Text == "Unbound" and key.Root.BackgroundTransparency == 1 and not key.Clear.Visible,
+    "Unbound keys say Unbound and hide the clear button"
+)
 
 key.Root.Activated:Fire()
-assert(window.Capturing == key and key.Root.Text == "[Press a key]")
+assert(window.Capturing == key and key.Root.Text == "Press a key" and key.Root.BorderColor3 == UI.Theme.Accent)
 Mock:Key("V")
 assert(key:Get() == KeyCode.V and key.Clear.Visible, "Rebinding brings the clear button back")
 key.Root.Activated:Fire()
 key:Unbind()
-assert(window.Capturing == nil and key.Root.Text == "[Unbound]", "Unbinding cancels key capture")
+assert(window.Capturing == nil and key.Root.Text == "Unbound", "Unbinding cancels key capture")
 
 local toggle = group:AddToggle("Bindable", { Text = "Bindable", Keybind = true })
 assert(toggle.Keybind and toggle.Keybind:Get() == KeyCode.Unknown, "Keybind = true creates an unbound slot")
-assert(toggle.Keybind.Root.Text == "[Unbound]" and not toggle.Keybind.Clear.Visible)
+assert(toggle.Keybind.Root.Text == "Unbound" and not toggle.Keybind.Clear.Visible)
 assert(window.Controls.BindableKey == toggle.Keybind)
 toggle.Keybind.Root.Activated:Fire()
 Mock:Key("B")
@@ -82,7 +88,7 @@ local button = group:AddButton({
 })
 assert(button.Root.Text == "Run", "Unbound buttons show no key suffix")
 button.Keybind:Set(KeyCode.R)
-assert(button.Root.Text == "Run [R]")
+assert(button.Root.Text == "Run" and button.Keybind.Root.Text == "R", "Button keys show as a keycap")
 Mock:Key("R")
 assert(pressed == 1)
 button.Keybind:Unbind()

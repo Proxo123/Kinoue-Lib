@@ -35,7 +35,7 @@ assert(Mock:ConnectionCount() == 0 and next(Mock.Run.Bindings) == nil)
 local window = UI:CreateWindow({ Footer = "Demo", ReducedMotion = true })
 Mock:Advance(1)
 local label = window.VersionLabel
-assert(label and label.Text == "v" .. UI.Version and UI.Version == "0.8.1", "The footer shows the version")
+assert(label and label.Text == "v" .. UI.Version and UI.Version == "0.9.0", "The footer shows the version")
 assert(label.TextSize == 11 and label.TextColor3 == UI.Theme.Muted and label.AnchorPoint.X == 1)
 assert(label.Parent == window.Footer)
 window:Destroy()

@@ -65,7 +65,7 @@ function Window.new(options, version)
     Background.init(self, options.Background)
     Chrome.build(self, options)
     Background.mount(self)
-    Search.build(self, Chrome.HEADER_HEIGHT, Chrome.SEARCH_OFFSET)
+    Search.build(self, Chrome.HEADER_HEIGHT, Chrome.SEARCH_OFFSET, Chrome.SEARCH_WIDTH)
 
     self.Fade = Fade.new(self.Screen)
     self.Fade:Set(1)
@@ -260,8 +260,9 @@ function Window:SetVisible(value, initial)
     end
     self.Resizing = nil
     if self.Capturing then
-        self.Capturing.Render(self.Capturing:Get())
+        local capturing = self.Capturing
         self.Capturing = nil
+        capturing.Render(capturing:Get())
     end
 
     self.Root.Visible = true

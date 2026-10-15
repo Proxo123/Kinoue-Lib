@@ -2,7 +2,7 @@ local Library = require(game:GetService("ReplicatedStorage"):WaitForChild("Kinou
 
 local window = Library:CreateWindow({
     Name = "Kinoue",
-    Footer = "Demo",
+    Subtitle = "Demo",
     ToggleKey = Enum.KeyCode.RightShift,
 })
 

@@ -10,7 +10,7 @@ assert(
     feature.SettingsButton.AnchorPoint.X == 1 and feature.SettingsButton.Position.X.Scale == 1,
     "The cog sits on the right"
 )
-assert(feature.Root.Size.X.Offset < 0, "The toggle hit area leaves room for the cog")
+assert(feature.SettingsButton.Position.X.Offset < -feature.Switch.Size.X.Offset, "The cog sits left of the switch")
 local panel = feature.SettingsPanel
 assert(not panel.Open and not panel.Clip.Visible and panel.Clip.Size.Y.Offset == 0, "Settings start closed")
 

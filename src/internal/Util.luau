@@ -54,13 +54,19 @@ function Util.protect(object, names)
     return object
 end
 
-function Util.textSize(text, size, maxWidth)
-    return TextService:GetTextSize(text, size or Theme.TextSize, Theme.Font, Vector2.new(maxWidth or 10000, 10000))
+function Util.textSize(text, size, maxWidth, font)
+    return TextService:GetTextSize(
+        text,
+        size or Theme.TextSize,
+        font or Theme.Font,
+        Vector2.new(maxWidth or 10000, 10000)
+    )
 end
 
-function Util.textWidth(text, size)
+function Util.textWidth(text, size, font)
     size = size or Theme.TextSize
-    local key = size .. "\0" .. text
+    font = font or Theme.Font
+    local key = size .. "\0" .. font.Name .. "\0" .. text
     local width = widths[key]
     if width then
         return width
@@ -69,7 +75,7 @@ function Util.textWidth(text, size)
         table.clear(widths)
         widthCount = 0
     end
-    width = math.ceil(TextService:GetTextSize(text, size, Theme.Font, Vector2.new(10000, 1000)).X)
+    width = math.ceil(TextService:GetTextSize(text, size, font, Vector2.new(10000, 1000)).X)
     widths[key] = width
     widthCount += 1
     return width
@@ -196,6 +202,19 @@ function Util.list(parent, horizontal, gap)
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding = UDim.new(0, gap or 0),
     }, parent)
+end
+
+function Util.corner(parent, radius)
+    return Util.new("UICorner", { CornerRadius = UDim.new(0, radius or Theme.Radius) }, parent)
+end
+
+function Util.hover(scope, gui, callback)
+    scope:Connect(gui.MouseEnter, function()
+        callback(true)
+    end)
+    scope:Connect(gui.MouseLeave, function()
+        callback(false)
+    end)
 end
 
 function Util.padding(parent, amount)

@@ -6,10 +6,11 @@ local Util = require(script.Parent.Parent.internal.Util)
 
 local LABEL_INSET = 110
 local KEY_HEIGHT = 20
-local KEY_PADDING = 4
+local KEY_PADDING = 14
+local KEY_TEXT_SIZE = 12
 local CLEAR_SIZE = 14
 local WARNING_SIZE = 12
-local ICON_GAP = 2
+local ICON_GAP = 4
 
 local Keybind = {}
 
@@ -58,15 +59,18 @@ function Keybind.attach(group, row, id, info, inline, inset)
     control.Row = row
     control.Conflicts = {}
     control.Root = Util.button(row, "", {
+        Name = "Key",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -inset, 0.5, 0),
         Size = UDim2.fromOffset(LABEL_INSET, KEY_HEIGHT),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextColor3 = Theme.Muted,
-        TextSize = Theme.SmallSize,
-        TextXAlignment = Enum.TextXAlignment.Right,
+        BackgroundColor3 = Theme.Input,
+        BorderSizePixel = 1,
+        BorderColor3 = Theme.Outline,
+        Font = Theme.MonoFont,
+        TextColor3 = Theme.Text,
+        TextSize = KEY_TEXT_SIZE,
     })
+    Util.corner(control.Root, Theme.SmallRadius)
     control.Clear = Util.button(row, "×", {
         Name = "Unbind",
         AnchorPoint = Vector2.new(1, 0.5),
@@ -74,7 +78,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         TextColor3 = Theme.Color.Muted,
-        TextSize = Theme.SmallSize,
+        TextSize = Theme.TextSize,
     })
     control.Warning = Icons.warning(row, WARNING_SIZE, {
         Name = "Conflict",
@@ -95,19 +99,33 @@ function Keybind.attach(group, row, id, info, inline, inset)
     end
 
     local function show(text)
-        keyWidth = Util.textWidth(text, Theme.SmallSize) + KEY_PADDING
+        keyWidth = Util.textWidth(text, KEY_TEXT_SIZE, Theme.MonoFont) + KEY_PADDING
         control.Root.Text = text
         control.Root.Size = UDim2.fromOffset(keyWidth, KEY_HEIGHT)
         layout()
     end
 
-    control.PaintConflict = function()
+    local function paint()
+        local root = control.Root
         local conflicted = #control.Conflicts > 0
-        control.Root.TextColor3 = conflicted and Theme.Danger or Theme.Muted
+        local capturing = window.Capturing == control
+        local bound = Keybind.isBound(control:Get())
+        if conflicted then
+            root.TextColor3 = Theme.Danger
+            root.BorderColor3 = Theme.Danger
+            root.BackgroundColor3 = Theme.Danger
+            root.BackgroundTransparency = 0.85
+        else
+            root.TextColor3 = (bound or capturing) and Theme.Text or Theme.Muted
+            root.BorderColor3 = capturing and Theme.Accent or Theme.Outline
+            root.BackgroundColor3 = Theme.Input
+            root.BackgroundTransparency = (bound or capturing) and 0 or 1
+        end
         control.Warning:SetColor(Theme.Danger)
         control.Warning.Root.Visible = conflicted and not hidden
         layout()
     end
+    control.PaintConflict = paint
 
     control.Render = function(value)
         local transparency = control.Enabled and 0 or Theme.DisabledTransparency
@@ -115,7 +133,7 @@ function Keybind.attach(group, row, id, info, inline, inset)
         control.Clear.TextTransparency = transparency
         control.Root.Visible = not hidden
         control.Clear.Visible = clearable and not hidden and Keybind.isBound(value)
-        show("[" .. Util.keyName(value) .. "]")
+        show(Util.keyName(value))
         window:UpdateKeyConflicts()
     end
 
@@ -141,11 +159,13 @@ function Keybind.attach(group, row, id, info, inline, inset)
         if not control.Enabled then
             return
         end
-        if window.Capturing then
-            window.Capturing.Render(window.Capturing:Get())
-        end
+        local previous = window.Capturing
         window.Capturing = control
-        show("[Press a key]")
+        if previous and previous ~= control then
+            previous.Render(previous:Get())
+        end
+        show("Press a key")
+        paint()
     end)
 
     window.Scope:Connect(control.Clear.Activated, function()

@@ -39,10 +39,12 @@ function Preview.add(group, info)
 
     preview.Root = Util.frame(group.Container, {
         Size = UDim2.new(1, 0, 0, info.Height or 148),
+        BackgroundColor3 = Theme.Color.Background,
         BorderColor3 = Theme.Color.Outline,
         BorderSizePixel = 1,
         ClipsDescendants = true,
     })
+    Util.corner(preview.Root, Theme.Radius)
     local grid = Util.frame(preview.Root, {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,

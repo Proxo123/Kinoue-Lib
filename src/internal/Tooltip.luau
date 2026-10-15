@@ -18,6 +18,7 @@ local function build(window)
         ZIndex = 80,
         Visible = false,
     })
+    Util.corner(frame, 6)
     local label = Util.label(frame, "", {
         Position = UDim2.fromOffset(PADDING, 0),
         Size = UDim2.new(1, -2 * PADDING, 1, 0),

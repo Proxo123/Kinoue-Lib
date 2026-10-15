@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.0
+
+New look, based on the "Refined" design:
+
+- Rounded window, cards, fields and buttons, with a flat header and footer separated by thin dividers.
+- Gotham for labels, bold uppercase group headers, and monospace only for values and keys.
+- Tabs sit in a pill-shaped strip; the active tab is filled and marked with a small accent bar. Sub-tabs use the same pills.
+- Toggles are sliding switches. Rows highlight on hover.
+- Keybinds are keycaps. Unbound keys are a faint `Unbound` keycap, capture shows an accent outline, and conflicts turn the keycap red.
+- Sliders have a thin track, a round knob and a value chip.
+- Dropdowns, textboxes and the search field get rounded fields with an accent focus outline. Dropdown menus are rounded, highlight on hover and mark the selection with a check.
+- Primary buttons are filled with the accent color; other buttons are soft and lighten on hover. Button labels no longer repeat the key, which is shown as a keycap instead.
+- The search field is always visible in the header.
+- Notifications are rounded cards with a status badge, a bold message, a grey source line and a slim timer.
+- The footer shows a status dot, and `Subtitle` (or `Footer`) appears next to the window name.
+- Theme presets now include a `Success` color and were retuned for the new surfaces.
 ## 0.8.1
 
 - Remove the Forget button from the key page and add Logout to authenticated windows' built-in settings.
