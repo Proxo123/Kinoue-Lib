@@ -1,0 +1,16 @@
+var
+.venv
+.env
+.env.*
+!.env.example
+.vercel
+__pycache__
+**/__pycache__
+.pytest_cache
+tests
+README.md
+.agents
+skills-lock.json
+requirements-dev.txt
+pytest.ini
+Dockerfile
