@@ -14,7 +14,8 @@ type IconName =
   | "refresh"
   | "lock"
   | "arrow"
-  | "check";
+  | "check"
+  | "settings";
 const paths: Record<IconName, ReactNode> = {
   key: (
     <>
@@ -60,6 +61,12 @@ const paths: Record<IconName, ReactNode> = {
   ),
   arrow: <path d="M4 10h12m-5-5 5 5-5 5" />,
   check: <path d="m4 10 4 4 8-8" />,
+  settings: (
+    <>
+      <circle cx="10" cy="10" r="3" />
+      <path d="M8 2h4l.5 2 1.5 1 2-.5 2 3.5-1.5 1.5v2l1.5 1.5-2 3.5-2-.5-1.5 1-.5 2H8l-.5-2-1.5-1-2 .5-2-3.5L3.5 11V9L2 7.5 4 4l2 .5 1.5-1z" />
+    </>
+  ),
 };
 export function Icon({ name }: { name: IconName }) {
   return (
@@ -81,7 +88,6 @@ export function Icon({ name }: { name: IconName }) {
 export function Brand() {
   return (
     <span className="brand">
-      <img src="/admin/assets/icon.svg" width="30" height="30" alt="" />
       <span>
         kinoue<span className="brand-period">.</span>
       </span>

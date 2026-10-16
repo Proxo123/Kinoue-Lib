@@ -13,6 +13,14 @@ await build({
   legalComments: "inline",
   define: { "process.env.NODE_ENV": '"production"' },
 });
+await build({
+  entryPoints: ["src/theme-init.ts"],
+  bundle: true,
+  minify: true,
+  target: ["es2022"],
+  format: "iife",
+  outfile: "../key_service/web/theme.js",
+});
 await Promise.all([
   copyFile("src/style.css", "../key_service/web/style.css"),
   copyFile("index.html", "../key_service/web/index.html"),

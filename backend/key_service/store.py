@@ -14,8 +14,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 class Denied(Exception):
-    def __init__(self, code="invalid_credentials", status=401):
-        self.code, self.status = code, status
+    def __init__(self, code="invalid_credentials", status=401, retry_after=None):
+        self.code, self.status, self.retry_after = code, status, retry_after
         super().__init__(code)
 
 
@@ -258,10 +258,10 @@ class Store:
         bucket = self.digest("rate:" + group, ip)
         with self.connect(write=True) as db:
             db.execute("DELETE FROM limits WHERE reset_at<=?", (now,))
-            row = db.execute("INSERT INTO limits(bucket,attempts,reset_at) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=limits.attempts+1 RETURNING attempts",
-                             (bucket, now + seconds)).fetchone()
-            if row["attempts"] > limit:
-                raise Denied("rate_limited", 429)
+            row = db.execute("INSERT INTO limits(bucket,attempts,reset_at) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=CASE WHEN limits.attempts<? THEN limits.attempts+1 ELSE limits.attempts END RETURNING attempts,reset_at",
+                             (bucket, now + seconds, limit + 1)).fetchone()
+        if row["attempts"] > limit:
+            raise Denied("rate_limited", 429, max(1, row["reset_at"] - now))
 
     def audit(self, db, action, target):
         db.execute("INSERT INTO audit(id,action,target,created_at) VALUES(?,?,?,?)", (uuid.uuid4().hex, action, target, int(self.now())))
