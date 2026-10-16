@@ -277,6 +277,31 @@ Mock:Advance(0)
 assert(oldGate.Dead and oldGate.Window.Dead and #requests == count, "Replacement cancels the old key dialog")
 gate:Destroy()
 env.createLogoutPayload = nil
+
+response = function(options)
+    if options.Url:match("/script$") then
+        return {
+            StatusCode = 200,
+            Body = [[
+            local context = ...
+            assert(type(context) == "table" and type(context.Library) == "table")
+            local fields = 0
+            for name in pairs(context) do
+                fields += 1
+                assert(name == "Library", "Protected payload context must not contain credentials")
+            end
+            assert(fields == 1)
+            return context.Library
+        ]],
+        }
+    end
+    return success(options)
+end
+gate = create({ Remember = false })
+assert(gate:Redeem(key))
+Mock:Advance(0)
+assert(gate.Loaded and gate.Result == UI, "Payload must receive the exact authenticated library instance")
+gate:Destroy()
 env.loadstring = originalLoader
 Mock:Advance(30)
 assert(Mock:ConnectionCount() == 0, "Key windows must release every UI signal")

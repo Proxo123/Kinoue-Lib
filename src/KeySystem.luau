@@ -251,7 +251,9 @@ function KeySystem:_run(route, credentials)
         end
         self.State = "loading"
         self.Window:SetVisible(false)
-        local loaded, result = pcall(loader)
+        -- Give protected code the exact library already used by the gate.
+        -- Credentials and the service address are deliberately not passed.
+        local loaded, result = pcall(loader, { Library = self.Library })
         if self.Dead or generation ~= self.Generation then
             return
         end

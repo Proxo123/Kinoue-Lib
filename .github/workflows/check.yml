@@ -1,8 +1,17 @@
 name: Build and test
-on: [push, pull_request]
+on: [push, pull_request, workflow_call]
 permissions:
   contents: read
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 tools/security_check.py
+      - run: bash tools/ci_security.sh
   admin-ui:
     runs-on: ubuntu-latest
     defaults:
@@ -36,7 +45,7 @@ jobs:
           unzip -q .cache/stylua.zip -d .cache
           chmod +x .cache/stylua
       - name: Check formatting
-        run: .cache/stylua --check src tests examples
+        run: .cache/stylua --check src tests examples loader.luau
       - name: Compile and check behavior
         run: python3 tools/test.py --luau .cache/luau/luau --compiler .cache/luau/luau-compile
       - name: Install key service test dependencies
