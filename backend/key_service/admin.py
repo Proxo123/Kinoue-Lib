@@ -80,15 +80,18 @@ def attach_admin(app, store, admin_hash=None, origin=None):
         return FileResponse(assets / "index.html", media_type="text/html")
 
     @app.get("/admin/assets/{filename}", include_in_schema=False)
-    def asset(filename: Literal["app.js", "style.css", "icon.svg"]):
-        return FileResponse(assets / filename, media_type={"app.js": "text/javascript", "style.css": "text/css", "icon.svg": "image/svg+xml"}[filename])
+    def asset(filename: Literal["app.js", "theme.js", "style.css", "icon.svg"]):
+        return FileResponse(assets / filename, media_type={"app.js": "text/javascript", "theme.js": "text/javascript", "style.css": "text/css", "icon.svg": "image/svg+xml"}[filename])
 
     @router.post("/login")
     def login(body: Login, request: Request):
         check_origin(request)
-        store.rate_limit(request.client.host if request.client else "unknown", "login", 8, 300)
         if not admin_hash:
             raise Denied("admin_unconfigured", 503)
+        # Shared database counters apply across IPs, processes and deployments.
+        # Charge before scrypt so distributed guessing cannot bypass the budget.
+        store.rate_limit("administrator", "login-account-burst", 3, 10)
+        store.rate_limit("administrator", "login-account-window", 30, 900)
         if not verify_password(body.password, admin_hash):
             raise Denied("invalid_admin_password")
         old = request.cookies.get("kinoue_admin")

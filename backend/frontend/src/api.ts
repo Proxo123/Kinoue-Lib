@@ -12,7 +12,10 @@ const messages: Record<string, string> = {
 };
 
 export class ApiError extends Error {
-  constructor(public code: string) {
+  constructor(
+    public code: string,
+    public retryAfter: number | null = null,
+  ) {
     super(messages[code] || "The request failed. Try again.");
   }
 }
@@ -46,7 +49,14 @@ export async function request<T>(
   } catch {
     throw new Error("The server returned an unreadable response.");
   }
-  if (!response.ok) throw new ApiError(data.error || "request_failed");
+  if (!response.ok) {
+    const rawRetry = Number(response.headers.get("Retry-After"));
+    const retryAfter =
+      response.status === 429 && Number.isFinite(rawRetry) && rawRetry > 0
+        ? Math.min(rawRetry, 86400)
+        : null;
+    throw new ApiError(data.error || "request_failed", retryAfter);
+  }
   return data as T;
 }
 

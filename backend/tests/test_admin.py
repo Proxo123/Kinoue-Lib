@@ -130,12 +130,19 @@ def test_password_change_and_expired_admin_session(admin, admin_hash):
 
 
 def test_admin_login_throttled(setup, admin_hash):
-    store, _, _, _ = setup
+    store, _, clock, _ = setup
     client = TestClient(create_app(store, admin_hash=admin_hash))
-    for _ in range(8):
+    for _ in range(5):
         assert client.post("/admin/api/login", json={"password": "wrong"}, headers={"origin": "http://testserver"}).status_code == 401
+        clock[0] += 11
     response = client.post("/admin/api/login", json={"password": PASSWORD}, headers={"origin": "http://testserver"})
     assert response.status_code == 429
+    assert response.headers["retry-after"] == "245"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert "script-src 'self'" in response.headers["content-security-policy"]
+    clock[0] += 246
+    assert client.post("/admin/api/login", json={"password": PASSWORD}, headers={"origin": "http://testserver"}).status_code == 200
 
 
 def test_rotating_same_token_concurrently_only_succeeds_once(setup):

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -7,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from .store import Denied
 from .postgres import environment_store
 from .admin import attach_admin
+from .security import client_address, login_network
 
 
 class Credentials(BaseModel):
@@ -68,6 +71,7 @@ class BodyLimit:
 def create_app(store=None, admin_hash=None, origin=None):
     store = store or environment_store()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.vercel = bool(os.environ.get("VERCEL"))
     app.add_middleware(BodyLimit)
 
     @app.middleware("http")
@@ -75,20 +79,34 @@ def create_app(store=None, admin_hash=None, origin=None):
         if request.url.path.startswith(("/v1/", "/admin/api/")):
             try:
                 admin = request.url.path.startswith("/admin/")
-                await run_in_threadpool(store.rate_limit, request.client.host if request.client else "unknown", "admin" if admin else "client", 180 if admin else 60)
+                address = client_address(request)
+                await run_in_threadpool(store.rate_limit, address, "admin" if admin else "client", 180 if admin else 60)
+                if request.method == "POST" and request.url.path == "/admin/api/login":
+                    network = login_network(address)
+                    await run_in_threadpool(store.rate_limit, network, "login-ip-short", 5, 300)
+                    await run_in_threadpool(store.rate_limit, network, "login-ip-hour", 20, 3600)
             except Denied as error:
-                return JSONResponse({"error": error.code}, status_code=error.status, headers={"Retry-After": "60", "Cache-Control": "no-store"})
-        response = await call_next(request)
+                response = JSONResponse({"error": error.code}, status_code=error.status)
+                if error.retry_after:
+                    response.headers["Retry-After"] = str(error.retry_after)
+            else:
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if request.url.scheme == "https" or app.state.vercel:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
     @app.exception_handler(Denied)
     async def denied(_, error):
-        return JSONResponse({"error": error.code}, status_code=error.status)
+        headers = {"Retry-After": str(error.retry_after)} if error.retry_after else {}
+        return JSONResponse({"error": error.code}, status_code=error.status, headers=headers)
 
     @app.exception_handler(RequestValidationError)
     async def invalid(_, __):

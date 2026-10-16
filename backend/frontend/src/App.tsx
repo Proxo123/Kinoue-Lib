@@ -2,12 +2,17 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ApiError, errorMessage, request } from "./api";
 import { Keys } from "./Keys";
 import { Scripts } from "./Scripts";
+import { Settings, ThemeSelect } from "./Settings";
+import { useTheme } from "./useTheme";
+import type { ThemePreference } from "./theme";
 import { Brand, Icon, useTask } from "./ui";
 import type { Api, Application, Notify } from "./types";
 
 export function App() {
+  const { theme, chooseTheme } = useTheme();
   const [session, setSession] = useState<string | null | undefined>(undefined);
   const [loginError, setLoginError] = useState("");
+  const [loginRetryAt, setLoginRetryAt] = useState(0);
   const [toast, setToast] = useState<{
     message: string;
     error: boolean;
@@ -66,6 +71,8 @@ export function App() {
         <Workspace
           api={api}
           notify={notify}
+          theme={theme}
+          onTheme={chooseTheme}
           onLogout={() => {
             setSession(null);
             setToast(null);
@@ -75,8 +82,12 @@ export function App() {
       ) : (
         <Login
           error={loginError}
+          retryAt={loginRetryAt}
+          theme={theme}
+          onTheme={chooseTheme}
           onLogin={async (password) => {
             setLoginError("");
+            setLoginRetryAt(0);
             try {
               const data = await request<{ csrf: string }>("/login", "", {
                 password,
@@ -84,6 +95,8 @@ export function App() {
               setSession(data.csrf);
             } catch (error) {
               setLoginError(errorMessage(error));
+              if (error instanceof ApiError && error.retryAfter)
+                setLoginRetryAt(Date.now() + error.retryAfter * 1000);
             }
           }}
         />
@@ -110,16 +123,34 @@ export function App() {
 
 function Login({
   error,
+  retryAt,
+  theme,
+  onTheme,
   onLogin,
 }: {
   error: string;
+  retryAt: number;
+  theme: ThemePreference;
+  onTheme: (theme: ThemePreference) => void;
   onLogin: (password: string) => Promise<void>;
 }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  const cooldown = Math.max(0, Math.ceil((retryAt - now) / 1000));
+  useEffect(() => {
+    if (!retryAt) return;
+    setNow(Date.now());
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= retryAt) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [retryAt]);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || cooldown > 0) return;
     setBusy(true);
     try {
       await onLogin(password);
@@ -132,7 +163,7 @@ function Login({
     <main className="login" id="login-view">
       <header className="login-header">
         <Brand />
-        <span>Access management</span>
+        <ThemeSelect theme={theme} onTheme={onTheme} />
       </header>
       <div className="login-main">
         <div className="login-intro">
@@ -166,8 +197,12 @@ function Login({
               {error}
             </p>
           ) : null}
-          <button className="button primary" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+          <button className="button primary" disabled={busy || cooldown > 0}>
+            {busy
+              ? "Signing in…"
+              : cooldown > 0
+                ? `Try again in ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+                : "Sign in"}
             <Icon name="arrow" />
           </button>
         </form>
@@ -185,12 +220,16 @@ function Workspace({
   api,
   notify,
   onLogout,
+  theme,
+  onTheme,
 }: {
   api: Api;
   notify: Notify;
   onLogout: () => void;
+  theme: ThemePreference;
+  onTheme: (theme: ThemePreference) => void;
 }) {
-  const [view, setView] = useState<"keys" | "scripts">("keys");
+  const [view, setView] = useState<"keys" | "scripts" | "settings">("keys");
   const [applications, setApplications] = useState<Application[]>([]);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -221,7 +260,6 @@ function Workspace({
         <div className="sidebar-top">
           <Brand />
           <div className="workspace-label">
-            <span className="workspace-avatar">K</span>
             <div>
               <strong>King</strong>
               <small>Workspace</small>
@@ -246,6 +284,15 @@ function Workspace({
             >
               <Icon name="code" />
               Scripts<span className="nav-count">{applications.length}</span>
+            </button>
+            <button
+              id="open-settings"
+              className={view === "settings" ? "nav-item selected" : "nav-item"}
+              aria-current={view === "settings" ? "page" : undefined}
+              onClick={() => setView("settings")}
+            >
+              <Icon name="settings" />
+              Settings
             </button>
           </nav>
         </div>
@@ -274,7 +321,15 @@ function Workspace({
           <div className="breadcrumb">
             <span>King</span>
             <span className="slash">/</span>
-            <strong>{view === "keys" ? "Access keys" : "Scripts"}</strong>
+            <strong>
+              {
+                {
+                  keys: "Access keys",
+                  scripts: "Scripts",
+                  settings: "Settings",
+                }[view]
+              }
+            </strong>
           </div>
           <span className="admin-label">
             <Icon name="lock" />
@@ -301,7 +356,7 @@ function Workspace({
               applicationsLoaded={loaded}
               onScripts={() => setView("scripts")}
             />
-          ) : (
+          ) : view === "scripts" ? (
             <Scripts
               api={api}
               notify={notify}
@@ -309,6 +364,8 @@ function Workspace({
               loaded={loaded}
               onSaved={() => setRefresh((value) => value + 1)}
             />
+          ) : (
+            <Settings theme={theme} onTheme={onTheme} />
           )}
         </main>
         <footer className="workspace-footer">
