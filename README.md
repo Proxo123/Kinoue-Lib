@@ -6,11 +6,15 @@ Compact Luau UI library for Roblox. Requires a client context with CoreGui acces
 
 ```lua
 local UI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/Proxo123/Kinoue-Lib/main/dist/Kinoue.lua"
+    "https://github.com/Proxo123/Kinoue-Lib/releases/latest/download/Kinoue.lua", true
 ))()
 ```
 
 Or import `dist/Kinoue.rbxmx` as a ModuleScript and `require` it.
+
+The loader fetches the newest published release asset on every execution with the executor's HTTP cache bypassed. It stops if the download or compilation fails; it does not reuse an older cached library. Releases contain a tested `Kinoue.lua` bundle and its SHA-256 checksum. Automatic updates trust this repository's maintainers and GitHub's HTTPS delivery.
+
+Protected scripts receive `{ Library = UI }` as their first argument. Use `local context = ...; local UI = context.Library` inside the private payload so the key gate and script use the same newly loaded instance. Credentials are not passed in this context. Keep deployment addresses and private payloads outside public repositories; see [SECURITY.md](SECURITY.md).
 
 ## Quick start
 

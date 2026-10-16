@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.3
+
+- Add a public bootstrap that loads the newest published release for each execution and stops on failures.
+- Pass the authenticated library instance into protected scripts without passing credentials, so a payload no longer needs to fetch another library or rewrite downloaded source.
+- Add full-history secret scanning and a publication guard against private files and deployment addresses, with checked release assets and checksums.
+- Include the React admin redesign, appearance settings, and persistent login throttles from the current backend.
+
 ## 0.10.2
 
 - Draw generated UI outlines inside their frames so scroll containers no longer clip section borders along the left and top edges. Keep border colors and visibility fades in sync.

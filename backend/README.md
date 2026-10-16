@@ -9,7 +9,7 @@ Deploy the repository with **Root Directory = `backend`**. Vercel detects `app.p
 1. Connect a persistent Postgres database through the [Vercel Marketplace](https://vercel.com/docs/postgres), such as Neon. Use its pooled TLS connection URL as `DATABASE_URL`. `POSTGRES_URL` is also supported.
 2. Generate `KINOUE_SECRET_KEY` with `python -m key_service generate-secret`. Save this 64-character hexadecimal value as a sensitive Vercel environment variable. Keep it stable and back it up: changing it invalidates key/session hashes and makes stored HWIDs unreadable.
 3. Generate `KINOUE_ADMIN_PASSWORD_HASH` with `python -m key_service admin-password`. Enter a unique password of at least 15 characters. Store the printed scrypt hash as a sensitive environment variable. Do not put the raw admin password in source code or a frontend variable.
-4. Set `KINOUE_ADMIN_ORIGIN` to the exact production origin, such as `https://king-keys.vercel.app`. It must match the address used to sign in, including any custom domain. Do not include a path or trailing slash.
+4. Set `KINOUE_ADMIN_ORIGIN` to the exact production origin, such as `https://your-key-service.example`. It must match the address used to sign in, including any custom domain. Do not include a path or trailing slash.
 5. Deploy, open `/admin/`, and sign in. Open **Scripts**, name the script, choose an application ID such as `king`, and upload the private `.luau` payload. Then use **New key**.
 6. Point the Kinoue loader's `Endpoint` at the production HTTPS origin. Remove `AllowLocalhost` from the public loader.
 

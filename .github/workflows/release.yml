@@ -1,0 +1,25 @@
+name: Publish checked library
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  checks:
+    uses: ./.github/workflows/check.yml
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 tools/build.py
+      - run: git diff --exit-code -- dist
+      - name: Publish library and checksum
+        run: python3 tools/release.py
+        env:
+          GH_TOKEN: ${{ github.token }}

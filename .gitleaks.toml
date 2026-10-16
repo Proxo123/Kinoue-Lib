@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Non-secret appearance preference name and secret-generation placeholder"
+regexTarget = "secret"
+regexes = [
+  '''^kinoue\.appearance\.v1$''',
+  '''^GENERATE_64_HEXADECIMAL_CHARACTERS$''',
+]

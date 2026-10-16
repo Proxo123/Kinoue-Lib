@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".cache"
 
 COMPILE_TARGETS = [
+    "loader.luau",
     "dist/Kinoue.lua",
     "dist/KinoueDemo.lua",
     "examples/Example.lua",
@@ -18,6 +19,7 @@ COMPILE_TARGETS = [
 ]
 
 SUITES = [
+    ("latest", "UI", None),
     ("integration", "Library", "examples/Demo.client.luau"),
     ("example", "UI", "examples/Example.lua"),
     ("esp", "UI", "examples/ESP.lua"),
@@ -57,6 +59,8 @@ def harness(library, checks, example):
             "setfenv(example, Mock.Environment)",
             f"local window = example({library})",
         ]
+    if checks == "latest":
+        parts.append("local bootstrap = function()\n" + read("loader.luau") + "\nend")
     parts.append(read(f"tests/{checks}.luau"))
     return "\n".join(parts)
 
