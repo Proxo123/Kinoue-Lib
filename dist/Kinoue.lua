@@ -5008,7 +5008,7 @@ local Window = __require("Window")
 local KeySystem = __require("KeySystem")
 
 local Library = {
-    Version = "0.10.0",
+    Version = "0.10.1",
     Theme = Theme,
     Themes = Theme.PresetNames,
 }
@@ -5179,6 +5179,7 @@ local function replaceBorder(object, entry)
     end
     local stroke = Util.new("UIStroke", {
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        BorderStrokePosition = Enum.BorderStrokePosition.Inner,
         Color = object.BorderColor3,
         Thickness = object.BorderSizePixel,
         Transparency = 0,

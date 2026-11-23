@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1
+
+- Draw generated UI outlines inside their frames so scroll containers no longer clip section borders along the left and top edges. Keep border colors and visibility fades in sync.
+
 ## 0.10.0
 
 New look, based on the quieter Elevated design:
